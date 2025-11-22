@@ -1,22 +1,69 @@
 use std::fs;
+use std::path::Path;
+use std::sync::Arc;
+use std::time::Duration;
 
-use clap::Parser;
+use lazy_static::lazy_static;
+use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
+use parking_lot::RwLock;
+use tokio::sync::mpsc;
 
 use crate::config::error::ConfigError;
-use crate::config::models::{CmdArgs, Config};
+use crate::config::models::Config;
 
-pub fn read_config() -> Result<Config, ConfigError> {
-    let args = CmdArgs::try_parse()?;
+lazy_static! {
+    pub static ref CONFIG: RwLock<Config> = RwLock::new(Config::default());
+}
 
-    let config_path = args
-        .config
-        .as_ref()
-        .map(|s| s.as_str())
-        .unwrap_or("certus.config.yaml");
+pub fn watch_config(path: &str) -> notify::Result<RecommendedWatcher> {
+    let (tx, mut rx) = mpsc::channel(1);
 
-    let contents = fs::read_to_string(config_path)?;
+    // blocking_send is used because the notify callback runs in a sync context
+    let mut watcher =
+        notify::recommended_watcher(move |res: notify::Result<Event>| {
+            let _ = tx.blocking_send(res);
+        })?;
 
+    watcher.watch(Path::new(path), RecursiveMode::NonRecursive)?;
+    println!("Watching config file: {}", path);
+
+    let path = Arc::new(path.to_string());
+
+    tokio::spawn(async move {
+        while let Some(res) = rx.recv().await {
+            match res {
+                Ok(event) => {
+                    if matches!(event.kind, EventKind::Modify(_)) {
+                        // Debounce: Wait 150ms to let file writes settle and coalesce events
+                        tokio::time::sleep(Duration::from_millis(150)).await;
+
+                        // Drain any other events that occurred during the sleep
+                        while rx.try_recv().is_ok() {}
+
+                        println!("Reloading config...");
+                        match reload_config(&path) {
+                            Ok(new_config) => {
+                                *CONFIG.write() = new_config;
+                                println!("Config hot-reloaded");
+                            }
+                            Err(e) => {
+                                eprintln!("Failed to reload config: {}", e);
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Watcher error: {}", e);
+                }
+            }
+        }
+    });
+
+    Ok(watcher)
+}
+
+pub fn reload_config(path: &str) -> Result<Config, ConfigError> {
+    let contents = fs::read_to_string(path)?;
     let config = serde_yaml::from_str::<Config>(&contents)?;
-
     Ok(config)
 }

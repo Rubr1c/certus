@@ -1,17 +1,37 @@
 mod config;
 
-use config::cfg_utils;
+use clap::Parser;
 
-fn main() {
+use config::{
+    cfg_utils::{CONFIG, reload_config, watch_config},
+    models::CmdArgs,
+};
+
+#[tokio::main]
+async fn main() {
     println!("Certus Gateway Running");
 
-    let config = match cfg_utils::read_config() {
-        Ok(c) => c,
-        Err(err) => {
-            eprintln!("Error loading config: {}", err);
-            std::process::exit(1);
-        }
-    };
+    let args = CmdArgs::try_parse().unwrap();
 
-    println!("port: {}", config.port)
+    let config_path = args
+        .config
+        .as_ref()
+        .map(|s| s.as_str())
+        .unwrap_or("certus.config.yaml");
+
+    let watcher = watch_config(config_path).unwrap();
+
+    let initial = reload_config(config_path).unwrap();
+    {
+        let mut cfg = CONFIG.write();
+        *cfg = initial;
+    }
+
+    println!("Config watcher started. Press Ctrl+C to exit.");
+    println!("Current config port: {}", CONFIG.read().port);
+
+    // Keep the program running until Ctrl+C
+    tokio::signal::ctrl_c().await.expect("Failed to listen for Ctrl+C");
+
+    println!("\nShutting down...");
 }

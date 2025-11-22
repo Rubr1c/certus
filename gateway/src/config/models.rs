@@ -11,7 +11,7 @@ pub struct CmdArgs {
 }
 
 //TEST
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Config {
     pub port: u16,
 }
