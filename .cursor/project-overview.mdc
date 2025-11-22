@@ -1,0 +1,31 @@
+---
+description: High-level overview of the Certus project
+alwaysApply: true
+---
+
+# Certus Project Overview
+
+Certus is a local-only, high-performance API Gateway written in Rust.  
+Its goals are:
+
+- Extremely fast request routing
+- Advanced load balancing
+- Accurate distributed rate limiting
+- Efficient caching mechanisms
+- Observability via structured logging + Prometheus-style metrics
+- Strong authentication (JWT)
+- Local-first design philosophy
+
+## Architectural Outline
+
+- **Gateway (Rust)**: Handles reverse proxying, LB, caching, rate limiting, metrics, auth.
+- **Frontend (Next.js + Bun + Tailwind)**: Dashboard for analytics + local control panel.
+- **Cargo Workspace**: Manages all backend crates.
+- **Local-only**: No cloud dependencies, no external services unless explicitly added.
+
+## Style & Guidance
+
+- Keep backend modular using focused crates.
+- Prefer async Rust patterns with Tokio.
+- Use consistent hashing + algorithmic structures where appropriate.
+- Follow zero-cost abstraction principles.
