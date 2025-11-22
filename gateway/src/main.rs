@@ -19,7 +19,7 @@ async fn main() {
         .map(|s| s.as_str())
         .unwrap_or("certus.config.yaml");
 
-    let watcher = watch_config(config_path).unwrap();
+    let _watcher = watch_config(config_path).unwrap();
 
     let initial = reload_config(config_path).unwrap();
     {
@@ -28,7 +28,11 @@ async fn main() {
     }
 
     println!("Config watcher started. Press Ctrl+C to exit.");
-    println!("Current config port: {}", CONFIG.read().port);
+    println!(
+        "Running on http://{}:{}",
+        CONFIG.read().server.host,
+        CONFIG.read().server.port
+    );
 
     // Keep the program running until Ctrl+C
     tokio::signal::ctrl_c().await.expect("Failed to listen for Ctrl+C");
