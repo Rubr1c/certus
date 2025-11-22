@@ -4,7 +4,6 @@
 
 - [Bun](https://bun.sh/)
 - [Rust](https://www.rust-lang.org/)
-- Node.js (optional, managed by Bun)
 
 ## Gateway (Rust)
 
