@@ -1,5 +1,6 @@
 mod config;
 
+use axum::Router;
 use clap::Parser;
 
 use config::{
@@ -27,11 +28,25 @@ async fn main() {
         *cfg = initial;
     }
 
+    let listener = tokio::net::TcpListener::bind(format!(
+        "0.0.0.0:{}",
+        CONFIG.read().server.port
+    ))
+    .await
+    .expect("Failed to bind TCP listener");
+
     println!("Config watcher started. Press Ctrl+C to exit.");
     println!("Running on port {}", CONFIG.read().server.port);
 
-    // Keep the program running until Ctrl+C
-    tokio::signal::ctrl_c().await.expect("Failed to listen for Ctrl+C");
+    let app = Router::new();
 
-    println!("\nShutting down...");
+    let shutdown_signal = async {
+        tokio::signal::ctrl_c().await.expect("Failed to listen for Ctrl+C");
+        println!("\nShutting down...");
+    };
+
+    axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown_signal)
+        .await
+        .unwrap();
 }

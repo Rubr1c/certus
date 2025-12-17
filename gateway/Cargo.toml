@@ -4,12 +4,13 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+axum = "0.8.7"
 clap = { version = "4.5.53", features = ["derive"] }
 hyper = { version = "1.8.1", features = ["full"] }
 lazy_static = "1.5"
 notify = "8.2.0"
 parking_lot = "0.12.5"
-rusqlite = "0.37.0"
+rusqlite = { version = "0.37.0", features = ["bundled"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_yaml = "0.9.33"
 thiserror = "2.0"
