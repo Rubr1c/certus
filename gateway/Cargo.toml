@@ -9,6 +9,7 @@ hyper = { version = "1.8.1", features = ["full"] }
 lazy_static = "1.5"
 notify = "8.2.0"
 parking_lot = "0.12.5"
+rusqlite = "0.37.0"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_yaml = "0.9.33"
 thiserror = "2.0"

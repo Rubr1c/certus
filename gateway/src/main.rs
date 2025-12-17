@@ -28,11 +28,7 @@ async fn main() {
     }
 
     println!("Config watcher started. Press Ctrl+C to exit.");
-    println!(
-        "Running on http://{}:{}",
-        CONFIG.read().server.host,
-        CONFIG.read().server.port
-    );
+    println!("Running on port {}", CONFIG.read().server.port);
 
     // Keep the program running until Ctrl+C
     tokio::signal::ctrl_c().await.expect("Failed to listen for Ctrl+C");

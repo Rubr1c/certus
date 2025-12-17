@@ -11,8 +11,9 @@ pub struct CmdArgs {
 
 #[derive(Debug, Default, Deserialize)]
 pub struct ServerConfig {
-    pub host: String,
     pub port: u16,
+    #[serde(default)]
+    pub origins: Vec<String>,
 }
 
 #[derive(Debug, Default, Deserialize)]

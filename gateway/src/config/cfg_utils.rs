@@ -8,6 +8,8 @@ use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use parking_lot::RwLock;
 use tokio::sync::mpsc;
 
+use rusqlite::{params, Connection, Result};
+
 use crate::config::error::ConfigError;
 use crate::config::models::Config;
 
@@ -66,4 +68,8 @@ pub fn reload_config(path: &str) -> Result<Config, ConfigError> {
     let contents = fs::read_to_string(path)?;
     let config = serde_yaml::from_str::<Config>(&contents)?;
     Ok(config)
+}
+
+pub fn save_config() -> rusqlite::Result<()> {
+    todo!()
 }
