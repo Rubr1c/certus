@@ -8,10 +8,10 @@ use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use parking_lot::RwLock;
 use tokio::sync::mpsc;
 
-use rusqlite::{params, Connection, Result};
+use rusqlite::{Connection, Result, params};
 
 use crate::config::error::ConfigError;
-use crate::config::models::Config;
+use crate::config::models::{Config, ServerConfig};
 
 lazy_static! {
     pub static ref CONFIG: RwLock<Config> = RwLock::new(Config::default());
@@ -65,8 +65,13 @@ pub fn watch_config(path: &str) -> notify::Result<RecommendedWatcher> {
 }
 
 pub fn reload_config(path: &str) -> Result<Config, ConfigError> {
-    let contents = fs::read_to_string(path)?;
-    let config = serde_yaml::from_str::<Config>(&contents)?;
+    let contents = fs::read_to_string(path);
+
+    let config = match contents {
+        Ok(contents) => serde_yaml::from_str::<Config>(&contents)?,
+        Err(_) => Config::default(),
+    };
+
     Ok(config)
 }
 

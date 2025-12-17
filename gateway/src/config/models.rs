@@ -9,11 +9,25 @@ pub struct CmdArgs {
     pub config: Option<String>,
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct ServerConfig {
+    #[serde(default = "default_port")]
     pub port: u16,
     #[serde(default)]
     pub origins: Vec<String>,
+}
+
+impl Default for ServerConfig {
+    fn default() -> Self {
+        ServerConfig {
+            port: default_port(),
+            origins: Vec::new(),
+        }
+    }
+}
+
+fn default_port() -> u16 {
+    8080
 }
 
 #[derive(Debug, Default, Deserialize)]
