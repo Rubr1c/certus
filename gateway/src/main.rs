@@ -37,6 +37,8 @@ async fn main() {
         *cfg = initial;
     }
 
+    routes::build_tree();
+
     let listener = tokio::net::TcpListener::bind(format!(
         "0.0.0.0:{}",
         CONFIG.read().server.port
@@ -54,7 +56,7 @@ async fn main() {
         println!("\nShutting down...");
     };
 
-    println!("{}", routes::get_server("users/23fokamfd".to_string()));
+    println!("{}", routes::get_server("test/best/wadad"));
 
     axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal)

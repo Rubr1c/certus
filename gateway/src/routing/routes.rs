@@ -1,57 +1,35 @@
+use std::sync::LazyLock;
+
 use crate::config::cfg_utils::CONFIG;
 use parking_lot::RwLock;
 use trie_rs::{Trie, TrieBuilder};
 
-pub static ROUTE_TRIE: RwLock<Option<Trie<String>>> = RwLock::new(None);
+pub static ROUTE_TRIE: LazyLock<RwLock<Trie<String>>> =
+    LazyLock::new(|| RwLock::new(TrieBuilder::new().build())); // empty but valid
 
 pub fn build_tree() {
     let route_conf = &CONFIG.read().routes;
-
-    let routes = route_conf
-        .iter()
-        .map(|route| {
-            route
-                .path
-                .split("/")
-                .map(|e| e.to_string())
-                .collect::<Vec<String>>()
-        })
-        .collect::<Vec<Vec<String>>>();
-
     let mut builder = TrieBuilder::new();
 
-    for route in routes {
-        builder.push(route);
+    for route in route_conf {
+        let segments =
+            route.path.split('/').map(|s| s.to_string()).collect::<Vec<_>>();
+
+        builder.push(segments);
     }
 
-    *ROUTE_TRIE.write() = Some(builder.build());
+    *ROUTE_TRIE.write() = builder.build();
 }
 
-pub fn get_server(route: String) -> String {
+pub fn get_server(route: &str) -> String {
     let split_route =
-        route.split("/").map(|e| e.to_string()).collect::<Vec<String>>();
+        route.split('/').map(|s| s.to_string()).collect::<Vec<_>>();
 
     let guard = ROUTE_TRIE.read();
-    let routes = match guard.as_ref() {
-        Some(trie) => {
-            trie.common_prefix_search(split_route).collect::<Vec<Vec<String>>>()
-        }
-        None => {
-            drop(guard);
-            build_tree();
-            ROUTE_TRIE
-                .read()
-                .as_ref()
-                .unwrap()
-                .common_prefix_search(split_route)
-                .collect::<Vec<Vec<String>>>()
-        }
-    };
 
-    let target = routes.iter().max_by(|v1, v2| v1.len().cmp(&v2.len()));
-
-    match target {
-        Some(t) => t.join("/"),
-        None => "todo".to_string(),
-    }
+    guard
+        .common_prefix_search(split_route)
+        .max_by_key(|v: &Vec<String>| v.len())
+        .map(|v| v.join("/"))
+        .unwrap_or_else(|| "todo".to_string())
 }
