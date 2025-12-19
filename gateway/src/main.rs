@@ -1,4 +1,5 @@
 mod config;
+mod routing;
 
 use axum::{Router, extract::Path, response::IntoResponse, routing::get};
 use clap::Parser;
@@ -7,6 +8,10 @@ use config::{
     cfg_utils::{CONFIG, reload_config, watch_config},
     models::CmdArgs,
 };
+use routing::{
+    routes
+};
+
 use hyper::StatusCode;
 
 #[tokio::main]
@@ -48,6 +53,8 @@ async fn main() {
         tokio::signal::ctrl_c().await.expect("Failed to listen for Ctrl+C");
         println!("\nShutting down...");
     };
+
+    println!("{}", routes::get_server("users/23fokamfd".to_string()));
 
     axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal)

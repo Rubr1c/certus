@@ -12,6 +12,7 @@ use rusqlite::{Connection, Result, params};
 
 use crate::config::error::ConfigError;
 use crate::config::models::{Config, ServerConfig};
+use crate::routing::routes;
 
 lazy_static! {
     pub static ref CONFIG: RwLock<Config> = RwLock::new(Config::default());
@@ -46,6 +47,7 @@ pub fn watch_config(path: &str) -> notify::Result<RecommendedWatcher> {
                         match reload_config(&path) {
                             Ok(new_config) => {
                                 *CONFIG.write() = new_config;
+                                routes::build_tree();
                                 println!("Config hot-reloaded");
                             }
                             Err(e) => {
