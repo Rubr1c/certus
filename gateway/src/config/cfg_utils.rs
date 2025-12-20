@@ -8,11 +8,9 @@ use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use parking_lot::RwLock;
 use tokio::sync::mpsc;
 
-use rusqlite::{Connection, Result, params};
-
 use crate::config::error::ConfigError;
-use crate::config::models::{Config, ServerConfig};
-use crate::routing::routes;
+use crate::config::models::Config;
+use crate::server::routing::routes;
 
 lazy_static! {
     pub static ref CONFIG: RwLock<Config> = RwLock::new(Config::default());

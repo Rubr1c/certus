@@ -1,10 +1,11 @@
 use std::sync::LazyLock;
 
-use crate::config::cfg_utils::CONFIG;
 use axum::{extract::Path, response::IntoResponse};
 use hyper::StatusCode;
 use parking_lot::RwLock;
 use trie_rs::{Trie, TrieBuilder};
+
+use crate::config::cfg_utils::CONFIG;
 
 pub static ROUTE_TRIE: LazyLock<RwLock<Trie<String>>> =
     LazyLock::new(|| RwLock::new(TrieBuilder::new().build()));
@@ -45,7 +46,13 @@ pub async fn reroute(Path(path): Path<String>) -> impl IntoResponse {
         (
             StatusCode::OK,
             //for now retrun first endpoint for testing
-            CONFIG.read().routes.get(&route).expect("Route should be in map").endpoints[0].clone(),
+            CONFIG
+                .read()
+                .routes
+                .get(&route)
+                .expect("Route should be in map")
+                .endpoints[0]
+                .clone(),
         )
             .into_response()
     }

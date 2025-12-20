@@ -21,10 +21,7 @@ pub struct ServerConfig {
 
 impl Default for ServerConfig {
     fn default() -> Self {
-        ServerConfig {
-            port: default_port(),
-            origins: Vec::new(),
-        }
+        ServerConfig { port: default_port(), origins: Vec::new() }
     }
 }
 

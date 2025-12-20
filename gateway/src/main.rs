@@ -1,15 +1,14 @@
 mod config;
-mod routing;
+mod server;
 
 use axum::{Router, routing::any};
 use clap::Parser;
 
-use config::{
+use crate::config::{
     cfg_utils::{CONFIG, reload_config, watch_config},
     models::CmdArgs,
 };
-use routing::routes;
-
+use crate::server::{app_state::AppState, routing::routes};
 
 #[tokio::main]
 async fn main() {
@@ -36,6 +35,8 @@ async fn main() {
 
     routes::build_tree();
 
+    let state = AppState::default();
+
     let listener = tokio::net::TcpListener::bind(format!(
         "0.0.0.0:{}",
         CONFIG.read().server.port
@@ -46,7 +47,8 @@ async fn main() {
     println!("Config watcher started. Press Ctrl+C to exit.");
     println!("Running on port {}", CONFIG.read().server.port);
 
-    let app = Router::new().route("/{*any}", any(routes::reroute));
+    let app =
+        Router::new().route("/{*any}", any(routes::reroute)).with_state(state);
 
     let shutdown_signal = async {
         tokio::signal::ctrl_c().await.expect("Failed to listen for Ctrl+C");
@@ -58,5 +60,3 @@ async fn main() {
         .await
         .unwrap();
 }
-
-
