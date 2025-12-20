@@ -15,7 +15,7 @@ pub fn build_tree() {
 
     for route in route_conf {
         let segments =
-            route.path.split('/').map(|s| s.to_string()).collect::<Vec<_>>();
+            route.0.split('/').map(|s| s.to_string()).collect::<Vec<_>>();
 
         builder.push(segments);
     }
@@ -33,12 +33,20 @@ pub fn get_longest_macthing_route(route: &str) -> String {
         .common_prefix_search(split_route)
         .max_by_key(|v: &Vec<String>| v.len())
         .map(|v| v.join("/"))
-        .unwrap_or_else(|| "todo".to_string())
+        .unwrap_or_else(|| "".to_string())
 }
-
 
 pub async fn reroute(Path(path): Path<String>) -> impl IntoResponse {
     let route = get_longest_macthing_route(path.as_str());
 
-    (StatusCode::OK, route).into_response()
+    if route.is_empty() {
+        (StatusCode::OK, "TODO: None Found").into_response()
+    } else {
+        (
+            StatusCode::OK,
+            //for now retrun first endpoint for testing
+            CONFIG.read().routes.get(&route).expect("Route should be in map").endpoints[0].clone(),
+        )
+            .into_response()
+    }
 }

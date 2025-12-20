@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use clap::Parser;
 use clap::command;
 use serde::Deserialize;
@@ -49,7 +51,6 @@ pub struct AuthConfig {
 
 #[derive(Debug, Default, Deserialize)]
 pub struct RouteConfig {
-    pub path: String,
     pub endpoints: Vec<String>,
     pub auth: Option<AuthConfig>,
 }
@@ -58,5 +59,6 @@ pub struct RouteConfig {
 pub struct Config {
     pub server: ServerConfig,
     pub auth: Option<AuthConfig>,
-    pub routes: Vec<RouteConfig>,
+    pub routes: HashMap<String, RouteConfig>,
+    pub default_server: String,
 }
