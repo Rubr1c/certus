@@ -1,18 +1,15 @@
 mod config;
 mod routing;
 
-use axum::{Router, extract::Path, response::IntoResponse, routing::get};
+use axum::{Router, routing::any};
 use clap::Parser;
 
 use config::{
     cfg_utils::{CONFIG, reload_config, watch_config},
     models::CmdArgs,
 };
-use routing::{
-    routes
-};
+use routing::routes;
 
-use hyper::StatusCode;
 
 #[tokio::main]
 async fn main() {
@@ -49,22 +46,17 @@ async fn main() {
     println!("Config watcher started. Press Ctrl+C to exit.");
     println!("Running on port {}", CONFIG.read().server.port);
 
-    let app = Router::new().route("/{*any}", get(reroute));
+    let app = Router::new().route("/{*any}", any(routes::reroute));
 
     let shutdown_signal = async {
         tokio::signal::ctrl_c().await.expect("Failed to listen for Ctrl+C");
         println!("\nShutting down...");
     };
 
-    println!("{}", routes::get_server("test/best/wadad"));
-
     axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal)
         .await
         .unwrap();
 }
-//TODO
-async fn reroute(Path(path): Path<String>) -> impl IntoResponse {
-    println!("path: {:?}", path);
-    (StatusCode::OK, "hello").into_response()
-}
+
+
