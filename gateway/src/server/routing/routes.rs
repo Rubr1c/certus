@@ -52,7 +52,8 @@ pub async fn reroute(Path(path): Path<String>) -> impl IntoResponse {
                 .get(&route)
                 .expect("Route should be in map")
                 .endpoints[0]
-                .clone(),
+                .clone()
+                .to_string(),
         )
             .into_response()
     }

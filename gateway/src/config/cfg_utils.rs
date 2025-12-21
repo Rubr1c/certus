@@ -10,13 +10,18 @@ use tokio::sync::mpsc;
 
 use crate::config::error::ConfigError;
 use crate::config::models::Config;
+use crate::server::app_state::AppState;
+use crate::server::models::{Protocol, UpstreamServer};
 use crate::server::routing::routes;
 
 lazy_static! {
     pub static ref CONFIG: RwLock<Config> = RwLock::new(Config::default());
 }
 
-pub fn watch_config(path: &str) -> notify::Result<RecommendedWatcher> {
+pub fn watch_config(
+    path: &str,
+    state: Arc<RwLock<AppState>>,
+) -> notify::Result<RecommendedWatcher> {
     let (tx, mut rx) = mpsc::channel(1);
 
     // blocking_send is used because the notify callback runs in a sync context
@@ -46,6 +51,28 @@ pub fn watch_config(path: &str) -> notify::Result<RecommendedWatcher> {
                             Ok(new_config) => {
                                 *CONFIG.write() = new_config;
                                 routes::build_tree();
+                                //TODO: Move to seperate function
+                                let conf = CONFIG.read();
+                                for route in &conf.routes {
+                                    let mut servers =
+                                        Vec::<Arc<UpstreamServer>>::new();
+
+                                    for server in &route.1.endpoints {
+                                        servers.push(Arc::new(
+                                            UpstreamServer::new(
+                                                *server,
+                                                //TODO: make dynamic from config
+                                                100,
+                                                Protocol::HTTP2,
+                                            ),
+                                        ));
+                                    }
+
+                                    state
+                                        .write()
+                                        .routes
+                                        .insert(route.0.clone(), servers);
+                                }
                                 println!("Config hot-reloaded");
                             }
                             Err(e) => {

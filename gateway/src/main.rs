@@ -1,8 +1,11 @@
 mod config;
 mod server;
 
+use std::sync::Arc;
+
 use axum::{Router, routing::any};
 use clap::Parser;
+use parking_lot::RwLock;
 
 use crate::config::{
     cfg_utils::{CONFIG, reload_config, watch_config},
@@ -22,7 +25,9 @@ async fn main() {
         .map(|s| s.as_str())
         .unwrap_or("certus.config.yaml");
 
-    let _watcher = match watch_config(config_path) {
+    let state = Arc::new(RwLock::new(AppState::default()));
+
+    let _watcher = match watch_config(config_path, state.clone()) {
         Ok(watcher) => Some(watcher),
         Err(_) => None,
     };
@@ -34,8 +39,6 @@ async fn main() {
     }
 
     routes::build_tree();
-
-    let state = AppState::default();
 
     let listener = tokio::net::TcpListener::bind(format!(
         "0.0.0.0:{}",

@@ -20,7 +20,6 @@ pub struct UpstreamServer {
 
 impl UpstreamServer {
     pub fn new(
-        &self,
         address: SocketAddr,
         max_connections: usize,
         protocol: Protocol,

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::net::SocketAddr;
 
 use clap::Parser;
 use clap::command;
@@ -48,14 +49,30 @@ pub struct AuthConfig {
 
 #[derive(Debug, Default, Deserialize)]
 pub struct RouteConfig {
-    pub endpoints: Vec<String>,
+    pub endpoints: Vec<SocketAddr>,
     pub auth: Option<AuthConfig>,
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct Config {
     pub server: ServerConfig,
     pub auth: Option<AuthConfig>,
     pub routes: HashMap<String, RouteConfig>,
-    pub default_server: String,
+    #[serde(default = "default_socket_addr")]
+    pub default_server: SocketAddr,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Config {
+            server: ServerConfig::default(),
+            auth: None,
+            routes: HashMap::new(),
+            default_server: default_socket_addr(),
+        }
+    }
+}
+
+fn default_socket_addr() -> SocketAddr {
+    "127.0.0.1:80".parse().unwrap()
 }
