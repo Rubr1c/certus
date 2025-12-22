@@ -1,11 +1,17 @@
-use std::sync::LazyLock;
+use std::sync::{Arc, LazyLock};
 
-use axum::{extract::Path, response::IntoResponse};
+use axum::{
+    extract::{Path, State},
+    response::IntoResponse,
+};
 use hyper::StatusCode;
 use parking_lot::RwLock;
 use trie_rs::{Trie, TrieBuilder};
 
-use crate::config::cfg_utils::CONFIG;
+use crate::{
+    config::cfg_utils::CONFIG,
+    server::{app_state::AppState, load_balancing},
+};
 
 pub static ROUTE_TRIE: LazyLock<RwLock<Trie<String>>> =
     LazyLock::new(|| RwLock::new(TrieBuilder::new().build()));
@@ -37,12 +43,15 @@ pub fn get_longest_macthing_route(route: &str) -> String {
         .unwrap_or_else(|| "".to_string())
 }
 
-pub async fn reroute(Path(path): Path<String>) -> impl IntoResponse {
+pub async fn reroute(
+    Path(path): Path<String>,
+    State(state): State<Arc<RwLock<AppState>>>,
+) -> impl IntoResponse {
     let route = get_longest_macthing_route(path.as_str());
-
     if route.is_empty() {
         (StatusCode::OK, "TODO: None Found").into_response()
     } else {
+        let _server = load_balancing::balance(route.clone(), state);
         (
             StatusCode::OK,
             //for now retrun first endpoint for testing
