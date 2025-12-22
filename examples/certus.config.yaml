@@ -4,7 +4,7 @@ server:
 default_server: '1.1.1.1:80'
 
 routes:
-  users: 
+  users:
     endpoints: ['1.1.1.1:80', '1.2.1.1:80']
 
   test:

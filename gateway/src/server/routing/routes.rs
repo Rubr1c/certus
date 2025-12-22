@@ -10,7 +10,7 @@ use trie_rs::{Trie, TrieBuilder};
 
 use crate::{
     config::cfg_utils::CONFIG,
-    server::{app_state::AppState, load_balancing},
+    server::{app_state::AppState, load_balancing::balancing},
 };
 
 pub static ROUTE_TRIE: LazyLock<RwLock<Trie<String>>> =
@@ -51,18 +51,11 @@ pub async fn reroute(
     if route.is_empty() {
         (StatusCode::OK, "TODO: None Found").into_response()
     } else {
-        let _server = load_balancing::balance(route.clone(), state);
+        let server = balancing::p2c_pick(route, state);
         (
             StatusCode::OK,
-            //for now retrun first endpoint for testing
-            CONFIG
-                .read()
-                .routes
-                .get(&route)
-                .expect("Route should be in map")
-                .endpoints[0]
-                .clone()
-                .to_string(),
+            //etrun selected server for testing
+            server.to_string(),
         )
             .into_response()
     }
