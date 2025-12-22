@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 axum = "0.8.7"
 clap = { version = "4.5.53", features = ["derive"] }
+crossbeam = "0.8.4"
 hyper = { version = "1.8.1", features = ["full"] }
 lazy_static = "1.5"
 notify = "8.2.0"

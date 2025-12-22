@@ -1,5 +1,10 @@
 use std::{net::SocketAddr, sync::atomic::AtomicUsize};
 
+use axum::body::Body;
+use crossbeam::queue::SegQueue;
+use hyper::client::conn;
+
+
 pub enum HealthState {
     Alive,
     Dead,
@@ -10,12 +15,25 @@ pub enum Protocol {
     HTTP2,
 }
 
+pub enum PooledConnection {
+    Http1(conn::http1::SendRequest<Body>),
+    Http2(conn::http2::SendRequest<Body>),
+}
+
 pub struct UpstreamServer {
     pub address: SocketAddr,
+    pub protocol: Protocol,
     pub active_connctions: AtomicUsize,
     pub max_connections: usize,
     pub health_state: HealthState,
+}
+
+pub struct ConnectionPool {
+    pub server_addr: SocketAddr,
     pub protocol: Protocol,
+    pub max_connections: usize,
+    pub total_connections: AtomicUsize,
+    pub idle_connections: SegQueue<PooledConnection>,
 }
 
 impl UpstreamServer {
