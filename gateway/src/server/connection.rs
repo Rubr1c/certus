@@ -2,37 +2,62 @@ use std::sync::atomic::Ordering;
 
 use axum::body::Body;
 use hyper::client::conn;
-use hyper_util::rt::TokioIo;
+use hyper_util::rt::{TokioExecutor, TokioIo};
 use tokio::net::TcpStream;
 
-use crate::server::models::UpstreamServer;
+use crate::server::models::{PooledConnection, Protocol, UpstreamServer};
 
-async fn open_http1_connection(
+async fn open_connection(
     upstream: &UpstreamServer,
-) -> Result<
-    conn::http1::SendRequest<Body>,
-    Box<dyn std::error::Error + Send + Sync>,
-> {
+) -> Result<PooledConnection, Box<dyn std::error::Error + Send + Sync>> {
     let stream = TcpStream::connect(upstream.address).await?;
     let io = TokioIo::new(stream);
 
-    let (mut sender, conn) = conn::http1::handshake::<_, Body>(io).await?;
-    tokio::task::spawn(async move {
-        if let Err(err) = conn.await {
-            println!("Connection Failed: {:?}", err);
+    let sender = match upstream.protocol {
+        Protocol::HTTP1 => {
+            let (sender, conn) =
+                conn::http1::handshake::<_, Body>(io).await?;
+            tokio::task::spawn(async move {
+                if let Err(err) = conn.await {
+                    eprintln!("Connection Failed: {:?}", err);
+                }
+            });
+            PooledConnection::Http1(sender)
         }
-    });
+        Protocol::HTTP2 => {
+            let exec = TokioExecutor::new();
+            let (sender, conn) = conn::http2::handshake(exec, io).await?;
+            tokio::task::spawn(async move {
+                if let Err(err) = conn.await {
+                    eprintln!("Connection Failed: {:?}", err);
+                }
+            });
+            PooledConnection::Http2(sender)
+        }
+    };
 
     upstream.pool.total_connections.fetch_add(1, Ordering::Relaxed);
 
     Ok(sender)
 }
 
-async fn open_http2_connection(
+async fn borrow_connection(
     upstream: &UpstreamServer,
-) -> Result<
-    conn::http2::SendRequest<Body>,
-    Box<dyn std::error::Error + Send + Sync>,
-> {
-    todo!()
+) -> Result<PooledConnection, &'static str> {
+    if let Some(sender) = upstream.pool.idle_connections.pop() {
+        upstream.pool.total_connections.fetch_add(1, Ordering::Relaxed);
+        return Ok(sender);
+    }
+
+    let total = upstream.pool.total_connections.load(Ordering::Relaxed);
+    if total >= upstream.pool.max_connections {
+        return Err("upstream overloaded");
+    }
+
+    let sender =
+        open_connection(upstream).await.map_err(|_| "Failed To Connect")?;
+
+    upstream.pool.total_connections.fetch_add(1, Ordering::Relaxed);
+
+    Ok(sender)
 }
