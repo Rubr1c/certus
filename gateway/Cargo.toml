@@ -8,6 +8,7 @@ axum = "0.8.7"
 clap = { version = "4.5.53", features = ["derive"] }
 crossbeam = "0.8.4"
 hyper = { version = "1.8.1", features = ["full"] }
+hyper-util = { version = "0.1.19", features = ["client", "http1", "http2", "tokio"] }
 lazy_static = "1.5"
 notify = "8.2.0"
 parking_lot = "0.12.5"

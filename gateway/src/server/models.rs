@@ -4,12 +4,12 @@ use axum::body::Body;
 use crossbeam::queue::SegQueue;
 use hyper::client::conn;
 
-
 pub enum HealthState {
     Alive,
     Dead,
 }
 
+#[derive(Clone)]
 pub enum Protocol {
     HTTP1,
     HTTP2,
@@ -26,6 +26,7 @@ pub struct UpstreamServer {
     pub active_connctions: AtomicUsize,
     pub max_connections: usize,
     pub health_state: HealthState,
+    pub pool: ConnectionPool,
 }
 
 pub struct ConnectionPool {
@@ -41,13 +42,20 @@ impl UpstreamServer {
         address: SocketAddr,
         max_connections: usize,
         protocol: Protocol,
-    ) -> UpstreamServer {
+    ) -> Self {
         UpstreamServer {
             address,
             active_connctions: AtomicUsize::new(0),
             max_connections,
             health_state: HealthState::Alive,
-            protocol,
+            protocol: protocol.clone(),
+            pool: ConnectionPool {
+                server_addr: address,
+                protocol,
+                max_connections,
+                total_connections: AtomicUsize::new(0),
+                idle_connections: SegQueue::new(),
+            },
         }
     }
 }
