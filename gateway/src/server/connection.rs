@@ -15,8 +15,7 @@ async fn open_connection(
 
     let sender = match upstream.protocol {
         Protocol::HTTP1 => {
-            let (sender, conn) =
-                conn::http1::handshake::<_, Body>(io).await?;
+            let (sender, conn) = conn::http1::handshake::<_, Body>(io).await?;
             tokio::task::spawn(async move {
                 if let Err(err) = conn.await {
                     eprintln!("Connection Failed: {:?}", err);
@@ -60,4 +59,18 @@ async fn borrow_connection(
     upstream.pool.total_connections.fetch_add(1, Ordering::Relaxed);
 
     Ok(sender)
+}
+
+async fn release_connection(
+    upstream: &UpstreamServer,
+    sender: PooledConnection,
+    reusable: bool,
+) {
+    upstream.pool.total_connections.fetch_sub(1, Ordering::Relaxed);
+
+    if reusable {
+        upstream.pool.idle_connections.push(sender);
+    } else {
+        upstream.pool.total_connections.fetch_sub(1, Ordering::Relaxed);
+    }
 }

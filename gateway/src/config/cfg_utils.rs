@@ -56,7 +56,7 @@ pub fn watch_config(
                                 for route in &conf.routes {
                                     let mut servers =
                                         Vec::<Arc<UpstreamServer>>::new();
-                                    //TODO!:THESE DO NOT INITALIZE UNTIL RELOAD 
+                                    //TODO!:THESE DO NOT INITALIZE UNTIL RELOAD
                                     for server in &route.1.endpoints {
                                         servers.push(Arc::new(
                                             UpstreamServer::new(

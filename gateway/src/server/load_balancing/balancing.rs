@@ -8,10 +8,7 @@ use rand::seq::IndexedRandom;
 
 use crate::{config::cfg_utils::CONFIG, server::app_state::AppState};
 
-pub fn p2c_pick(
-    route: String,
-    state: Arc<RwLock<AppState>>,
-) -> SocketAddr {
+pub fn p2c_pick(route: String, state: Arc<RwLock<AppState>>) -> SocketAddr {
     let state_guard = state.read();
     let target = state_guard.routes.get(&route);
     let mut rng = rand::rng();
