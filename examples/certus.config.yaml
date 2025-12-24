@@ -1,14 +1,14 @@
 server:
   port: 8080
 
-default_server: '1.1.1.1:80'
+default_server: '127.0.0.1:3000'
 
 routes:
   users:
-    endpoints: ['1.1.1.1:80', '1.2.1.1:80']
+    endpoints: ['127.0.0.1:3001', '127.0.0.1:3002']
 
   test:
-    endpoints: ['1.1.1.2:80', '1.2.1.1:80']
+    endpoints: ['127.0.0.1:3003', '127.0.0.1:3004']
 
   test/best:
-    endpoints: ['1.1.1.3:80', '1.2.1.1:80']
+    endpoints: ['127.0.0.1:3005', '127.0.0.1:3006']

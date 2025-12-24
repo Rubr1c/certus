@@ -1,7 +1,8 @@
 use std::sync::{Arc, LazyLock};
 
 use axum::{
-    extract::{Path, State},
+    body::Body,
+    extract::{Path, Request, State},
     response::IntoResponse,
 };
 use hyper::StatusCode;
@@ -10,7 +11,9 @@ use trie_rs::{Trie, TrieBuilder};
 
 use crate::{
     config::cfg_utils::CONFIG,
-    server::{app_state::AppState, load_balancing::balancing},
+    server::{
+        app_state::AppState, load_balancing::balancing, request::requests,
+    },
 };
 
 pub static ROUTE_TRIE: LazyLock<RwLock<Trie<String>>> =
@@ -46,17 +49,26 @@ pub fn get_longest_macthing_route(route: &str) -> String {
 pub async fn reroute(
     Path(path): Path<String>,
     State(state): State<Arc<RwLock<AppState>>>,
+    req: Request<Body>,
 ) -> impl IntoResponse {
-    let route = get_longest_macthing_route(path.as_str());
+    let route = get_longest_macthing_route(&path);
     if route.is_empty() {
         (StatusCode::OK, "TODO: None Found").into_response()
     } else {
-        let server = balancing::p2c_pick(route, state);
-        (
-            StatusCode::OK,
-            //etrun selected server for testing
-            server.to_string(),
-        )
-            .into_response()
+        let server = balancing::p2c_pick(route, state.clone());
+        let upstream = {
+            let state_guard = state.read();
+            state_guard
+                .routes
+                .get(&server)
+                .expect("Upstream Should Exist")
+                .clone()
+        };
+
+        let res = requests::handle_request(&upstream, req).await;
+        match res {
+            Ok(response) => response.into_response(),
+            Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e).into_response(),
+        }
     }
 }

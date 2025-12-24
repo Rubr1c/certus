@@ -3,6 +3,7 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
+use axum::serve;
 use lazy_static::lazy_static;
 use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use parking_lot::RwLock;
@@ -54,24 +55,21 @@ pub fn watch_config(
                                 //TODO: Move to seperate function
                                 let conf = CONFIG.read();
                                 for route in &conf.routes {
-                                    let mut servers =
-                                        Vec::<Arc<UpstreamServer>>::new();
                                     //TODO!:THESE DO NOT INITALIZE UNTIL RELOAD
                                     for server in &route.1.endpoints {
-                                        servers.push(Arc::new(
-                                            UpstreamServer::new(
+                                        let upstream =
+                                            Arc::new(UpstreamServer::new(
                                                 *server,
                                                 //TODO: make dynamic from config
                                                 100,
-                                                Protocol::HTTP2,
-                                            ),
-                                        ));
-                                    }
+                                                Protocol::HTTP1,
+                                            ));
 
-                                    state
-                                        .write()
-                                        .routes
-                                        .insert(route.0.clone(), servers);
+                                        state
+                                            .write()
+                                            .routes
+                                            .insert(*server, upstream);
+                                    }
                                 }
                                 println!("Config hot-reloaded");
                             }

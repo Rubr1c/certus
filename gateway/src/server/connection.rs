@@ -7,7 +7,7 @@ use tokio::net::TcpStream;
 
 use crate::server::models::{PooledConnection, Protocol, UpstreamServer};
 
-async fn open_connection(
+pub async fn open_connection(
     upstream: &UpstreamServer,
 ) -> Result<PooledConnection, Box<dyn std::error::Error + Send + Sync>> {
     let stream = TcpStream::connect(upstream.address).await?;
@@ -40,7 +40,7 @@ async fn open_connection(
     Ok(sender)
 }
 
-async fn borrow_connection(
+pub async fn borrow_connection(
     upstream: &UpstreamServer,
 ) -> Result<PooledConnection, &'static str> {
     if let Some(sender) = upstream.pool.idle_connections.pop() {
@@ -57,11 +57,12 @@ async fn borrow_connection(
         open_connection(upstream).await.map_err(|_| "Failed To Connect")?;
 
     upstream.pool.total_connections.fetch_add(1, Ordering::Relaxed);
+    upstream.active_connctions.fetch_add(1, Ordering::Relaxed);
 
     Ok(sender)
 }
 
-async fn release_connection(
+pub async fn release_connection(
     upstream: &UpstreamServer,
     sender: PooledConnection,
     reusable: bool,
