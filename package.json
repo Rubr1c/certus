@@ -3,6 +3,7 @@
     "format": "bun run format:rs && bun run format:ts",
     "format:ts": "bun run --cwd frontend prettier --write \"../**/*.{ts,tsx,js,jsx,json,md,css}\" --ignore-path ../.gitignore",
     "format:rs": "cargo fmt --all",
-    "dev:config": "cargo run -p gateway -- -c examples/certus.config.yaml"
+    "dev:config": "cargo run -p gateway -- -c examples/certus.config.yaml",
+    "dev:test": "bun dev:config & ./test/start-test-servers.sh & wait"
   }
 }
