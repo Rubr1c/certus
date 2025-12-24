@@ -1,10 +1,8 @@
-use std::fs;
+use tokio::fs;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
-use axum::serve;
-use lazy_static::lazy_static;
 use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use parking_lot::RwLock;
 use tokio::sync::mpsc;
@@ -12,12 +10,7 @@ use tokio::sync::mpsc;
 use crate::config::error::ConfigError;
 use crate::config::models::Config;
 use crate::server::app_state::{self, AppState};
-use crate::server::models::{Protocol, UpstreamServer};
 use crate::server::routing::routes;
-
-lazy_static! {
-    pub static ref CONFIG: RwLock<Config> = RwLock::new(Config::default());
-}
 
 pub fn watch_config(
     path: &str,
@@ -48,10 +41,10 @@ pub fn watch_config(
                         while rx.try_recv().is_ok() {}
 
                         println!("Reloading config...");
-                        match reload_config(&path) {
+                        match reload_config(&path).await {
                             Ok(new_config) => {
-                                *CONFIG.write() = new_config;
-                                routes::build_tree();
+                                *state.write().config.write() = new_config;
+                                routes::build_tree(state.clone());
                                 app_state::init_server_state(state.clone());
                                 println!("Config hot-reloaded");
                             }
@@ -71,15 +64,10 @@ pub fn watch_config(
     Ok(watcher)
 }
 
-pub fn reload_config(path: &str) -> Result<Config, ConfigError> {
-    let contents = fs::read_to_string(path);
+pub async fn reload_config(path: &str) -> Result<Config, ConfigError> {
+    let contents = fs::read_to_string(path).await?;
 
-    let config = match contents {
-        Ok(contents) => serde_yaml::from_str::<Config>(&contents)?,
-        Err(_) => Config::default(),
-    };
-
-    Ok(config)
+    Ok(serde_yaml::from_str::<Config>(&contents)?)
 }
 
 pub fn save_config() -> rusqlite::Result<()> {

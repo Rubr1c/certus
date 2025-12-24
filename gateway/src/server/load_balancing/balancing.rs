@@ -6,10 +6,11 @@ use std::{
 use parking_lot::RwLock;
 use rand::seq::IndexedRandom;
 
-use crate::{config::cfg_utils::CONFIG, server::app_state::AppState};
+use crate::{server::app_state::AppState};
 
 pub fn p2c_pick(route: String, state: Arc<RwLock<AppState>>) -> SocketAddr {
-    let config_guard = CONFIG.read();
+    let state_guard = state.read();
+    let config_guard = state_guard.config.read();
     let target = config_guard.routes.get(&route).expect("Route Should Exist");
 
     let endpoints = &target.endpoints;
@@ -17,7 +18,7 @@ pub fn p2c_pick(route: String, state: Arc<RwLock<AppState>>) -> SocketAddr {
     // only power of 2 choices for now
 
     if endpoints.is_empty() {
-        CONFIG.read().default_server
+        config_guard.default_server
     } else {
         let server1 = endpoints.choose(&mut rng).unwrap();
         let server2 = endpoints.choose(&mut rng).unwrap();

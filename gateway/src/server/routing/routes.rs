@@ -10,7 +10,6 @@ use parking_lot::RwLock;
 use trie_rs::{Trie, TrieBuilder};
 
 use crate::{
-    config::cfg_utils::CONFIG,
     server::{
         app_state::AppState, load_balancing::balancing, request::requests,
     },
@@ -19,13 +18,14 @@ use crate::{
 pub static ROUTE_TRIE: LazyLock<RwLock<Trie<String>>> =
     LazyLock::new(|| RwLock::new(TrieBuilder::new().build()));
 
-pub fn build_tree() {
-    let route_conf = &CONFIG.read().routes;
+pub fn build_tree(state: Arc<RwLock<AppState>>) {
+    let state_guard = state.read();
+    let route_conf = &state_guard.config.read().routes;
     let mut builder = TrieBuilder::new();
 
     for route in route_conf {
         let segments =
-            route.0.split('/').map(|s| s.to_string()).collect::<Vec<_>>();
+            route.0.split('/').map(|e| e.to_string()).collect::<Vec<_>>();
 
         builder.push(segments);
     }
