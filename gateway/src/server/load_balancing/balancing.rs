@@ -1,6 +1,6 @@
 use std::{
     net::SocketAddr,
-    sync::{Arc, atomic::Ordering},
+    sync::{atomic::Ordering, Arc},
 };
 
 use parking_lot::RwLock;

@@ -32,7 +32,6 @@ async fn forward_request(
     Ok((res, sender))
 }
 
-
 pub async fn handle_request(
     upstream: &UpstreamServer,
     req: Request<Body>,

@@ -11,7 +11,7 @@ use tokio::sync::mpsc;
 
 use crate::config::error::ConfigError;
 use crate::config::models::Config;
-use crate::server::app_state::AppState;
+use crate::server::app_state::{self, AppState};
 use crate::server::models::{Protocol, UpstreamServer};
 use crate::server::routing::routes;
 
@@ -52,25 +52,7 @@ pub fn watch_config(
                             Ok(new_config) => {
                                 *CONFIG.write() = new_config;
                                 routes::build_tree();
-                                //TODO: Move to seperate function
-                                let conf = CONFIG.read();
-                                for route in &conf.routes {
-                                    //TODO!:THESE DO NOT INITALIZE UNTIL RELOAD
-                                    for server in &route.1.endpoints {
-                                        let upstream =
-                                            Arc::new(UpstreamServer::new(
-                                                *server,
-                                                //TODO: make dynamic from config
-                                                100,
-                                                Protocol::HTTP1,
-                                            ));
-
-                                        state
-                                            .write()
-                                            .routes
-                                            .insert(*server, upstream);
-                                    }
-                                }
+                                app_state::init_server_state(state.clone());
                                 println!("Config hot-reloaded");
                             }
                             Err(e) => {

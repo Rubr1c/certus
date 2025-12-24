@@ -3,14 +3,14 @@ mod server;
 
 use std::sync::Arc;
 
-use axum::{Router, routing::any};
+use axum::{routing::any, Router};
 use clap::Parser;
 use parking_lot::RwLock;
 
-use crate::config::{
+use crate::{config::{
     cfg_utils::{CONFIG, reload_config, watch_config},
     models::CmdArgs,
-};
+}, server::app_state};
 use crate::server::{app_state::AppState, routing::routes};
 
 #[tokio::main]
@@ -39,6 +39,7 @@ async fn main() {
     }
 
     routes::build_tree();
+    app_state::init_server_state(state.clone());
 
     let listener = tokio::net::TcpListener::bind(format!(
         "0.0.0.0:{}",
