@@ -7,7 +7,7 @@ use axum::{
 };
 use hyper::StatusCode;
 use parking_lot::RwLock;
-use trie_rs::{Trie, TrieBuilder};
+use trie_rs::TrieBuilder;
 
 use crate::{
     server::{
@@ -15,12 +15,12 @@ use crate::{
     },
 };
 
-pub static ROUTE_TRIE: LazyLock<RwLock<Trie<String>>> =
-    LazyLock::new(|| RwLock::new(TrieBuilder::new().build()));
 
 pub fn build_tree(state: Arc<RwLock<AppState>>) {
-    let state_guard = state.read();
-    let route_conf = &state_guard.config.read().routes;
+    let mut state_guard = state.write();
+    let config_arc = state_guard.config.clone();
+    let config_gaurd = config_arc.read();
+    let route_conf = &config_gaurd.routes;
     let mut builder = TrieBuilder::new();
 
     for route in route_conf {
@@ -30,16 +30,17 @@ pub fn build_tree(state: Arc<RwLock<AppState>>) {
         builder.push(segments);
     }
 
-    *ROUTE_TRIE.write() = builder.build();
+    state_guard.route_trie = Arc::new(RwLock::new(builder.build()));
 }
 
-pub fn get_longest_macthing_route(route: &str) -> String {
+pub fn get_longest_macthing_route(state: Arc<RwLock<AppState>>,route: &str) -> String {
     let split_route =
         route.split('/').map(|s| s.to_string()).collect::<Vec<_>>();
 
-    let guard = ROUTE_TRIE.read();
+    let state_guard = state.read();
+    let trie = state_guard.route_trie.read();
 
-    guard
+    trie 
         .common_prefix_search(split_route)
         .max_by_key(|v: &Vec<String>| v.len())
         .map(|v| v.join("/"))
@@ -51,7 +52,7 @@ pub async fn reroute(
     State(state): State<Arc<RwLock<AppState>>>,
     req: Request<Body>,
 ) -> impl IntoResponse {
-    let route = get_longest_macthing_route(&path);
+    let route = get_longest_macthing_route(state.clone(), &path);
     if route.is_empty() {
         (StatusCode::OK, "TODO: None Found").into_response()
     } else {

@@ -32,7 +32,6 @@ async fn main() {
         Err(_) => None,
     };
 
-
     routes::build_tree(state.clone());
     app_state::init_server_state(state.clone());
 

@@ -1,19 +1,25 @@
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 
 use parking_lot::RwLock;
+use trie_rs::{Trie, TrieBuilder};
 
 use crate::config::models::Config;
 use crate::server::models::{UpstreamServer, Protocol};
 
-#[derive(Default, Clone)]
+#[derive(Clone)]
 pub struct AppState {
     pub routes: HashMap<SocketAddr, Arc<UpstreamServer>>,
     pub config: Arc<RwLock<Config>>,
+    pub route_trie: Arc<RwLock<Trie<String>>>,
 }
 
 impl AppState {
     pub fn new(config: Config) -> Self {
-        Self { routes: HashMap::new(), config: Arc::new(RwLock::new(config)) }
+        Self { 
+            routes: HashMap::new(),
+            config: Arc::new(RwLock::new(config)),
+            route_trie: Arc::new(RwLock::new(TrieBuilder::new().build()))
+        }
     }
 }
 
