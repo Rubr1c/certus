@@ -25,8 +25,7 @@ async fn main() {
         .map(|s| s.as_str())
         .unwrap_or("certus.config.yaml");
 
-
-    let state = Arc::new(RwLock::new(AppState::new(reload_config(config_path).await.unwrap())));
+    let state = Arc::new(AppState::new(reload_config(config_path).await.unwrap()));
     let _watcher = match watch_config(config_path, state.clone()) {
         Ok(watcher) => Some(watcher),
         Err(_) => None,
@@ -35,16 +34,18 @@ async fn main() {
     routes::build_tree(state.clone());
     app_state::init_server_state(state.clone());
 
+    let config = state.config.load();
+    let port = config.server.port;
 
     let listener = tokio::net::TcpListener::bind(format!(
         "0.0.0.0:{}",
-        8080
+        port
     ))
     .await
     .expect("Failed to bind TCP listener");
 
     println!("Config watcher started. Press Ctrl+C to exit.");
-    println!("Running on port {}", state.read().config.read().server.port);
+    println!("Running on port {}", port);
 
     let app =
         Router::new().route("/{*any}", any(routes::reroute)).with_state(state);

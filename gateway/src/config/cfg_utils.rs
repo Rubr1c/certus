@@ -14,7 +14,7 @@ use crate::server::routing::routes;
 
 pub fn watch_config(
     path: &str,
-    state: Arc<RwLock<AppState>>,
+    state: Arc<AppState>,
 ) -> notify::Result<RecommendedWatcher> {
     let (tx, mut rx) = mpsc::channel(1);
 
@@ -43,7 +43,7 @@ pub fn watch_config(
                         println!("Reloading config...");
                         match reload_config(&path).await {
                             Ok(new_config) => {
-                                *state.write().config.write() = new_config;
+                                state.config.store(Arc::new(new_config));
                                 routes::build_tree(state.clone());
                                 app_state::init_server_state(state.clone());
                                 println!("Config hot-reloaded");

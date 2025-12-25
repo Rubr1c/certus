@@ -3,29 +3,27 @@ use std::{
     sync::{atomic::Ordering, Arc},
 };
 
-use parking_lot::RwLock;
 use rand::seq::IndexedRandom;
 
 use crate::{server::app_state::AppState};
 
-pub fn p2c_pick(route: String, state: Arc<RwLock<AppState>>) -> SocketAddr {
-    let state_guard = state.read();
-    let config_guard = state_guard.config.read();
-    let target = config_guard.routes.get(&route).expect("Route Should Exist");
+pub fn p2c_pick(route: String, state: Arc<AppState>) -> SocketAddr {
+    let config = state.config.load();
+    let routes = state.routes.load();
+    let target = config.routes.get(&route).expect("Route Should Exist");
 
     let endpoints = &target.endpoints;
     let mut rng = rand::rng();
     // only power of 2 choices for now
 
     if endpoints.is_empty() {
-        config_guard.default_server
+        config.default_server
     } else {
         let server1 = endpoints.choose(&mut rng).unwrap();
         let server2 = endpoints.choose(&mut rng).unwrap();
 
-        let state_gaurd = state.read();
-        let upstream_server1 = state_gaurd.routes.get(server1).unwrap();
-        let upstream_server2 = state_gaurd.routes.get(server2).unwrap();
+        let upstream_server1 = routes.get(server1).unwrap();
+        let upstream_server2 = routes.get(server2).unwrap();
 
         if upstream_server1.active_connctions.load(Ordering::Relaxed)
             < upstream_server2.active_connctions.load(Ordering::Relaxed)

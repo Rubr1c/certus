@@ -1,35 +1,35 @@
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 
-use parking_lot::RwLock;
 use trie_rs::{Trie, TrieBuilder};
+use arc_swap::ArcSwap;
 
 use crate::config::models::Config;
 use crate::server::models::{UpstreamServer, Protocol};
 
-#[derive(Clone)]
 pub struct AppState {
-    pub routes: HashMap<SocketAddr, Arc<UpstreamServer>>,
-    pub config: Arc<RwLock<Config>>,
-    pub route_trie: Arc<RwLock<Trie<String>>>,
+    pub routes: ArcSwap<HashMap<SocketAddr, Arc<UpstreamServer>>>,
+    pub config: ArcSwap<Config>,
+    pub route_trie: ArcSwap<Trie<String>>,
 }
 
 impl AppState {
     pub fn new(config: Config) -> Self {
         Self { 
-            routes: HashMap::new(),
-            config: Arc::new(RwLock::new(config)),
-            route_trie: Arc::new(RwLock::new(TrieBuilder::new().build()))
+            routes: ArcSwap::from_pointee(HashMap::new()),
+            config: ArcSwap::from_pointee(config),
+            route_trie: ArcSwap::from_pointee(TrieBuilder::new().build())
         }
     }
 }
 
 
-pub fn init_server_state(state: Arc<RwLock<AppState>>) {
-    let mut state_guard = state.write();
-    let config_arc = state_guard.config.clone();
-    let config_guard = config_arc.read();
-    for route in &config_guard.routes {
-        for server in &route.1.endpoints {
+pub fn init_server_state(state: Arc<AppState>) {
+    let config = state.config.load();
+
+    let mut new_routes_map = HashMap::new();
+
+    for route_config in config.routes.values() {
+        for server in &route_config.endpoints {
             let upstream = Arc::new(UpstreamServer::new(
                 *server,
                 //TODO: make dynamic from config
@@ -37,7 +37,9 @@ pub fn init_server_state(state: Arc<RwLock<AppState>>) {
                 Protocol::HTTP1,
             ));
 
-            state_guard.routes.insert(*server, upstream);
+            new_routes_map.insert(*server, upstream);
         }
     }
+
+    state.routes.store(Arc::new(new_routes_map));
 }
