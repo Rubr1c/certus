@@ -1,4 +1,4 @@
-use std::sync::{Arc, LazyLock};
+use std::sync::Arc;
 
 use axum::{
     body::Body,
@@ -7,7 +7,6 @@ use axum::{
 };
 use hyper::StatusCode;
 use matchit::Router;
-use parking_lot::RwLock;
 
 use crate::{
     server::{
@@ -22,9 +21,19 @@ pub fn build_tree(state: Arc<AppState>) {
 
     let mut router = Router::new();
 
-    for route in route_conf {
-       if let Err(e) = router.insert(route.0, route.0.clone()) {
-            eprintln!("Failed to insert route '{}': {}", route.0, e);
+    for (route, _) in route_conf {
+       if let Err(e) = router.insert(route, route.clone()) {
+            eprintln!("Failed to insert route '{}': {}", route, e);
+        } 
+
+        let wildcard_route = if route == "/" {
+            "/{*catchall}".to_string()
+        } else {
+            format!("{}/{{*catchall}}", route)
+        };
+
+       if let Err(e) = router.insert(wildcard_route, route.clone()) {
+            eprintln!("Failed to insert route '{}': {}", route, e);
         } 
     }
 
