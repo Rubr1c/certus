@@ -7,10 +7,10 @@ use rand::seq::IndexedRandom;
 
 use crate::{server::app_state::AppState};
 
-pub fn p2c_pick(route: String, state: Arc<AppState>) -> SocketAddr {
+pub fn p2c_pick(route: &str, state: Arc<AppState>) -> SocketAddr {
     let config = state.config.load();
     let routes = state.routes.load();
-    let target = config.routes.get(&route).expect("Route Should Exist");
+    let target = config.routes.get(route).expect("Route Should Exist");
 
     let endpoints = &target.endpoints;
     let mut rng = rand::rng();

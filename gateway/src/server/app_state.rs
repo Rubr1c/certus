@@ -1,6 +1,6 @@
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 
-use trie_rs::{Trie, TrieBuilder};
+use matchit::Router;
 use arc_swap::ArcSwap;
 
 use crate::config::models::Config;
@@ -9,7 +9,7 @@ use crate::server::models::{UpstreamServer, Protocol};
 pub struct AppState {
     pub routes: ArcSwap<HashMap<SocketAddr, Arc<UpstreamServer>>>,
     pub config: ArcSwap<Config>,
-    pub route_trie: ArcSwap<Trie<String>>,
+    pub router: ArcSwap<Router<String>>,
 }
 
 impl AppState {
@@ -17,7 +17,7 @@ impl AppState {
         Self { 
             routes: ArcSwap::from_pointee(HashMap::new()),
             config: ArcSwap::from_pointee(config),
-            route_trie: ArcSwap::from_pointee(TrieBuilder::new().build())
+            router: ArcSwap::from_pointee(Router::new())
         }
     }
 }

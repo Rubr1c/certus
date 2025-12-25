@@ -6,8 +6,8 @@ use axum::{
     response::IntoResponse,
 };
 use hyper::StatusCode;
+use matchit::Router;
 use parking_lot::RwLock;
-use trie_rs::{Trie, TrieBuilder};
 
 use crate::{
     server::{
@@ -19,29 +19,16 @@ use crate::{
 pub fn build_tree(state: Arc<AppState>) {
     let config = state.config.load();
     let route_conf = &config.routes;
-    let mut builder = TrieBuilder::new();
+
+    let mut router = Router::new();
 
     for route in route_conf {
-        let segments =
-            route.0.split('/').map(|e| e.to_string()).collect::<Vec<_>>();
-
-        builder.push(segments);
+       if let Err(e) = router.insert(route.0, route.0.clone()) {
+            eprintln!("Failed to insert route '{}': {}", route.0, e);
+        } 
     }
 
-    state.route_trie.store(Arc::new(builder.build()));
-}
-
-pub fn get_longest_macthing_route(trie: &Trie<String>, route: &str) -> String {
-
-    let split_route =
-        route.split('/').map(|s| s.to_string()).collect::<Vec<_>>();
-
-
-    trie 
-        .common_prefix_search(split_route)
-        .max_by_key(|v: &Vec<String>| v.len())
-        .map(|v| v.join("/"))
-        .unwrap_or_else(|| "".to_string())
+    state.router.store(Arc::new(router));
 }
 
 pub async fn reroute(
@@ -49,10 +36,14 @@ pub async fn reroute(
     State(state): State<Arc<AppState>>,
     req: Request<Body>,
 ) -> impl IntoResponse {
-    let trie = state.route_trie.load();
+    let router = state.router.load();
     let routes = state.routes.load();
-    let route = get_longest_macthing_route(&trie, &path);
-    let server = balancing::p2c_pick(route, state);
+    let matched_route_key = match router.at(&path) {
+        Ok(match_result) => match_result.value,
+        Err(_) => return (StatusCode::NOT_FOUND, "No Route Found").into_response(),
+    };
+
+    let server = balancing::p2c_pick(matched_route_key, state);
         let upstream = routes
                 .get(&server)
                 .expect("Upstream Should Exist")
