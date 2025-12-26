@@ -1,10 +1,10 @@
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 
-use matchit::Router;
 use arc_swap::ArcSwap;
+use matchit::Router;
 
 use crate::config::models::Config;
-use crate::server::models::{UpstreamServer, Protocol};
+use crate::server::models::{Protocol, UpstreamServer};
 
 pub struct AppState {
     pub routes: ArcSwap<HashMap<SocketAddr, Arc<UpstreamServer>>>,
@@ -14,14 +14,13 @@ pub struct AppState {
 
 impl AppState {
     pub fn new(config: Config) -> Self {
-        Self { 
+        Self {
             routes: ArcSwap::from_pointee(HashMap::new()),
             config: ArcSwap::from_pointee(config),
-            router: ArcSwap::from_pointee(Router::new())
+            router: ArcSwap::from_pointee(Router::new()),
         }
     }
 }
-
 
 pub fn init_server_state(state: Arc<AppState>) {
     let config = state.config.load();

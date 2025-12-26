@@ -21,10 +21,7 @@ pub enum PooledConnection {
 }
 
 pub struct UpstreamServer {
-    pub address: SocketAddr,
-    pub protocol: Protocol,
     pub active_connctions: AtomicUsize,
-    pub max_connections: usize,
     pub health_state: HealthState,
     pub pool: ConnectionPool,
 }
@@ -44,11 +41,8 @@ impl UpstreamServer {
         protocol: Protocol,
     ) -> Self {
         UpstreamServer {
-            address,
             active_connctions: AtomicUsize::new(0),
-            max_connections,
             health_state: HealthState::Alive,
-            protocol: protocol.clone(),
             pool: ConnectionPool {
                 server_addr: address,
                 protocol,

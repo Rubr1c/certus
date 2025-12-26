@@ -4,11 +4,11 @@ server:
 default_server: '127.0.0.1:3000'
 
 routes:
-  users:
+  /users:
     endpoints: ['127.0.0.1:3001', '127.0.0.1:3002']
 
-  test:
+  /test:
     endpoints: ['127.0.0.1:3003', '127.0.0.1:3004']
 
-  test/best:
+  /test/best:
     endpoints: ['127.0.0.1:3005', '127.0.0.1:3006']

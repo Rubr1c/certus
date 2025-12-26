@@ -1,10 +1,9 @@
-use tokio::fs;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
+use tokio::fs;
 
 use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
-use parking_lot::RwLock;
 use tokio::sync::mpsc;
 
 use crate::config::error::ConfigError;

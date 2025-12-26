@@ -1,12 +1,12 @@
 use std::{
     cell::RefCell,
     net::SocketAddr,
-    sync::{atomic::Ordering, Arc},
+    sync::{Arc, atomic::Ordering},
 };
 
-use rand::{SeedableRng, seq::IndexedRandom, rngs::SmallRng};
+use rand::{SeedableRng, rngs::SmallRng, seq::IndexedRandom};
 
-use crate::{server::app_state::AppState};
+use crate::server::app_state::AppState;
 
 thread_local! {
     static THREAD_RNG: RefCell<SmallRng> = RefCell::new(SmallRng::from_os_rng());
@@ -20,7 +20,7 @@ pub fn p2c_pick(route: &str, state: Arc<AppState>) -> SocketAddr {
     let endpoints = &target.endpoints;
     // only power of 2 choices for now
     if endpoints.is_empty() {
-        return config.default_server
+        return config.default_server;
     }
 
     THREAD_RNG.with(|rng_cell| {
@@ -32,13 +32,12 @@ pub fn p2c_pick(route: &str, state: Arc<AppState>) -> SocketAddr {
         let upstream_server1 = routes.get(server1).unwrap();
         let upstream_server2 = routes.get(server2).unwrap();
 
-        if upstream_server1.active_connctions.load(Ordering::Relaxed)
-            < upstream_server2.active_connctions.load(Ordering::Relaxed)
+        if upstream_server1.active_connctions.load(Ordering::Acquire)
+            < upstream_server2.active_connctions.load(Ordering::Acquire)
         {
             *server1
         } else {
             *server2
         }
-    }) 
-    
+    })
 }
