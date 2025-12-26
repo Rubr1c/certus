@@ -3,7 +3,7 @@ use std::{
     sync::{atomic::Ordering, Arc},
 };
 
-use rand::seq::IndexedRandom;
+use rand::{SeedableRng, seq::IndexedRandom, rngs::SmallRng};
 
 use crate::{server::app_state::AppState};
 
@@ -13,7 +13,7 @@ pub fn p2c_pick(route: &str, state: Arc<AppState>) -> SocketAddr {
     let target = config.routes.get(route).expect("Route Should Exist");
 
     let endpoints = &target.endpoints;
-    let mut rng = rand::rng();
+    let mut rng = SmallRng::from_os_rng();
     // only power of 2 choices for now
 
     if endpoints.is_empty() {

@@ -22,7 +22,7 @@ pub fn build_tree(state: Arc<AppState>) {
     let mut router = Router::new();
 
     for (route, _) in route_conf {
-       if let Err(e) = router.insert(route, route.clone()) {
+        if let Err(e) = router.insert(route, route.clone()) {
             eprintln!("Failed to insert route '{}': {}", route, e);
         } 
 
