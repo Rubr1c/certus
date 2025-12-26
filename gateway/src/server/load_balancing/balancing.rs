@@ -1,4 +1,5 @@
 use std::{
+    cell::RefCell,
     net::SocketAddr,
     sync::{atomic::Ordering, Arc},
 };
@@ -7,18 +8,24 @@ use rand::{SeedableRng, seq::IndexedRandom, rngs::SmallRng};
 
 use crate::{server::app_state::AppState};
 
+thread_local! {
+    static THREAD_RNG: RefCell<SmallRng> = RefCell::new(SmallRng::from_os_rng());
+}
+
 pub fn p2c_pick(route: &str, state: Arc<AppState>) -> SocketAddr {
     let config = state.config.load();
     let routes = state.routes.load();
     let target = config.routes.get(route).expect("Route Should Exist");
 
     let endpoints = &target.endpoints;
-    let mut rng = SmallRng::from_os_rng();
     // only power of 2 choices for now
-
     if endpoints.is_empty() {
-        config.default_server
-    } else {
+        return config.default_server
+    }
+
+    THREAD_RNG.with(|rng_cell| {
+        let mut rng = rng_cell.borrow_mut();
+
         let server1 = endpoints.choose(&mut rng).unwrap();
         let server2 = endpoints.choose(&mut rng).unwrap();
 
@@ -32,5 +39,6 @@ pub fn p2c_pick(route: &str, state: Arc<AppState>) -> SocketAddr {
         } else {
             *server2
         }
-    }
+    }) 
+    
 }
