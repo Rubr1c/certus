@@ -5,7 +5,6 @@ use std::sync::Arc;
 
 use axum::{Router, routing::any};
 use clap::Parser;
-use parking_lot::RwLock;
 
 use crate::server::{app_state::AppState, routing::routes};
 use crate::{

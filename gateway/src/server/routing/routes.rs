@@ -44,6 +44,8 @@ pub async fn reroute(
     let path = req.uri().path();
     let router = state.router.load();
     let routes = state.routes.load();
+    let config = state.config.load();
+
     let matched_route_key = match router.at(&path) {
         Ok(match_result) => match_result.value,
         Err(_) => {
@@ -51,7 +53,7 @@ pub async fn reroute(
         }
     };
 
-    let server = balancing::p2c_pick(matched_route_key, state);
+    let server = balancing::p2c_pick(matched_route_key, &routes, &config);
     let upstream = routes.get(&server).expect("Upstream Should Exist").clone();
 
     let res = requests::handle_request(&upstream, req).await;

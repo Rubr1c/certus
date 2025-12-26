@@ -36,8 +36,6 @@ pub async fn open_connection(
         }
     };
 
-    upstream.pool.total_connections.fetch_add(1, Ordering::Release);
-
     Ok(sender)
 }
 
