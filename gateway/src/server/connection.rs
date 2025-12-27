@@ -43,7 +43,7 @@ pub async fn borrow_connection(
     upstream: &UpstreamServer,
 ) -> Result<PooledConnection, GatewayError> {
     if let Some(sender) = upstream.pool.idle_connections.pop() {
-        upstream.pool.total_connections.fetch_add(1, Ordering::Release);
+        upstream.active_connctions.fetch_add(1, Ordering::Release);
         return Ok(sender);
     }
 
@@ -66,7 +66,7 @@ pub async fn release_connection(
     sender: PooledConnection,
     reusable: bool,
 ) {
-    upstream.pool.total_connections.fetch_sub(1, Ordering::Release);
+    upstream.active_connctions.fetch_sub(1, Ordering::Release);
 
     if reusable {
         upstream.pool.idle_connections.push(sender);

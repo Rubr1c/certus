@@ -40,7 +40,7 @@ pub async fn handle_request(
     let (res, sender) = match forward_request(sender, req).await {
         Ok((res, sender)) => (res, sender),
         Err(e) => {
-            upstream.pool.total_connections.fetch_sub(1, Ordering::Release);
+            upstream.active_connctions.fetch_sub(1, Ordering::Release);
             return Err(e);
         }
     };
