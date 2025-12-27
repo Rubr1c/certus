@@ -5,7 +5,7 @@ use hyper::client::conn;
 use hyper_util::rt::{TokioExecutor, TokioIo};
 use tokio::net::TcpStream;
 
-use crate::server::models::{PooledConnection, Protocol, UpstreamServer};
+use crate::server::{error::GatewayError, models::{PooledConnection, Protocol, UpstreamServer}};
 
 pub async fn open_connection(
     upstream: &UpstreamServer,
@@ -41,7 +41,7 @@ pub async fn open_connection(
 
 pub async fn borrow_connection(
     upstream: &UpstreamServer,
-) -> Result<PooledConnection, &'static str> {
+) -> Result<PooledConnection, GatewayError> {
     if let Some(sender) = upstream.pool.idle_connections.pop() {
         upstream.pool.total_connections.fetch_add(1, Ordering::Release);
         return Ok(sender);
@@ -49,11 +49,11 @@ pub async fn borrow_connection(
 
     let total = upstream.pool.total_connections.load(Ordering::Acquire);
     if total >= upstream.pool.max_connections {
-        return Err("upstream overloaded");
+        return Err(GatewayError::Overloaded);
     }
 
     let sender =
-        open_connection(upstream).await.map_err(|_| "Failed To Connect")?;
+        open_connection(upstream).await.map_err(|e| GatewayError::ConnectionFailed(e.to_string()))?;
 
     upstream.pool.total_connections.fetch_add(1, Ordering::Release);
     upstream.active_connctions.fetch_add(1, Ordering::Release);

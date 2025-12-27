@@ -4,3 +4,4 @@ pub mod load_balancing;
 pub mod models;
 pub mod request;
 pub mod routing;
+pub mod error;

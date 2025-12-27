@@ -9,7 +9,7 @@ use hyper::StatusCode;
 use matchit::Router;
 
 use crate::server::{
-    app_state::AppState, load_balancing::balancing, request::requests,
+    app_state::AppState, error::GatewayError, load_balancing::balancing, request::requests
 };
 
 pub fn build_tree(state: Arc<AppState>) {
@@ -49,7 +49,7 @@ pub async fn reroute(
     let matched_route_key = match router.at(&path) {
         Ok(match_result) => match_result.value,
         Err(_) => {
-            return (StatusCode::NOT_FOUND, "No Route Found").into_response();
+            return GatewayError::NotFound.into_response();
         }
     };
 
@@ -59,6 +59,6 @@ pub async fn reroute(
     let res = requests::handle_request(&upstream, req).await;
     match res {
         Ok(response) => response.into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e).into_response(),
+        Err(e) => e.into_response(),
     }
 }
