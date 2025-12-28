@@ -29,7 +29,6 @@ async fn main() {
 
     let subscriber = FmtSubscriber::builder()
         .with_env_filter(EnvFilter::from_default_env().add_directive(Level::INFO.into()))
-        .json()
         .with_writer(log_writer)
         .finish();
         
@@ -45,7 +44,7 @@ async fn main() {
     });
 
 
-    println!("Certus Gateway Running");
+    tracing::info!("Certus Gateway Running");
 
     let args = CmdArgs::try_parse().unwrap();
 
@@ -80,7 +79,7 @@ async fn main() {
 
     let shutdown_signal = async {
         tokio::signal::ctrl_c().await.expect("Failed to listen for Ctrl+C");
-        println!("\nShutting down...");
+        tracing::info!("\nShutting down...");
     };
 
     axum::serve(listener, app)
