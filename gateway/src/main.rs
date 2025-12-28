@@ -1,11 +1,17 @@
 mod config;
 mod server;
+mod logging;
 
 use std::sync::Arc;
 
 use axum::{Router, routing::any};
 use clap::Parser;
 
+use tokio::sync::mpsc;
+use tracing::Level;
+use tracing_subscriber::{FmtSubscriber, EnvFilter};
+
+use crate::logging::log_util::LogChannelWriter;
 use crate::server::{app_state::AppState, routing::routes};
 use crate::{
     config::{
@@ -17,7 +23,29 @@ use crate::{
 
 #[tokio::main]
 async fn main() {
-    println!("Certus Gateway Running");
+    let (tx, mut rx) = mpsc::channel::<String>(1024);
+
+    let log_writer = LogChannelWriter { sender: tx };
+
+    let subscriber = FmtSubscriber::builder()
+        .with_env_filter(EnvFilter::from_default_env().add_directive(Level::INFO.into()))
+        .json()
+        .with_writer(log_writer)
+        .finish();
+        
+    tracing::subscriber::set_global_default(subscriber)
+        .expect("setting default subscriber failed");
+
+    tokio::spawn(async move {
+        while let Some(log_json) = rx.recv().await {
+            println!("{}", log_json); 
+            
+            // TODO: SAVE TO DB
+        }
+    });
+
+
+    tracing::info!("Certus Gateway Running");
 
     let args = CmdArgs::try_parse().unwrap();
 
