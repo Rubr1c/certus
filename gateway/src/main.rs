@@ -38,14 +38,14 @@ async fn main() {
 
     tokio::spawn(async move {
         while let Some(log_json) = rx.recv().await {
-            println!("{}", log_json); 
+            print!("{}", log_json); 
             
             // TODO: SAVE TO DB
         }
     });
 
 
-    tracing::info!("Certus Gateway Running");
+    println!("Certus Gateway Running");
 
     let args = CmdArgs::try_parse().unwrap();
 
