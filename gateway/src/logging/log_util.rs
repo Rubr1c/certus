@@ -11,7 +11,7 @@ impl io::Write for LogChannelWriter {
 
         match self.sender.try_send(log_data) {
             Ok(_) => {},
-            Err(e) => eprintln!("Log Dropped (channel full): {}", e)
+            Err(e) => tracing::error!("Log Dropped (channel full): {}", e)
         }
 
         Ok(buf.len())

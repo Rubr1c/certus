@@ -46,7 +46,6 @@ async fn main() {
     });
 
 
-    tracing::info!("Certus Gateway Running");
 
     let args = CmdArgs::try_parse().unwrap();
 
@@ -73,8 +72,8 @@ async fn main() {
         .await
         .expect("Failed to bind TCP listener");
 
+    tracing::info!("Certus Gateway Running on port {}", port);
     println!("Config watcher started. Press Ctrl+C to exit.");
-    println!("Running on port {}", port);
 
     let app =
         Router::new().route("/{*any}", any(routes::reroute)).with_state(state);

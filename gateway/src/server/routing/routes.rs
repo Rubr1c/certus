@@ -5,7 +5,6 @@ use axum::{
     extract::{Request, State},
     response::IntoResponse,
 };
-use hyper::StatusCode;
 use matchit::Router;
 
 use crate::server::{
@@ -20,7 +19,7 @@ pub fn build_tree(state: Arc<AppState>) {
 
     for (route, _) in route_conf {
         if let Err(e) = router.insert(route, route.clone()) {
-            eprintln!("Failed to insert route '{}': {}", route, e);
+            tracing::error!("Failed to insert route '{}': {}", route, e);
         }
 
         let wildcard_route = if route == "/" {
@@ -30,7 +29,7 @@ pub fn build_tree(state: Arc<AppState>) {
         };
 
         if let Err(e) = router.insert(wildcard_route, route.clone()) {
-            eprintln!("Failed to insert route '{}': {}", route, e);
+            tracing::error!("Failed to insert route '{}': {}", route, e);
         }
     }
 

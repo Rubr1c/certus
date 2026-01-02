@@ -39,22 +39,22 @@ pub fn watch_config(
                         // Drain any other events that occurred during the sleep
                         while rx.try_recv().is_ok() {}
 
-                        println!("Reloading config...");
+                        tracing::info!("Realoding config");
                         match reload_config(&path).await {
                             Ok(new_config) => {
                                 state.config.store(Arc::new(new_config));
                                 routes::build_tree(state.clone());
                                 app_state::init_server_state(state.clone());
-                                println!("Config hot-reloaded");
+                                tracing::info!("Config hot-reloaded");
                             }
                             Err(e) => {
-                                eprintln!("Failed to reload config: {}", e);
+                                tracing::error!("Failed to reload config: {}", e);
                             }
                         }
                     }
                 }
                 Err(e) => {
-                    eprintln!("Watcher error: {}", e);
+                    tracing::error!("Watcher error: {}", e);
                 }
             }
         }
