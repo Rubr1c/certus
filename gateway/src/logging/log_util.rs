@@ -2,14 +2,14 @@ use std::io;
 use tokio::sync::mpsc;
 
 pub struct LogChannelWriter {
-    pub sender: mpsc::Sender<String>,
+    pub sender: mpsc::Sender<Vec<u8>>,
 }
 
 impl io::Write for LogChannelWriter {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        let log_entry = String::from_utf8_lossy(buf).to_string();
+        let log_data = buf.to_vec();
 
-        match self.sender.try_send(log_entry) {
+        match self.sender.try_send(log_data) {
             Ok(_) => {},
             Err(e) => eprintln!("Log Dropped (channel full): {}", e)
         }

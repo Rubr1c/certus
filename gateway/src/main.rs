@@ -23,7 +23,7 @@ use crate::{
 
 #[tokio::main]
 async fn main() {
-    let (tx, mut rx) = mpsc::channel::<String>(1024);
+    let (tx, mut rx) = mpsc::channel::<Vec<u8>>(1024);
 
     let log_writer = LogChannelWriter { sender: tx };
 
@@ -36,8 +36,10 @@ async fn main() {
         .expect("setting default subscriber failed");
 
     tokio::spawn(async move {
-        while let Some(log_json) = rx.recv().await {
-            print!("{}", log_json); 
+        while let Some(log_bytes) = rx.recv().await {
+            let log_string = String::from_utf8_lossy(&log_bytes);
+
+            print!("{}", log_string); 
             
             // TODO: SAVE TO DB
         }
