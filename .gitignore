@@ -30,3 +30,6 @@ next-env.d.ts
 # Prettier
 dist/
 coverage/
+
+dev.db
+**/dev.db

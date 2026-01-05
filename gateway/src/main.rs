@@ -1,6 +1,7 @@
 mod config;
 mod server;
 mod logging;
+mod db;
 
 use std::sync::Arc;
 
@@ -19,6 +20,7 @@ use crate::{
         models::CmdArgs,
     },
     server::app_state,
+    db::db_utils,
 };
 
 #[tokio::main]
@@ -35,17 +37,6 @@ async fn main() {
     tracing::subscriber::set_global_default(subscriber)
         .expect("setting default subscriber failed");
 
-    tokio::spawn(async move {
-        while let Some(log_bytes) = rx.recv().await {
-            let log_string = String::from_utf8_lossy(&log_bytes);
-
-            print!("{}", log_string); 
-            
-            // TODO: SAVE TO DB
-        }
-    });
-
-
 
     let args = CmdArgs::try_parse().unwrap();
 
@@ -55,6 +46,23 @@ async fn main() {
         .map(|s| s.as_str())
         .unwrap_or("certus.config.yaml");
 
+    let conn = match db_utils::connect_db() {
+        Ok(c) => c,
+        Err(_) => panic!("Failed to connect to db")
+    };
+
+    db_utils::create_tables(&conn);
+
+    tokio::spawn(async move {
+        while let Some(log_bytes) = rx.recv().await {
+            let log_string = String::from_utf8_lossy(&log_bytes);
+
+            print!("{}", log_string); 
+            db_utils::save_log(&conn, log_string.to_string());
+            // TODO: SAVE TO DB
+        }
+    });
+    
     let state =
         Arc::new(AppState::new(reload_config(config_path).await.unwrap()));
     let _watcher = match watch_config(config_path, state.clone()) {
