@@ -1,5 +1,5 @@
 // todo
 pub struct LogEntry {
-    id: i32,
-    entry: String,
+    pub id: i64,
+    pub entry: String,
 }

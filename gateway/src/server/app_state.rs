@@ -2,8 +2,6 @@ use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 
 use arc_swap::ArcSwap;
 use matchit::Router;
-use rusqlite::Connection;
-use tokio::sync::RwLock;
 
 use crate::config::models::Config;
 use crate::server::models::{Protocol, UpstreamServer};

@@ -13,7 +13,11 @@ thread_local! {
     static THREAD_RNG: RefCell<SmallRng> = RefCell::new(SmallRng::from_os_rng());
 }
 
-pub fn p2c_pick(route: &str, routes: &HashMap<SocketAddr, Arc<UpstreamServer>>, config: &Config) -> SocketAddr {
+pub fn p2c_pick(
+    route: &str,
+    routes: &HashMap<SocketAddr, Arc<UpstreamServer>>,
+    config: &Config,
+) -> SocketAddr {
     let target = config.routes.get(route).expect("Route Should Exist");
 
     let endpoints = &target.endpoints;

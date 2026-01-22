@@ -4,29 +4,30 @@ use axum::{body::Body, extract::Request, response::Response};
 use hyper::body::Incoming;
 
 use crate::server::{
-    connection, error::GatewayError, models::{PooledConnection, UpstreamServer}
+    connection,
+    error::GatewayError,
+    models::{PooledConnection, UpstreamServer},
 };
 
 async fn forward_request(
     conn: PooledConnection,
     req: Request<Body>,
 ) -> Result<(Response<Incoming>, PooledConnection), GatewayError> {
-    let (res, sender) = match conn {
-        PooledConnection::Http1(mut sender) => {
-            let res = sender
-                .send_request(req)
-                .await
-                .map_err(|e| GatewayError::ConnectionFailed(e.to_string()))?;
-            (res, PooledConnection::Http1(sender))
-        }
-        PooledConnection::Http2(mut sender) => {
-            let res = sender
-                .send_request(req)
-                .await
-                .map_err(|e| GatewayError::ConnectionFailed(e.to_string()))?;
-            (res, PooledConnection::Http2(sender))
-        }
-    };
+    let (res, sender) =
+        match conn {
+            PooledConnection::Http1(mut sender) => {
+                let res = sender.send_request(req).await.map_err(|e| {
+                    GatewayError::ConnectionFailed(e.to_string())
+                })?;
+                (res, PooledConnection::Http1(sender))
+            }
+            PooledConnection::Http2(mut sender) => {
+                let res = sender.send_request(req).await.map_err(|e| {
+                    GatewayError::ConnectionFailed(e.to_string())
+                })?;
+                (res, PooledConnection::Http2(sender))
+            }
+        };
 
     Ok((res, sender))
 }

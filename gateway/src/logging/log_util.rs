@@ -10,8 +10,8 @@ impl io::Write for LogChannelWriter {
         let log_data = buf.to_vec();
 
         match self.sender.try_send(log_data) {
-            Ok(_) => {},
-            Err(e) => tracing::error!("Log Dropped (channel full): {}", e)
+            Ok(_) => {}
+            Err(e) => tracing::error!("Log Dropped (channel full): {}", e),
         }
 
         Ok(buf.len())
@@ -26,8 +26,6 @@ impl<'a> tracing_subscriber::fmt::MakeWriter<'a> for LogChannelWriter {
     type Writer = LogChannelWriter;
 
     fn make_writer(&'a self) -> Self::Writer {
-        LogChannelWriter {
-            sender: self.sender.clone(),
-        }
+        LogChannelWriter { sender: self.sender.clone() }
     }
 }

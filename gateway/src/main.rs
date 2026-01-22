@@ -1,16 +1,16 @@
 mod config;
-mod server;
-mod logging;
 mod db;
+mod logging;
+mod server;
 
 use std::sync::Arc;
 
 use axum::{Router, routing::any};
 use clap::Parser;
 
-use tokio::sync::mpsc;
+use tokio::sync::{Mutex, mpsc};
 use tracing::Level;
-use tracing_subscriber::{FmtSubscriber, EnvFilter};
+use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
 use crate::logging::log_util::LogChannelWriter;
 use crate::server::{app_state::AppState, routing::routes};
@@ -19,8 +19,8 @@ use crate::{
         cfg_utils::{reload_config, watch_config},
         models::CmdArgs,
     },
-    server::app_state,
     db::db_utils,
+    server::app_state,
 };
 
 #[tokio::main]
@@ -30,13 +30,14 @@ async fn main() {
     let log_writer = LogChannelWriter { sender: tx };
 
     let subscriber = FmtSubscriber::builder()
-        .with_env_filter(EnvFilter::from_default_env().add_directive(Level::INFO.into()))
+        .with_env_filter(
+            EnvFilter::from_default_env().add_directive(Level::INFO.into()),
+        )
         .with_writer(log_writer)
         .finish();
-        
+
     tracing::subscriber::set_global_default(subscriber)
         .expect("setting default subscriber failed");
-
 
     let args = CmdArgs::try_parse().unwrap();
 
@@ -48,21 +49,30 @@ async fn main() {
 
     let conn = match db_utils::connect_db() {
         Ok(c) => c,
-        Err(_) => panic!("Failed to connect to db")
+        Err(_) => panic!("Failed to connect to db"),
     };
 
-    db_utils::create_tables(&conn);
+    match db_utils::migrate(&conn) {
+        Ok(_) => (),
+        Err(_) => eprintln!("Error migrating db"),
+    }
+
+    let conn = Arc::new(Mutex::new(conn));
+    let conn_clone = conn.clone();
 
     tokio::spawn(async move {
         while let Some(log_bytes) = rx.recv().await {
             let log_string = String::from_utf8_lossy(&log_bytes);
 
-            print!("{}", log_string); 
-            db_utils::save_log(&conn, log_string.to_string());
-            // TODO: SAVE TO DB
+            print!("{}", log_string);
+            let conn_guard = conn_clone.lock().await;
+            match db_utils::save_log(&conn_guard, log_string.to_string()) {
+                Ok(_) => (),
+                Err(e) => eprint!("{}", e),
+            }
         }
     });
-    
+
     let state =
         Arc::new(AppState::new(reload_config(config_path).await.unwrap()));
     let _watcher = match watch_config(config_path, state.clone()) {

@@ -48,7 +48,10 @@ pub fn watch_config(
                                 tracing::info!("Config hot-reloaded");
                             }
                             Err(e) => {
-                                tracing::error!("Failed to reload config: {}", e);
+                                tracing::error!(
+                                    "Failed to reload config: {}",
+                                    e
+                                );
                             }
                         }
                     }

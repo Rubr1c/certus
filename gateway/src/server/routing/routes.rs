@@ -8,7 +8,8 @@ use axum::{
 use matchit::Router;
 
 use crate::server::{
-    app_state::AppState, error::GatewayError, load_balancing::balancing, request::requests
+    app_state::AppState, error::GatewayError, load_balancing::balancing,
+    request::requests,
 };
 
 pub fn build_tree(state: Arc<AppState>) {
