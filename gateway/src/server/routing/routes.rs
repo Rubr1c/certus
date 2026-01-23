@@ -5,6 +5,7 @@ use axum::{
     extract::{Request, State},
     response::IntoResponse,
 };
+use hyper::Method;
 use matchit::Router;
 
 use crate::server::{
@@ -46,19 +47,25 @@ pub async fn reroute(
 ) -> impl IntoResponse {
     let path = req.uri().path();
     let ck = CacheKey {
-        method: req.method().clone(),
-        //store as none for now
+        // store as none for now
+        // needs to be extreacted from JWT if enabled else try and extract from headers
         user_id: None,
         user_role: None,
         path: path.to_string(),
     };
+    let method = req.method().clone(); 
 
+    tracing::info!("Checking cache");
     match state.cache.get(&ck) {
         Some(res) => {
-            tracing::info!("returning cached response");
-            return res.into_response();
+            if method == Method::GET {
+                tracing::info!("Returning cached response to {}", path);
+                return res.into_response();
+            } 
         }
-        None => {}
+        None => {
+            tracing::info!("Response not found in cache")
+        }
     }
 
     let router = state.router.load();
@@ -80,6 +87,7 @@ pub async fn reroute(
         Ok(response) => {
             let (parts, body) = response.into_parts();
             let body =
+                //TODO: set limit
                 to_bytes(Body::new(body), usize::MAX).await.unwrap_or_default();
 
             let cached = CachedResponse {
@@ -89,9 +97,13 @@ pub async fn reroute(
             };
 
             let response = cached.clone().into_response();
-            state.cache.insert(ck, cached);
-
+            // only cache get requests 
+            if method == Method::GET {
+                state.cache.insert(ck, cached);
+                tracing::info!("Saved response to cache");
+            }
             response
+            
         }
         Err(e) => e.into_response(),
     }

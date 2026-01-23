@@ -60,7 +60,6 @@ impl UpstreamServer {
 
 #[derive(Hash, Eq, PartialEq)]
 pub struct CacheKey {
-    pub method: Method,
     pub user_id: Option<u64>,
     //TODO: get roles from config
     pub user_role: Option<String>,

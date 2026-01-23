@@ -15,6 +15,7 @@ pub struct AppState {
     pub config: ArcSwap<Config>,
     pub router: ArcSwap<Router<String>>,
     pub cache: Cache<CacheKey, CachedResponse>,
+    // TODO: add dashmap for staticly cached responses 
 }
 
 impl AppState {
