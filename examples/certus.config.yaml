@@ -12,3 +12,7 @@ routes:
 
   /test/best:
     endpoints: ['127.0.0.1:3005', '127.0.0.1:3006']
+
+  /_static:
+    endpoints: ['127.0.0.1:3004']
+    is_static: true

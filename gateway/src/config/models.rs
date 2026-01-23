@@ -50,6 +50,7 @@ pub struct AuthConfig {
 pub struct RouteConfig {
     pub endpoints: Vec<SocketAddr>,
     pub auth: Option<AuthConfig>,
+    pub is_static: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]

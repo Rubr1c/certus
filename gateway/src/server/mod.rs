@@ -1,4 +1,5 @@
 pub mod app_state;
+pub mod cache;
 pub mod connection;
 pub mod error;
 pub mod load_balancing;

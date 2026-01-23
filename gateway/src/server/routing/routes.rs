@@ -53,15 +53,30 @@ pub async fn reroute(
         user_role: None,
         path: path.to_string(),
     };
-    let method = req.method().clone(); 
+    let method = req.method().clone();
 
-    tracing::info!("Checking cache");
+    tracing::info!("Checking cache for path: {:?}", path);
+    tracing::debug!(
+        "Static cache keys: {:?}",
+        state.static_cache.iter().map(|e| e.key().clone()).collect::<Vec<_>>()
+    );
+
+    match state.static_cache.get(path) {
+        Some(res) => {
+            tracing::info!("Returning static cached response to {}", path);
+            return res.clone().into_response();
+        }
+        None => {
+            tracing::debug!("Path {:?} not found in static cache", path);
+        }
+    }
+
     match state.cache.get(&ck) {
         Some(res) => {
             if method == Method::GET {
                 tracing::info!("Returning cached response to {}", path);
                 return res.into_response();
-            } 
+            }
         }
         None => {
             tracing::info!("Response not found in cache")
@@ -97,13 +112,12 @@ pub async fn reroute(
             };
 
             let response = cached.clone().into_response();
-            // only cache get requests 
+            // only cache get requests
             if method == Method::GET {
                 state.cache.insert(ck, cached);
                 tracing::info!("Saved response to cache");
             }
             response
-            
         }
         Err(e) => e.into_response(),
     }

@@ -11,7 +11,7 @@ use crate::config::models::Config;
 use crate::server::app_state::{self, AppState};
 use crate::server::routing::routes;
 
-pub fn watch_config(
+pub async fn watch_config(
     path: &str,
     state: Arc<AppState>,
 ) -> notify::Result<RecommendedWatcher> {
@@ -44,7 +44,8 @@ pub fn watch_config(
                             Ok(new_config) => {
                                 state.config.store(Arc::new(new_config));
                                 routes::build_tree(state.clone());
-                                app_state::init_server_state(state.clone());
+                                app_state::init_server_state(state.clone())
+                                    .await;
                                 tracing::info!("Config hot-reloaded");
                             }
                             Err(e) => {

@@ -75,13 +75,13 @@ async fn main() {
 
     let state =
         Arc::new(AppState::new(reload_config(config_path).await.unwrap()));
-    let _watcher = match watch_config(config_path, state.clone()) {
+    let _watcher = match watch_config(config_path, state.clone()).await {
         Ok(watcher) => Some(watcher),
         Err(_) => None,
     };
 
     routes::build_tree(state.clone());
-    app_state::init_server_state(state.clone());
+    app_state::init_server_state(state.clone()).await;
 
     let config = state.config.load();
     let port = config.server.port;
