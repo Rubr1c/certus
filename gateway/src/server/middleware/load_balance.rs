@@ -7,7 +7,7 @@ use std::{
 
 use rand::{SeedableRng, rngs::SmallRng, seq::IndexedRandom};
 
-use crate::{config::models::Config, server::models::UpstreamServer};
+use crate::{config::models::Config, server::upstream::models::UpstreamServer};
 
 thread_local! {
     static THREAD_RNG: RefCell<SmallRng> = RefCell::new(SmallRng::from_os_rng());

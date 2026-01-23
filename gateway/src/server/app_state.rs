@@ -1,15 +1,19 @@
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 
 use arc_swap::ArcSwap;
-use axum::http;
 use dashmap::DashMap;
 use matchit::Router;
 use moka::sync::Cache;
 
-use crate::config::models::Config;
-use crate::server::cache::static_cache;
-use crate::server::models::{
-    CacheKey, CachedResponse, Protocol, UpstreamServer,
+use crate::{
+    config::models::Config,
+    server::{
+        middleware::cache::{
+            models::{CacheKey, CachedResponse},
+            static_cache,
+        },
+        upstream::models::{Protocol, UpstreamServer},
+    },
 };
 
 //TODO: Add db connection in efficent way to use in metrics endpoints

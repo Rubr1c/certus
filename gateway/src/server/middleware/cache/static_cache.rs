@@ -6,8 +6,8 @@ use dashmap::DashMap;
 use hyper::Request;
 
 use crate::server::{
-    models::{CachedResponse, UpstreamServer},
-    request::requests,
+    middleware::{cache::models::CachedResponse, handler},
+    upstream::models::UpstreamServer,
 };
 
 pub async fn send_and_save(
@@ -28,7 +28,7 @@ pub async fn send_and_save(
         }
     };
 
-    let res = requests::handle_request(&upstream, req).await;
+    let res = handler::handle_request(&upstream, req).await;
 
     //TODO: remove reused code
     match res {

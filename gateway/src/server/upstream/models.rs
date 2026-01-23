@@ -1,11 +1,8 @@
-use std::{hash::Hash, net::SocketAddr, sync::atomic::AtomicUsize};
+use std::{net::SocketAddr, sync::atomic::AtomicUsize};
 
-use axum::{
-    body::{Body, Bytes},
-    response::{IntoResponse, Response},
-};
+use axum::body::Body;
 use crossbeam::queue::SegQueue;
-use hyper::{HeaderMap, Method, StatusCode, client::conn};
+use hyper::client::conn;
 
 pub enum HealthState {
     Alive,
@@ -55,31 +52,5 @@ impl UpstreamServer {
                 idle_connections: SegQueue::new(),
             },
         }
-    }
-}
-
-#[derive(Hash, Eq, PartialEq)]
-pub struct CacheKey {
-    pub user_id: Option<u64>,
-    //TODO: get roles from config
-    pub user_role: Option<String>,
-    pub path: String,
-}
-
-#[derive(Clone)]
-pub struct CachedResponse {
-    pub status: StatusCode,
-    pub headers: HeaderMap,
-    pub body: Bytes,
-}
-
-impl IntoResponse for CachedResponse {
-    fn into_response(self) -> Response {
-        let mut response = Response::new(Body::from(self.body));
-
-        *response.status_mut() = self.status;
-        *response.headers_mut() = self.headers;
-
-        response
     }
 }

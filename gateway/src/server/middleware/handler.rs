@@ -6,7 +6,7 @@ use hyper::body::Incoming;
 use crate::server::{
     connection,
     error::GatewayError,
-    models::{PooledConnection, UpstreamServer},
+    upstream::models::{PooledConnection, UpstreamServer},
 };
 
 async fn forward_request(

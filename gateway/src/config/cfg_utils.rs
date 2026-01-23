@@ -6,10 +6,13 @@ use tokio::fs;
 use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use tokio::sync::mpsc;
 
-use crate::config::error::ConfigError;
-use crate::config::models::Config;
-use crate::server::app_state::{self, AppState};
-use crate::server::routing::routes;
+use crate::{
+    config::{error::ConfigError, models::Config},
+    server::{
+        app_state::{self, AppState},
+        middleware::router,
+    },
+};
 
 pub async fn watch_config(
     path: &str,
@@ -43,7 +46,7 @@ pub async fn watch_config(
                         match reload_config(&path).await {
                             Ok(new_config) => {
                                 state.config.store(Arc::new(new_config));
-                                routes::build_tree(state.clone());
+                                router::build_tree(state.clone());
                                 app_state::init_server_state(state.clone())
                                     .await;
                                 tracing::info!("Config hot-reloaded");

@@ -7,7 +7,7 @@ use tokio::net::TcpStream;
 
 use crate::server::{
     error::GatewayError,
-    models::{PooledConnection, Protocol, UpstreamServer},
+    upstream::models::{PooledConnection, Protocol, UpstreamServer},
 };
 
 //TODO: make sure atomic ordering correct

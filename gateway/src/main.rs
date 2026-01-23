@@ -13,7 +13,8 @@ use tracing::Level;
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
 use crate::logging::log_util::LogChannelWriter;
-use crate::server::{app_state::AppState, routing::routes};
+use crate::server::app_state::AppState;
+use crate::server::middleware::router;
 use crate::{
     config::{
         cfg_utils::{reload_config, watch_config},
@@ -80,7 +81,7 @@ async fn main() {
         Err(_) => None,
     };
 
-    routes::build_tree(state.clone());
+    router::build_tree(state.clone());
     app_state::init_server_state(state.clone()).await;
 
     let config = state.config.load();
@@ -94,7 +95,7 @@ async fn main() {
     println!("Config watcher started. Press Ctrl+C to exit.");
 
     let app =
-        Router::new().route("/{*any}", any(routes::reroute)).with_state(state);
+        Router::new().route("/{*any}", any(router::reroute)).with_state(state);
 
     let shutdown_signal = async {
         tokio::signal::ctrl_c().await.expect("Failed to listen for Ctrl+C");

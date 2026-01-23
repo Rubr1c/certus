@@ -11,9 +11,10 @@ use matchit::Router;
 use crate::server::{
     app_state::AppState,
     error::GatewayError,
-    load_balancing::balancing,
-    models::{CacheKey, CachedResponse},
-    request::requests,
+    middleware::{
+        cache::models::{CacheKey, CachedResponse},
+        handler, load_balance,
+    },
 };
 
 pub fn build_tree(state: Arc<AppState>) {
@@ -94,10 +95,10 @@ pub async fn reroute(
         }
     };
 
-    let server = balancing::p2c_pick(matched_route_key, &routes, &config);
+    let server = load_balance::p2c_pick(matched_route_key, &routes, &config);
     let upstream = routes.get(&server).expect("Upstream Should Exist").clone();
 
-    let res = requests::handle_request(&upstream, req).await;
+    let res = handler::handle_request(&upstream, req).await;
     match res {
         Ok(response) => {
             let (parts, body) = response.into_parts();
