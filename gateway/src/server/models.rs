@@ -20,6 +20,7 @@ pub enum PooledConnection {
     Http2(conn::http2::SendRequest<Body>),
 }
 
+//TODO: add/remove nessesary/unesseseary fleids
 pub struct UpstreamServer {
     pub active_connctions: AtomicUsize,
     pub health_state: HealthState,

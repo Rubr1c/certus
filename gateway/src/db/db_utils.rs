@@ -1,4 +1,3 @@
-
 use rusqlite::Connection;
 
 use crate::db::models::LogEntry;

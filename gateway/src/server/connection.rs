@@ -10,6 +10,9 @@ use crate::server::{
     models::{PooledConnection, Protocol, UpstreamServer},
 };
 
+
+//TODO: make sure atomic ordering correct
+
 pub async fn open_connection(
     upstream: &UpstreamServer,
 ) -> Result<PooledConnection, Box<dyn std::error::Error + Send + Sync>> {

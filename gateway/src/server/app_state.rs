@@ -6,6 +6,7 @@ use matchit::Router;
 use crate::config::models::Config;
 use crate::server::models::{Protocol, UpstreamServer};
 
+//TODO: Add db connection in efficent way to use in metrics endpoints
 pub struct AppState {
     pub routes: ArcSwap<HashMap<SocketAddr, Arc<UpstreamServer>>>,
     pub config: ArcSwap<Config>,
