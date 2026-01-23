@@ -1,14 +1,17 @@
 use std::sync::Arc;
 
 use axum::{
-    body::Body,
+    body::{Body, to_bytes},
     extract::{Request, State},
     response::IntoResponse,
 };
 use matchit::Router;
 
 use crate::server::{
-    app_state::AppState, error::GatewayError, load_balancing::balancing,
+    app_state::AppState,
+    error::GatewayError,
+    load_balancing::balancing,
+    models::{CacheKey, CachedResponse},
     request::requests,
 };
 
@@ -42,6 +45,22 @@ pub async fn reroute(
     req: Request<Body>,
 ) -> impl IntoResponse {
     let path = req.uri().path();
+    let ck = CacheKey {
+        method: req.method().clone(),
+        //store as none for now
+        user_id: None,
+        user_role: None,
+        path: path.to_string(),
+    };
+
+    match state.cache.get(&ck) {
+        Some(res) => {
+            tracing::info!("returning cached response");
+            return res.into_response();
+        }
+        None => {}
+    }
+
     let router = state.router.load();
     let routes = state.routes.load();
     let config = state.config.load();
@@ -58,7 +77,22 @@ pub async fn reroute(
 
     let res = requests::handle_request(&upstream, req).await;
     match res {
-        Ok(response) => response.into_response(),
+        Ok(response) => {
+            let (parts, body) = response.into_parts();
+            let body =
+                to_bytes(Body::new(body), usize::MAX).await.unwrap_or_default();
+
+            let cached = CachedResponse {
+                status: parts.status,
+                headers: parts.headers,
+                body,
+            };
+
+            let response = cached.clone().into_response();
+            state.cache.insert(ck, cached);
+
+            response
+        }
         Err(e) => e.into_response(),
     }
 }

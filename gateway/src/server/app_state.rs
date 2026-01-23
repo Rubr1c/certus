@@ -2,15 +2,19 @@ use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 
 use arc_swap::ArcSwap;
 use matchit::Router;
+use moka::sync::Cache;
 
 use crate::config::models::Config;
-use crate::server::models::{Protocol, UpstreamServer};
+use crate::server::models::{
+    CacheKey, CachedResponse, Protocol, UpstreamServer,
+};
 
 //TODO: Add db connection in efficent way to use in metrics endpoints
 pub struct AppState {
     pub routes: ArcSwap<HashMap<SocketAddr, Arc<UpstreamServer>>>,
     pub config: ArcSwap<Config>,
     pub router: ArcSwap<Router<String>>,
+    pub cache: Cache<CacheKey, CachedResponse>,
 }
 
 impl AppState {
@@ -19,6 +23,7 @@ impl AppState {
             routes: ArcSwap::from_pointee(HashMap::new()),
             config: ArcSwap::from_pointee(config),
             router: ArcSwap::from_pointee(Router::new()),
+            cache: Cache::new(1000),
         }
     }
 }
