@@ -36,14 +36,12 @@ pub enum AuthType {
     None,
     JWT {
         secret: String,
-        expiration: u16,
     },
 }
 
 #[derive(Debug, Default, Deserialize)]
 pub struct AuthConfig {
     pub method: AuthType,
-    pub exculde: Vec<String>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -51,6 +49,7 @@ pub struct RouteConfig {
     pub endpoints: Vec<SocketAddr>,
     pub auth: Option<AuthConfig>,
     pub is_static: Option<bool>,
+    pub needs_auth: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]

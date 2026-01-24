@@ -16,6 +16,7 @@ hyper-util = { version = "0.1.19", features = [
     "http2",
     "tokio",
 ] }
+jsonwebtoken = { version = "10.2.0", features = ["rust_crypto"] }
 lazy_static = "1.5"
 matchit = "0.9.0"
 moka = { version = "0.12.12", features = ["sync"] }

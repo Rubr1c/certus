@@ -8,12 +8,16 @@ use axum::{
 use hyper::Method;
 use matchit::Router;
 
-use crate::server::{
-    app_state::AppState,
-    error::GatewayError,
-    middleware::{
-        cache::models::{CacheKey, CachedResponse},
-        handler, load_balance,
+use crate::{
+    config::models::AuthType,
+    server::{
+        app_state::AppState,
+        error::GatewayError,
+        middleware::{
+            auth,
+            cache::models::{CacheKey, CachedResponse},
+            handler, load_balance,
+        },
     },
 };
 
@@ -50,6 +54,8 @@ pub async fn reroute(
     let ck = CacheKey {
         // store as none for now
         // needs to be extreacted from JWT if enabled else try and extract from headers
+        //
+        // it might be better to just set JWT here directly as a field
         user_id: None,
         user_role: None,
         path: path.to_string(),
@@ -97,6 +103,33 @@ pub async fn reroute(
 
     let server = load_balance::p2c_pick(matched_route_key, &routes, &config);
     let upstream = routes.get(&server).expect("Upstream Should Exist").clone();
+
+    //TODO: strip any prefix and define in config
+    if let Some(ref a) = config.auth {
+        if upstream.req_auth {
+            let token = req
+                .headers()
+                .get("Authorization")
+                .and_then(|h| h.to_str().ok())
+                .and_then(|s| s.strip_prefix("Bearer "));
+            match token {
+                Some(t) => match &a.method {
+                    AuthType::JWT { secret } => {
+                        match auth::decode(t, secret) {
+                            Ok(_) => {
+                                //TODO: put claims in header
+                            }
+                            Err(e) => return e.into_response(),
+                        }
+                    }
+                    AuthType::None => {}
+                },
+                None => {
+                    return GatewayError::Unauthorized.into_response();
+                }
+            }
+        }
+    }
 
     let res = handler::handle_request(&upstream, req).await;
     match res {

@@ -3,9 +3,15 @@ server:
 
 default_server: '127.0.0.1:3000'
 
+auth:
+  method:
+    !jwt
+      secret: "wdauhwaiuyhdbuadbauwbdaudgbaydutwvawdyutvy"
+
 routes:
   /users:
     endpoints: ['127.0.0.1:3001', '127.0.0.1:3002']
+    needs_auth: true
 
   /test:
     endpoints: ['127.0.0.1:3003', '127.0.0.1:3004']

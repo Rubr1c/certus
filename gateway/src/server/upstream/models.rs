@@ -25,6 +25,7 @@ pub struct UpstreamServer {
     pub active_connctions: AtomicUsize,
     pub health_state: HealthState,
     pub pool: ConnectionPool,
+    pub req_auth: bool,
 }
 
 pub struct ConnectionPool {
@@ -40,6 +41,7 @@ impl UpstreamServer {
         address: SocketAddr,
         max_connections: usize,
         protocol: Protocol,
+        req_auth: bool,
     ) -> Self {
         UpstreamServer {
             active_connctions: AtomicUsize::new(0),
@@ -51,6 +53,7 @@ impl UpstreamServer {
                 total_connections: AtomicUsize::new(0),
                 idle_connections: SegQueue::new(),
             },
+            req_auth,
         }
     }
 }

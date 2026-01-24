@@ -17,6 +17,9 @@ pub enum GatewayError {
 
     #[error("Internal IO error: {0}")]
     Io(#[from] std::io::Error),
+
+    #[error("Unauthorized")]
+    Unauthorized,
 }
 
 impl IntoResponse for GatewayError {
@@ -33,6 +36,9 @@ impl IntoResponse for GatewayError {
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Internal Server Error".to_string(),
             ),
+            GatewayError::Unauthorized => {
+                (StatusCode::UNAUTHORIZED, self.to_string())
+            }
         };
 
         (status, error_message).into_response()
