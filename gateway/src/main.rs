@@ -1,27 +1,19 @@
-mod config;
-mod db;
-mod logging;
-mod server;
-
 use std::sync::Arc;
 
 use axum::{Router, routing::any};
 use clap::Parser;
-
 use tokio::sync::{Mutex, mpsc};
 use tracing::Level;
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
-use crate::logging::log_util::LogChannelWriter;
-use crate::server::app_state::AppState;
-use crate::server::middleware::router;
-use crate::{
+use gateway::{
     config::{
         cfg_utils::{reload_config, watch_config},
         models::CmdArgs,
     },
     db::db_utils,
-    server::app_state,
+    logging::log_util::LogChannelWriter,
+    server::{app_state, app_state::AppState, middleware::router},
 };
 
 #[tokio::main]
