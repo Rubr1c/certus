@@ -8,6 +8,7 @@ use axum::{
     routing::any,
 };
 use criterion::{Criterion, criterion_group, criterion_main};
+use hyper_util::{client::legacy::Client, rt::TokioExecutor};
 use tokio::{net::TcpListener, runtime::Runtime};
 use tower::ServiceExt;
 
@@ -70,12 +71,12 @@ fn bench_tower_service(c: &mut Criterion) {
     let rt = create_runtime();
     let state = rt.block_on(setup_state());
 
+    let app = Router::new()
+        .route("/{*any}", any(reroute))
+        .with_state(state);
+
     c.bench_function("tower_service", |b| {
         b.to_async(&rt).iter(|| async {
-            let app = Router::new()
-                .route("/{*any}", any(reroute))
-                .with_state(state.clone());
-
             let req = HttpRequest::builder()
                 .method("GET")
                 .uri("/test")
@@ -83,7 +84,7 @@ fn bench_tower_service(c: &mut Criterion) {
                 .body(Body::empty())
                 .unwrap();
 
-            let _ = app.oneshot(req).await;
+            let _ = app.clone().oneshot(req).await;
         });
     });
 }
@@ -93,12 +94,22 @@ fn bench_http_integration(c: &mut Criterion) {
     let state = rt.block_on(setup_state());
     let addr = rt.block_on(setup_server(state));
 
-    let client = reqwest::Client::new();
-    let url = format!("http://{}/test", addr);
+    let client: Client<_, Body> = Client::builder(TokioExecutor::new()).build_http();
+    let uri = format!("http://{}/test", addr);
 
     c.bench_function("http_integration", |b| {
-        b.to_async(&rt).iter(|| async {
-            let _ = client.get(&url).send().await.unwrap();
+        b.to_async(&rt).iter(|| {
+            let req = HttpRequest::builder()
+                .method("GET")
+                .uri(&uri)
+                .header("Host", "localhost")
+                .body(Body::empty())
+                .unwrap();
+
+            let client = client.clone();
+            async move {
+                let _ = client.request(req).await.unwrap();
+            }
         });
     });
 }

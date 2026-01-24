@@ -34,7 +34,7 @@ tracing-subscriber = { version = "0.3.20", features = ["env-filter", "json"] }
 
 [dev-dependencies]
 criterion = { version = "0.8.1", features = ["async_tokio"] }
-reqwest = "0.13.1"
+hyper-util = { version = "0.1.19", features = ["client-legacy"] }
 tower = { version = "0.5.3", features = ["util"] }
 
 [[bench]]
