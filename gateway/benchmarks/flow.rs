@@ -57,6 +57,32 @@ fn bench_direct_call(c: &mut Criterion) {
     c.bench_function("direct_call", |b| {
         b.to_async(&rt).iter(|| async {
             let req = Request::builder()
+                .method("PUT")
+                .uri("/test")
+                .body(Body::empty())
+                .unwrap();
+
+            let _ = reroute(State(state.clone()), req).await;
+        });
+    });
+}
+
+fn bench_direct_call_cached(c: &mut Criterion) {
+    let rt = create_runtime();
+    let state = rt.block_on(setup_state());
+
+    rt.block_on(async {
+        let req = Request::builder()
+            .method("GET")
+            .uri("/test")
+            .body(Body::empty())
+            .unwrap();
+        let _ = reroute(State(state.clone()), req).await;
+    });
+
+    c.bench_function("direct_call_cached", |b| {
+        b.to_async(&rt).iter(|| async {
+            let req = Request::builder()
                 .method("GET")
                 .uri("/test")
                 .body(Body::empty())
@@ -76,6 +102,39 @@ fn bench_tower_service(c: &mut Criterion) {
         .with_state(state);
 
     c.bench_function("tower_service", |b| {
+        b.to_async(&rt).iter(|| async {
+            let req = HttpRequest::builder()
+                .method("PUT")
+                .uri("/test")
+                .header("Host", "localhost")
+                .body(Body::empty())
+                .unwrap();
+
+            let _ = app.clone().oneshot(req).await;
+        });
+    });
+}
+
+fn bench_tower_service_cached(c: &mut Criterion) {
+    let rt = create_runtime();
+    let state = rt.block_on(setup_state());
+
+    let app = Router::new()
+        .route("/{*any}", any(reroute))
+        .with_state(state);
+
+    // Prime the cache
+    rt.block_on(async {
+        let req = HttpRequest::builder()
+            .method("GET")
+            .uri("/test")
+            .header("Host", "localhost")
+            .body(Body::empty())
+            .unwrap();
+        let _ = app.clone().oneshot(req).await;
+    });
+
+    c.bench_function("tower_service_cached", |b| {
         b.to_async(&rt).iter(|| async {
             let req = HttpRequest::builder()
                 .method("GET")
@@ -100,6 +159,42 @@ fn bench_http_integration(c: &mut Criterion) {
     c.bench_function("http_integration", |b| {
         b.to_async(&rt).iter(|| {
             let req = HttpRequest::builder()
+                .method("PUT")
+                .uri(&uri)
+                .header("Host", "localhost")
+                .body(Body::empty())
+                .unwrap();
+
+            let client = client.clone();
+            async move {
+                let _ = client.request(req).await.unwrap();
+            }
+        });
+    });
+}
+
+fn bench_http_integration_cached(c: &mut Criterion) {
+    let rt = create_runtime();
+    let state = rt.block_on(setup_state());
+    let addr = rt.block_on(setup_server(state));
+
+    let client: Client<_, Body> = Client::builder(TokioExecutor::new()).build_http();
+    let uri = format!("http://{}/test", addr);
+
+    // Prime the cache
+    rt.block_on(async {
+        let req = HttpRequest::builder()
+            .method("GET")
+            .uri(&uri)
+            .header("Host", "localhost")
+            .body(Body::empty())
+            .unwrap();
+        let _ = client.request(req).await.unwrap();
+    });
+
+    c.bench_function("http_integration_cached", |b| {
+        b.to_async(&rt).iter(|| {
+            let req = HttpRequest::builder()
                 .method("GET")
                 .uri(&uri)
                 .header("Host", "localhost")
@@ -114,5 +209,13 @@ fn bench_http_integration(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, bench_direct_call, bench_tower_service, bench_http_integration);
+criterion_group!(
+    benches,
+    bench_direct_call,
+    bench_direct_call_cached,
+    bench_tower_service,
+    bench_tower_service_cached,
+    bench_http_integration,
+    bench_http_integration_cached
+);
 criterion_main!(benches);
