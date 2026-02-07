@@ -50,12 +50,21 @@ pub struct RouteConfig {
     pub auth: Option<AuthConfig>,
     pub is_static: Option<bool>,
     pub needs_auth: Option<bool>,
+    #[serde(default = "default_token_weight")]
+    pub token_weight: usize,
+}
+
+#[derive(Debug, Default, Deserialize)]
+pub struct RateLimitConfig {
+    pub max_tokens: usize,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
     pub server: ServerConfig,
     pub auth: Option<AuthConfig>,
+    #[serde(default = "default_rate_limit")]
+    pub rate_limit: RateLimitConfig,
     pub routes: HashMap<String, RouteConfig>,
     #[serde(default = "default_socket_addr")]
     pub default_server: SocketAddr,
@@ -66,6 +75,7 @@ impl Default for Config {
         Config {
             server: ServerConfig::default(),
             auth: None,
+            rate_limit: default_rate_limit(),
             routes: HashMap::new(),
             default_server: default_socket_addr(),
         }
@@ -74,4 +84,12 @@ impl Default for Config {
 
 fn default_socket_addr() -> SocketAddr {
     "127.0.0.1:80".parse().unwrap()
+}
+
+fn default_token_weight() -> usize {
+    1
+}
+
+fn default_rate_limit() -> RateLimitConfig {
+    RateLimitConfig { max_tokens: 100 }
 }

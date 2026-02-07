@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::net::SocketAddr;
 
 use axum::{Router, routing::any};
 use clap::Parser;
@@ -94,7 +95,7 @@ async fn main() {
         tracing::info!("\nShutting down...");
     };
 
-    axum::serve(listener, app)
+    axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>())
         .with_graceful_shutdown(shutdown_signal)
         .await
         .unwrap();

@@ -21,10 +21,7 @@ use gateway::{
 };
 
 fn create_runtime() -> Runtime {
-    tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()
-        .unwrap()
+    tokio::runtime::Builder::new_multi_thread().enable_all().build().unwrap()
 }
 
 async fn setup_state() -> Arc<AppState> {
@@ -36,9 +33,7 @@ async fn setup_state() -> Arc<AppState> {
 }
 
 async fn setup_server(state: Arc<AppState>) -> SocketAddr {
-    let app = Router::new()
-        .route("/{*any}", any(reroute))
-        .with_state(state);
+    let app = Router::new().route("/{*any}", any(reroute)).with_state(state);
 
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
@@ -97,9 +92,7 @@ fn bench_tower_service(c: &mut Criterion) {
     let rt = create_runtime();
     let state = rt.block_on(setup_state());
 
-    let app = Router::new()
-        .route("/{*any}", any(reroute))
-        .with_state(state);
+    let app = Router::new().route("/{*any}", any(reroute)).with_state(state);
 
     c.bench_function("tower_service", |b| {
         b.to_async(&rt).iter(|| async {
@@ -119,9 +112,7 @@ fn bench_tower_service_cached(c: &mut Criterion) {
     let rt = create_runtime();
     let state = rt.block_on(setup_state());
 
-    let app = Router::new()
-        .route("/{*any}", any(reroute))
-        .with_state(state);
+    let app = Router::new().route("/{*any}", any(reroute)).with_state(state);
 
     // Prime the cache
     rt.block_on(async {
@@ -153,7 +144,8 @@ fn bench_http_integration(c: &mut Criterion) {
     let state = rt.block_on(setup_state());
     let addr = rt.block_on(setup_server(state));
 
-    let client: Client<_, Body> = Client::builder(TokioExecutor::new()).build_http();
+    let client: Client<_, Body> =
+        Client::builder(TokioExecutor::new()).build_http();
     let uri = format!("http://{}/test", addr);
 
     c.bench_function("http_integration", |b| {
@@ -178,7 +170,8 @@ fn bench_http_integration_cached(c: &mut Criterion) {
     let state = rt.block_on(setup_state());
     let addr = rt.block_on(setup_server(state));
 
-    let client: Client<_, Body> = Client::builder(TokioExecutor::new()).build_http();
+    let client: Client<_, Body> =
+        Client::builder(TokioExecutor::new()).build_http();
     let uri = format!("http://{}/test", addr);
 
     // Prime the cache

@@ -1,4 +1,8 @@
-use std::{collections::HashMap, net::SocketAddr, sync::Arc};
+use std::{
+    collections::HashMap,
+    net::{SocketAddr, IpAddr},
+    sync::{Arc, atomic::AtomicUsize},
+};
 
 use arc_swap::ArcSwap;
 use dashmap::DashMap;
@@ -23,6 +27,7 @@ pub struct AppState {
     pub router: ArcSwap<Router<String>>,
     pub cache: Cache<CacheKey, CachedResponse>,
     pub static_cache: DashMap<String, CachedResponse>,
+    pub user_tokens: DashMap<IpAddr, AtomicUsize>,
 }
 
 impl AppState {
@@ -33,6 +38,7 @@ impl AppState {
             router: ArcSwap::from_pointee(Router::new()),
             cache: Cache::new(1000),
             static_cache: DashMap::new(),
+            user_tokens: DashMap::new(),
         }
     }
 }
@@ -51,7 +57,8 @@ pub async fn init_server_state(state: Arc<AppState>) {
                 //TODO: make dynamic from config
                 100,
                 Protocol::HTTP1,
-                route_config.needs_auth.is_some_and(|c| c)
+                route_config.needs_auth.is_some_and(|c| c),
+                route_config.token_weight,
             ));
             if is_static_and_not_fetched {
                 static_cache::send_and_save(

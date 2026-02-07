@@ -20,6 +20,9 @@ pub enum GatewayError {
 
     #[error("Unauthorized")]
     Unauthorized,
+
+    #[error("Rate Limited")]
+    RateLimited,
 }
 
 impl IntoResponse for GatewayError {
@@ -38,7 +41,10 @@ impl IntoResponse for GatewayError {
             ),
             GatewayError::Unauthorized => {
                 (StatusCode::UNAUTHORIZED, self.to_string())
-            }
+            },
+            GatewayError::RateLimited => {
+                (StatusCode::TOO_MANY_REQUESTS, self.to_string())
+            },
         };
 
         (status, error_message).into_response()

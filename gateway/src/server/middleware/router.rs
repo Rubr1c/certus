@@ -1,8 +1,9 @@
-use std::sync::Arc;
+use std::sync::{Arc, atomic::{AtomicUsize, Ordering}};
+use std::net::SocketAddr;
 
 use axum::{
     body::{Body, to_bytes},
-    extract::{Request, State},
+    extract::{Request, State, ConnectInfo},
     response::IntoResponse,
 };
 use hyper::Method;
@@ -48,9 +49,22 @@ pub fn build_tree(state: Arc<AppState>) {
 
 pub async fn reroute(
     State(state): State<Arc<AppState>>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
     req: Request<Body>,
 ) -> impl IntoResponse {
     let path = req.uri().path();
+    let config = state.config.load();
+
+    let tokens = state.user_tokens.entry(addr.ip())
+        .or_insert(AtomicUsize::new(config.rate_limit.max_tokens));
+
+    tracing::info!("Checking Rate Limit");
+
+    if !(tokens.load(Ordering::Acquire) > 0) {
+       tracing::info!("Checking Rate Exceeded");
+       return GatewayError::RateLimited.into_response(); 
+    } 
+    
     let ck = CacheKey {
         // store as none for now
         // needs to be extreacted from JWT if enabled else try and extract from headers
@@ -92,7 +106,6 @@ pub async fn reroute(
 
     let router = state.router.load();
     let routes = state.routes.load();
-    let config = state.config.load();
 
     let matched_route_key = match router.at(&path) {
         Ok(match_result) => match_result.value,
@@ -103,6 +116,14 @@ pub async fn reroute(
 
     let server = load_balance::p2c_pick(matched_route_key, &routes, &config);
     let upstream = routes.get(&server).expect("Upstream Should Exist").clone();
+    // TODO: this should be moved up because the token weight could be higher
+    //       than the actual amount and it could underflow
+    //
+    //       also this will not be reached on get requests because of the cache
+    //       in the current impl
+    tokens.fetch_sub(upstream.token_weight, Ordering::Release);
+    tracing::info!("Removed {} tokens from bucket", upstream.token_weight);
+    tracing::info!("Remaining tokens: {}", tokens.load(Ordering::Acquire));
 
     //TODO: strip any prefix and define in config
     if let Some(ref a) = config.auth {

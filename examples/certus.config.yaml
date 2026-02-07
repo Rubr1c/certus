@@ -8,6 +8,9 @@ auth:
     !jwt
       secret: "wdauhwaiuyhdbuadbauwbdaudgbaydutwvawdyutvy"
 
+rate_limit:
+  max_tokens: 50
+
 routes:
   /users:
     endpoints: ['127.0.0.1:3001', '127.0.0.1:3002']
@@ -18,6 +21,7 @@ routes:
 
   /test/best:
     endpoints: ['127.0.0.1:3005', '127.0.0.1:3006']
+    token_weight: 25
 
   /_static:
     endpoints: ['127.0.0.1:3004']

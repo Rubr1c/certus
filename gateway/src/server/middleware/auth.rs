@@ -3,7 +3,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::server::error::GatewayError;
 
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
     // keeping it optional and passing null to header might be best way incase use does not need fields
@@ -19,6 +18,6 @@ pub fn decode(token: &str, secret: &String) -> Result<Claims, GatewayError> {
         &Validation::default(),
     ) {
         Ok(decoded) => Ok(decoded.claims),
-        Err(err) => Err(GatewayError::Unauthorized)
+        Err(err) => Err(GatewayError::Unauthorized),
     }
 }
