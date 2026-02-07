@@ -27,7 +27,7 @@ use crate::{
 pub fn build_tree(state: Arc<AppState>) {
     let config = state.config.load();
     let route_conf = &config.routes;
-
+    
     let mut router = Router::new();
 
     for (route, _) in route_conf {
@@ -56,7 +56,16 @@ pub async fn reroute(
 ) -> impl IntoResponse {
     let path = req.uri().path();
     let config = state.config.load();
+    let router = state.router.load();
 
+    let matched_route_key = match router.at(&path) {
+        Ok(match_result) => match_result.value,
+        Err(_) => {
+            return GatewayError::NotFound.into_response();
+        }
+    };
+
+    let target_route = config.routes.get(matched_route_key).expect("route should exist");
     let max_tokens = config.rate_limit.max_tokens;
     let refill_rate = config.rate_limit.refill_rate;
 
@@ -75,10 +84,15 @@ pub async fn reroute(
 
     tracing::info!("Checking Rate Limit");
 
-    if bucket_entry.tokens <= 0.0 {
+    if bucket_entry.tokens < target_route.token_weight {
         tracing::info!("Checking Rate Exceeded");
+        drop(bucket_entry);
         return GatewayError::RateLimited.into_response();
     }
+    bucket_entry.tokens -= target_route.token_weight;
+    tracing::info!("Removed {} tokens from bucket", target_route.token_weight);
+    tracing::info!("Remaining tokens: {:.2}", bucket_entry.tokens);
+    drop(bucket_entry);
 
     let ck = CacheKey {
         // store as none for now
@@ -119,26 +133,10 @@ pub async fn reroute(
         }
     }
 
-    let router = state.router.load();
     let routes = state.routes.load();
 
-    let matched_route_key = match router.at(&path) {
-        Ok(match_result) => match_result.value,
-        Err(_) => {
-            return GatewayError::NotFound.into_response();
-        }
-    };
-
-    let server = load_balance::p2c_pick(matched_route_key, &routes, &config);
+    let server = load_balance::p2c_pick(&routes, &target_route, &config);
     let upstream = routes.get(&server).expect("Upstream Should Exist").clone();
-    // TODO: this should be moved up because the token weight could be higher
-    //       than the actual amount and it could underflow
-    //
-    //       also this will not be reached on get requests because of the cache
-    //       in the current impl
-    bucket_entry.tokens = bucket_entry.tokens - upstream.token_weight;
-    tracing::info!("Removed {} tokens from bucket", upstream.token_weight);
-    tracing::info!("Remaining tokens: {:.2}", bucket_entry.tokens);
 
     //TODO: strip any prefix and define in config
     if let Some(ref a) = config.auth {

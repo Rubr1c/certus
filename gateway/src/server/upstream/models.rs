@@ -26,8 +26,6 @@ pub struct UpstreamServer {
     pub health_state: HealthState,
     pub pool: ConnectionPool,
     pub req_auth: bool,
-    // TODO: should not be in upstream but testing it for now here.
-    pub token_weight: f64,
 }
 
 pub struct ConnectionPool {
@@ -44,7 +42,6 @@ impl UpstreamServer {
         max_connections: usize,
         protocol: Protocol,
         req_auth: bool,
-        token_weight: f64,
     ) -> Self {
         UpstreamServer {
             active_connctions: AtomicUsize::new(0),
@@ -57,7 +54,6 @@ impl UpstreamServer {
                 idle_connections: SegQueue::new(),
             },
             req_auth,
-            token_weight,
         }
     }
 }

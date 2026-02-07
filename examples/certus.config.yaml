@@ -10,7 +10,7 @@ auth:
 
 rate_limit:
   max_tokens: 50
-  refill_rate: 1
+  refill_rate: 10
 
 routes:
   /users:

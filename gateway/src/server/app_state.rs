@@ -61,7 +61,6 @@ pub async fn init_server_state(state: Arc<AppState>) {
                 100,
                 Protocol::HTTP1,
                 route_config.needs_auth.is_some_and(|c| c),
-                route_config.token_weight,
             ));
             if is_static_and_not_fetched {
                 static_cache::send_and_save(
