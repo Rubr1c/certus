@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    net::{SocketAddr, IpAddr},
+    net::{IpAddr, SocketAddr},
     sync::{Arc, atomic::AtomicUsize},
 };
 
@@ -12,9 +12,12 @@ use moka::sync::Cache;
 use crate::{
     config::models::Config,
     server::{
-        middleware::cache::{
-            models::{CacheKey, CachedResponse},
-            static_cache,
+        middleware::{
+            cache::{
+                models::{CacheKey, CachedResponse},
+                static_cache,
+            },
+            rate_limit::TokenBucket,
         },
         upstream::models::{Protocol, UpstreamServer},
     },
@@ -27,7 +30,7 @@ pub struct AppState {
     pub router: ArcSwap<Router<String>>,
     pub cache: Cache<CacheKey, CachedResponse>,
     pub static_cache: DashMap<String, CachedResponse>,
-    pub user_tokens: DashMap<IpAddr, AtomicUsize>,
+    pub user_tokens: DashMap<IpAddr, TokenBucket>,
 }
 
 impl AppState {

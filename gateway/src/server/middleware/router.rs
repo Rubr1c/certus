@@ -1,9 +1,10 @@
-use std::sync::{Arc, atomic::{AtomicUsize, Ordering}};
 use std::net::SocketAddr;
+use std::sync::Arc;
+use std::time::Instant;
 
 use axum::{
     body::{Body, to_bytes},
-    extract::{Request, State, ConnectInfo},
+    extract::{ConnectInfo, Request, State},
     response::IntoResponse,
 };
 use hyper::Method;
@@ -18,6 +19,7 @@ use crate::{
             auth,
             cache::models::{CacheKey, CachedResponse},
             handler, load_balance,
+            rate_limit::TokenBucket,
         },
     },
 };
@@ -55,16 +57,29 @@ pub async fn reroute(
     let path = req.uri().path();
     let config = state.config.load();
 
-    let tokens = state.user_tokens.entry(addr.ip())
-        .or_insert(AtomicUsize::new(config.rate_limit.max_tokens));
+    let max_tokens = config.rate_limit.max_tokens;
+    let refill_rate = config.rate_limit.refill_rate;
+
+    let mut bucket_entry = state
+        .user_tokens
+        .entry(addr.ip())
+        .or_insert(TokenBucket::new(config.rate_limit.max_tokens));
+
+    let now = Instant::now();
+    let duration = now.duration_since(bucket_entry.last_refill).as_secs_f64();
+
+    let tokens_to_add = duration * refill_rate;
+
+    bucket_entry.tokens = (bucket_entry.tokens + tokens_to_add).min(max_tokens);
+    bucket_entry.last_refill = now;
 
     tracing::info!("Checking Rate Limit");
 
-    if !(tokens.load(Ordering::Acquire) > 0) {
-       tracing::info!("Checking Rate Exceeded");
-       return GatewayError::RateLimited.into_response(); 
-    } 
-    
+    if bucket_entry.tokens <= 0.0 {
+        tracing::info!("Checking Rate Exceeded");
+        return GatewayError::RateLimited.into_response();
+    }
+
     let ck = CacheKey {
         // store as none for now
         // needs to be extreacted from JWT if enabled else try and extract from headers
@@ -121,9 +136,9 @@ pub async fn reroute(
     //
     //       also this will not be reached on get requests because of the cache
     //       in the current impl
-    tokens.fetch_sub(upstream.token_weight, Ordering::Release);
+    bucket_entry.tokens = bucket_entry.tokens - upstream.token_weight;
     tracing::info!("Removed {} tokens from bucket", upstream.token_weight);
-    tracing::info!("Remaining tokens: {}", tokens.load(Ordering::Acquire));
+    tracing::info!("Remaining tokens: {:.2}", bucket_entry.tokens);
 
     //TODO: strip any prefix and define in config
     if let Some(ref a) = config.auth {

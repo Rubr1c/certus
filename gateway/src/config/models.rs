@@ -51,12 +51,13 @@ pub struct RouteConfig {
     pub is_static: Option<bool>,
     pub needs_auth: Option<bool>,
     #[serde(default = "default_token_weight")]
-    pub token_weight: usize,
+    pub token_weight: f64,
 }
 
 #[derive(Debug, Default, Deserialize)]
 pub struct RateLimitConfig {
-    pub max_tokens: usize,
+    pub max_tokens: f64,
+    pub refill_rate: f64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -86,10 +87,10 @@ fn default_socket_addr() -> SocketAddr {
     "127.0.0.1:80".parse().unwrap()
 }
 
-fn default_token_weight() -> usize {
-    1
+fn default_token_weight() -> f64 {
+    1.0
 }
 
 fn default_rate_limit() -> RateLimitConfig {
-    RateLimitConfig { max_tokens: 100 }
+    RateLimitConfig { max_tokens: 100.0, refill_rate: 1.0 }
 }
