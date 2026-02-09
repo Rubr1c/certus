@@ -117,31 +117,9 @@ pub async fn reroute(
     let server = load_balance::p2c_pick(&routes, &target_route, &config);
     let upstream = routes.get(&server).expect("Upstream Should Exist").clone();
 
-    //TODO: strip any prefix and define in config
-    if let Some(ref a) = config.auth {
-        if upstream.req_auth {
-            let token = req
-                .headers()
-                .get("Authorization")
-                .and_then(|h| h.to_str().ok())
-                .and_then(|s| s.strip_prefix("Bearer "));
-            match token {
-                Some(t) => match &a.method {
-                    AuthType::JWT { secret } => {
-                        match auth::decode(t, secret) {
-                            Ok(_) => {
-                                //TODO: put claims in header
-                            }
-                            Err(e) => return e.into_response(),
-                        }
-                    }
-                    AuthType::None => {}
-                },
-                None => {
-                    return GatewayError::Unauthorized.into_response();
-                }
-            }
-        }
+    match auth::run(&upstream, &req, &config) {
+        Ok(_) => {}
+        Err(e) => return e.into_response(),
     }
 
     let res = handler::handle_request(&upstream, req).await;
