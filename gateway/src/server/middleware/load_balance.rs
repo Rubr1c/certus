@@ -17,6 +17,7 @@ thread_local! {
 }
 
 // only power of 2 choices for now
+#[inline]
 pub fn p2c_pick(
     routes: &HashMap<SocketAddr, Arc<UpstreamServer>>,
     target: &RouteConfig,

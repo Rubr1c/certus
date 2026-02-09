@@ -1,6 +1,5 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
-use std::time::Instant;
 
 use axum::{
     body::{Body, to_bytes},
@@ -11,7 +10,6 @@ use hyper::Method;
 use matchit::Router;
 
 use crate::{
-    config::models::AuthType,
     server::{
         app_state::AppState,
         error::GatewayError,
@@ -19,7 +17,7 @@ use crate::{
             auth,
             cache::models::{CacheKey, CachedResponse},
             handler, load_balance,
-            rate_limit::{self, TokenBucket},
+            rate_limit,
         },
     },
 };
@@ -85,10 +83,6 @@ pub async fn reroute(
     let method = req.method().clone();
 
     tracing::info!("Checking cache for path: {:?}", path);
-    tracing::debug!(
-        "Static cache keys: {:?}",
-        state.static_cache.iter().map(|e| e.key().clone()).collect::<Vec<_>>()
-    );
 
     match state.static_cache.get(path) {
         Some(res) => {
@@ -140,7 +134,6 @@ pub async fn reroute(
             // only cache get requests
             if method == Method::GET {
                 state.cache.insert(ck, cached);
-                tracing::info!("Saved response to cache");
             }
             response
         }

@@ -16,6 +16,7 @@ pub struct Claims {
     exp: usize,
 }
 
+#[inline]
 pub fn decode(token: &str, secret: &String) -> Result<Claims, GatewayError> {
     match jsonwebtoken::decode::<Claims>(
         token,
@@ -27,6 +28,7 @@ pub fn decode(token: &str, secret: &String) -> Result<Claims, GatewayError> {
     }
 }
 
+#[inline]
 pub fn run(
     upstream: &UpstreamServer,
     req: &Request<Body>,

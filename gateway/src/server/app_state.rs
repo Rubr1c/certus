@@ -1,7 +1,7 @@
 use std::{
     collections::HashMap,
     net::{IpAddr, SocketAddr},
-    sync::{Arc, atomic::AtomicUsize},
+    sync::Arc,
 };
 
 use arc_swap::ArcSwap;

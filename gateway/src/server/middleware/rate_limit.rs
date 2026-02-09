@@ -17,6 +17,7 @@ impl TokenBucket {
     }
 }
 
+#[inline]
 pub fn run(
     target_route: &RouteConfig,
     ip: IpAddr,
