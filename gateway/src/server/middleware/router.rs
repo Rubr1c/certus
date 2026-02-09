@@ -19,7 +19,7 @@ use crate::{
             auth,
             cache::models::{CacheKey, CachedResponse},
             handler, load_balance,
-            rate_limit::TokenBucket,
+            rate_limit::{self, TokenBucket},
         },
     },
 };
@@ -27,7 +27,7 @@ use crate::{
 pub fn build_tree(state: Arc<AppState>) {
     let config = state.config.load();
     let route_conf = &config.routes;
-    
+
     let mut router = Router::new();
 
     for (route, _) in route_conf {
@@ -65,34 +65,13 @@ pub async fn reroute(
         }
     };
 
-    let target_route = config.routes.get(matched_route_key).expect("route should exist");
-    let max_tokens = config.rate_limit.max_tokens;
-    let refill_rate = config.rate_limit.refill_rate;
+    let target_route =
+        config.routes.get(matched_route_key).expect("route should exist");
 
-    let mut bucket_entry = state
-        .user_tokens
-        .entry(addr.ip())
-        .or_insert(TokenBucket::new(config.rate_limit.max_tokens));
-
-    let now = Instant::now();
-    let duration = now.duration_since(bucket_entry.last_refill).as_secs_f64();
-
-    let tokens_to_add = duration * refill_rate;
-
-    bucket_entry.tokens = (bucket_entry.tokens + tokens_to_add).min(max_tokens);
-    bucket_entry.last_refill = now;
-
-    tracing::info!("Checking Rate Limit");
-
-    if bucket_entry.tokens < target_route.token_weight {
-        tracing::info!("Checking Rate Exceeded");
-        drop(bucket_entry);
-        return GatewayError::RateLimited.into_response();
+    match rate_limit::run(&target_route, addr.ip(), &config, &state) {
+        Ok(_) => {}
+        Err(err) => return err.into_response(),
     }
-    bucket_entry.tokens -= target_route.token_weight;
-    tracing::info!("Removed {} tokens from bucket", target_route.token_weight);
-    tracing::info!("Remaining tokens: {:.2}", bucket_entry.tokens);
-    drop(bucket_entry);
 
     let ck = CacheKey {
         // store as none for now

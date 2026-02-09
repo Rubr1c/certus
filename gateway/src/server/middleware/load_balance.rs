@@ -7,7 +7,10 @@ use std::{
 
 use rand::{SeedableRng, rngs::SmallRng, seq::IndexedRandom};
 
-use crate::{config::models::{Config, RouteConfig}, server::upstream::models::UpstreamServer};
+use crate::{
+    config::models::{Config, RouteConfig},
+    server::upstream::models::UpstreamServer,
+};
 
 thread_local! {
     static THREAD_RNG: RefCell<SmallRng> = RefCell::new(SmallRng::from_os_rng());
@@ -19,7 +22,6 @@ pub fn p2c_pick(
     target: &RouteConfig,
     config: &Config,
 ) -> SocketAddr {
-
     let endpoints = &target.endpoints;
     if endpoints.is_empty() {
         return config.default_server;
