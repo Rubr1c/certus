@@ -2,25 +2,22 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use axum::{
-    body::{Body, to_bytes},
+    body::Body,
     extract::{ConnectInfo, Request, State},
     response::IntoResponse,
 };
-use hyper::Method;
 use matchit::Router;
 
-use crate::{
-    server::{
+use crate::server::{
         app_state::AppState,
         error::GatewayError,
         middleware::{
             auth,
-            cache::models::{CacheKey, CachedResponse},
+            cache::{dyn_cache, models::CacheKey, static_cache},
             handler, load_balance,
             rate_limit,
         },
-    },
-};
+    };
 
 pub fn build_tree(state: Arc<AppState>) {
     let config = state.config.load();
@@ -84,28 +81,16 @@ pub async fn reroute(
 
     tracing::info!("Checking cache for path: {:?}", path);
 
-    match state.static_cache.get(path) {
-        Some(res) => {
-            tracing::info!("Returning static cached response to {}", path);
-            return res.clone().into_response();
-        }
-        None => {
-            tracing::debug!("Path {:?} not found in static cache", path);
-        }
+    match static_cache::try_find(&state, path) {
+        Some(res) => return res,
+        _ => {},
     }
 
-    match state.cache.get(&ck) {
-        Some(res) => {
-            if method == Method::GET {
-                tracing::info!("Returning cached response to {}", path);
-                return res.into_response();
-            }
-        }
-        None => {
-            tracing::info!("Response not found in cache")
-        }
+    match dyn_cache::try_find(&state, path, &ck, &method) { 
+        Some(res) => return res,
+        _ => {},
     }
-
+    
     let routes = state.routes.load();
 
     let server = load_balance::p2c_pick(&routes, &target_route, &config);
@@ -119,23 +104,7 @@ pub async fn reroute(
     let res = handler::handle_request(&upstream, req).await;
     match res {
         Ok(response) => {
-            let (parts, body) = response.into_parts();
-            let body =
-                //TODO: set limit
-                to_bytes(Body::new(body), usize::MAX).await.unwrap_or_default();
-
-            let cached = CachedResponse {
-                status: parts.status,
-                headers: parts.headers,
-                body,
-            };
-
-            let response = cached.clone().into_response();
-            // only cache get requests
-            if method == Method::GET {
-                state.cache.insert(ck, cached);
-            }
-            response
+           return dyn_cache::try_save(response, &method, &state, ck).await;
         }
         Err(e) => e.into_response(),
     }

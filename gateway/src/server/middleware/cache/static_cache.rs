@@ -1,14 +1,28 @@
 use axum::{
     body::{Body, to_bytes},
-    http,
+    http, response::IntoResponse,
 };
 use dashmap::DashMap;
-use hyper::Request;
+use hyper::{Request, Response};
 
 use crate::server::{
-    middleware::{cache::models::CachedResponse, handler},
-    upstream::models::UpstreamServer,
+    app_state::AppState, middleware::{cache::models::CachedResponse, handler}, upstream::models::UpstreamServer
 };
+
+
+#[inline]
+pub fn try_find(state: &AppState, path: &str) -> Option<Response<Body>> {
+    match state.static_cache.get(path) {
+        Some(res) => {
+            tracing::info!("Returning static cached response to {}", path);
+            Some(res.clone().into_response())
+        }
+        None => {
+            tracing::debug!("Path {:?} not found in static cache", path);
+            None
+        }
+    }
+}
 
 pub async fn send_and_save(
     cache: &DashMap<String, CachedResponse>,
