@@ -1,8 +1,13 @@
-use axum::{response::IntoResponse, body::{Body, to_bytes}};
+use axum::{
+    body::{Body, to_bytes},
+    response::IntoResponse,
+};
 use hyper::{Method, Response, body::Incoming};
 
-use crate::server::{app_state::AppState, middleware::cache::models::{CacheKey, CachedResponse}};
-
+use crate::server::{
+    app_state::AppState,
+    middleware::cache::models::{CacheKey, CachedResponse},
+};
 
 #[inline]
 pub async fn try_save(
@@ -11,17 +16,13 @@ pub async fn try_save(
     state: &AppState,
     ck: CacheKey,
 ) -> Response<Body> {
-    
     let (parts, body) = response.into_parts();
     let body =
         //TODO: set limit
         to_bytes(Body::new(body), usize::MAX).await.unwrap_or_default();
 
-    let cached = CachedResponse {
-        status: parts.status,
-        headers: parts.headers,
-        body,
-    };
+    let cached =
+        CachedResponse { status: parts.status, headers: parts.headers, body };
 
     let response = cached.clone().into_response();
     // only cache get requests
@@ -31,13 +32,12 @@ pub async fn try_save(
     response
 }
 
-
 #[inline]
 pub fn try_find(
-    state: &AppState, 
-    path: &str, 
-    ck: &CacheKey, 
-    method: &Method
+    state: &AppState,
+    path: &str,
+    ck: &CacheKey,
+    method: &Method,
 ) -> Option<Response<Body>> {
     match state.cache.get(ck) {
         Some(res) => {

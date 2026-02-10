@@ -1,14 +1,16 @@
 use axum::{
     body::{Body, to_bytes},
-    http, response::IntoResponse,
+    http,
+    response::IntoResponse,
 };
 use dashmap::DashMap;
 use hyper::{Request, Response};
 
 use crate::server::{
-    app_state::AppState, middleware::{cache::models::CachedResponse, handler}, upstream::models::UpstreamServer
+    app_state::AppState,
+    middleware::{cache::models::CachedResponse, handler},
+    upstream::models::UpstreamServer,
 };
-
 
 #[inline]
 pub fn try_find(state: &AppState, path: &str) -> Option<Response<Body>> {

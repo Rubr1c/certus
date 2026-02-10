@@ -10,7 +10,6 @@ pub struct CacheKey {
     pub path: String,
 }
 
-
 #[derive(Clone)]
 pub struct CachedResponse {
     pub status: StatusCode,

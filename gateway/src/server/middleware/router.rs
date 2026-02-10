@@ -9,15 +9,14 @@ use axum::{
 use matchit::Router;
 
 use crate::server::{
-        app_state::AppState,
-        error::GatewayError,
-        middleware::{
-            auth,
-            cache::{dyn_cache, models::CacheKey, static_cache},
-            handler, load_balance,
-            rate_limit,
-        },
-    };
+    app_state::AppState,
+    error::GatewayError,
+    middleware::{
+        auth,
+        cache::{dyn_cache, models::CacheKey, static_cache},
+        handler, load_balance, rate_limit,
+    },
+};
 
 pub fn build_tree(state: Arc<AppState>) {
     let config = state.config.load();
@@ -69,10 +68,10 @@ pub async fn reroute(
     }
 
     let token = req
-            .headers()
-            .get("Authorization")
-            .and_then(|h| h.to_str().ok())
-            .and_then(|s| s.strip_prefix("Bearer "));
+        .headers()
+        .get("Authorization")
+        .and_then(|h| h.to_str().ok())
+        .and_then(|s| s.strip_prefix("Bearer "));
 
     let ck = CacheKey {
         token: token.map(|s| s.to_string()),
@@ -80,18 +79,16 @@ pub async fn reroute(
     };
     let method = req.method().clone();
 
-    tracing::info!("Checking cache for path: {:?}", path);
-
     match static_cache::try_find(&state, path) {
         Some(res) => return res,
-        _ => {},
+        _ => {}
     }
 
-    match dyn_cache::try_find(&state, path, &ck, &method) { 
+    match dyn_cache::try_find(&state, path, &ck, &method) {
         Some(res) => return res,
-        _ => {},
+        _ => {}
     }
-    
+
     let routes = state.routes.load();
 
     let server = load_balance::p2c_pick(&routes, &target_route, &config);
@@ -105,7 +102,7 @@ pub async fn reroute(
     let res = handler::handle_request(&upstream, req).await;
     match res {
         Ok(response) => {
-           return dyn_cache::try_save(response, &method, &state, ck).await;
+            return dyn_cache::try_save(response, &method, &state, ck).await;
         }
         Err(e) => e.into_response(),
     }
