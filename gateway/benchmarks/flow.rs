@@ -3,7 +3,7 @@ use std::{net::SocketAddr, sync::Arc};
 use axum::{
     Router,
     body::Body,
-    extract::{Request, State},
+    extract::{ConnectInfo, Request, State},
     http::Request as HttpRequest,
     routing::any,
 };
@@ -39,7 +39,12 @@ async fn setup_server(state: Arc<AppState>) -> SocketAddr {
     let addr = listener.local_addr().unwrap();
 
     tokio::spawn(async move {
-        axum::serve(listener, app).await.unwrap();
+        axum::serve(
+            listener,
+            app.into_make_service_with_connect_info::<SocketAddr>(),
+        )
+        .await
+        .unwrap();
     });
 
     addr
@@ -48,6 +53,7 @@ async fn setup_server(state: Arc<AppState>) -> SocketAddr {
 fn bench_direct_call(c: &mut Criterion) {
     let rt = create_runtime();
     let state = rt.block_on(setup_state());
+    let addr: SocketAddr = "127.0.0.1:12345".parse().unwrap();
 
     c.bench_function("direct_call", |b| {
         b.to_async(&rt).iter(|| async {
@@ -57,7 +63,7 @@ fn bench_direct_call(c: &mut Criterion) {
                 .body(Body::empty())
                 .unwrap();
 
-            let _ = reroute(State(state.clone()), req).await;
+            let _ = reroute(State(state.clone()), ConnectInfo(addr), req).await;
         });
     });
 }
@@ -65,6 +71,7 @@ fn bench_direct_call(c: &mut Criterion) {
 fn bench_direct_call_cached(c: &mut Criterion) {
     let rt = create_runtime();
     let state = rt.block_on(setup_state());
+    let addr: SocketAddr = "127.0.0.1:12345".parse().unwrap();
 
     rt.block_on(async {
         let req = Request::builder()
@@ -72,7 +79,7 @@ fn bench_direct_call_cached(c: &mut Criterion) {
             .uri("/test")
             .body(Body::empty())
             .unwrap();
-        let _ = reroute(State(state.clone()), req).await;
+        let _ = reroute(State(state.clone()), ConnectInfo(addr), req).await;
     });
 
     c.bench_function("direct_call_cached", |b| {
@@ -83,7 +90,7 @@ fn bench_direct_call_cached(c: &mut Criterion) {
                 .body(Body::empty())
                 .unwrap();
 
-            let _ = reroute(State(state.clone()), req).await;
+            let _ = reroute(State(state.clone()), ConnectInfo(addr), req).await;
         });
     });
 }
@@ -91,18 +98,20 @@ fn bench_direct_call_cached(c: &mut Criterion) {
 fn bench_tower_service(c: &mut Criterion) {
     let rt = create_runtime();
     let state = rt.block_on(setup_state());
+    let addr: SocketAddr = "127.0.0.1:12345".parse().unwrap();
 
     let app = Router::new().route("/{*any}", any(reroute)).with_state(state);
 
     c.bench_function("tower_service", |b| {
         b.to_async(&rt).iter(|| async {
-            let req = HttpRequest::builder()
+            let mut req = HttpRequest::builder()
                 .method("PUT")
                 .uri("/test")
                 .header("Host", "localhost")
                 .body(Body::empty())
                 .unwrap();
 
+            req.extensions_mut().insert(ConnectInfo(addr));
             let _ = app.clone().oneshot(req).await;
         });
     });
@@ -111,29 +120,32 @@ fn bench_tower_service(c: &mut Criterion) {
 fn bench_tower_service_cached(c: &mut Criterion) {
     let rt = create_runtime();
     let state = rt.block_on(setup_state());
+    let addr: SocketAddr = "127.0.0.1:12345".parse().unwrap();
 
     let app = Router::new().route("/{*any}", any(reroute)).with_state(state);
 
     // Prime the cache
     rt.block_on(async {
-        let req = HttpRequest::builder()
+        let mut req = HttpRequest::builder()
             .method("GET")
             .uri("/test")
             .header("Host", "localhost")
             .body(Body::empty())
             .unwrap();
+        req.extensions_mut().insert(ConnectInfo(addr));
         let _ = app.clone().oneshot(req).await;
     });
 
     c.bench_function("tower_service_cached", |b| {
         b.to_async(&rt).iter(|| async {
-            let req = HttpRequest::builder()
+            let mut req = HttpRequest::builder()
                 .method("GET")
                 .uri("/test")
                 .header("Host", "localhost")
                 .body(Body::empty())
                 .unwrap();
 
+            req.extensions_mut().insert(ConnectInfo(addr));
             let _ = app.clone().oneshot(req).await;
         });
     });

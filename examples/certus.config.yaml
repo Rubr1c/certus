@@ -19,6 +19,7 @@ routes:
 
   /test:
     endpoints: ['127.0.0.1:3003', '127.0.0.1:3004']
+    token_weight: 0
 
   /test/best:
     endpoints: ['127.0.0.1:3005', '127.0.0.1:3006']
