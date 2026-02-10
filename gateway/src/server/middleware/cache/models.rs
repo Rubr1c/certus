@@ -6,9 +6,7 @@ use hyper::{HeaderMap, Response, StatusCode};
 
 #[derive(Hash, Eq, PartialEq)]
 pub struct CacheKey {
-    pub user_id: Option<u64>,
-    //TODO: get roles from config
-    pub user_role: Option<String>,
+    pub token: Option<String>,
     pub path: String,
 }
 

@@ -68,13 +68,14 @@ pub async fn reroute(
         Err(err) => return err.into_response(),
     }
 
+    let token = req
+            .headers()
+            .get("Authorization")
+            .and_then(|h| h.to_str().ok())
+            .and_then(|s| s.strip_prefix("Bearer "));
+
     let ck = CacheKey {
-        // store as none for now
-        // needs to be extreacted from JWT if enabled else try and extract from headers
-        //
-        // it might be better to just set JWT here directly as a field
-        user_id: None,
-        user_role: None,
+        token: token.map(|s| s.to_string()),
         path: path.to_string(),
     };
     let method = req.method().clone();
@@ -96,7 +97,7 @@ pub async fn reroute(
     let server = load_balance::p2c_pick(&routes, &target_route, &config);
     let upstream = routes.get(&server).expect("Upstream Should Exist").clone();
 
-    match auth::run(&upstream, &req, &config) {
+    match auth::run(&upstream, &config, token) {
         Ok(_) => {}
         Err(e) => return e.into_response(),
     }
