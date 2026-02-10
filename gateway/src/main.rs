@@ -55,17 +55,22 @@ async fn main() {
     let conn_clone = conn.clone();
 
     tokio::spawn(async move {
-        while let Some(log_bytes) = rx.recv().await {
-            let log_string = String::from_utf8_lossy(&log_bytes);
+    while let Some(log_bytes) = rx.recv().await {
+        let log_string = String::from_utf8_lossy(&log_bytes).to_string();
+        
+        print!("{}", log_string);
 
-            print!("{}", log_string);
-            let conn_guard = conn_clone.lock().await;
-            match db_utils::save_log(&conn_guard, log_string.to_string()) {
-                Ok(_) => (),
-                Err(e) => eprint!("{}", e),
+        let conn_clone = conn_clone.clone();
+
+        let _ = tokio::task::spawn_blocking(move || {
+            let conn_guard = conn_clone.blocking_lock(); 
+            
+            if let Err(e) = db_utils::save_log(&conn_guard, log_string) {
+                eprintln!("Database Error: {}", e);
             }
-        }
-    });
+        }).await;
+    }
+});
 
     let state =
         Arc::new(AppState::new(reload_config(config_path).await.unwrap()));
