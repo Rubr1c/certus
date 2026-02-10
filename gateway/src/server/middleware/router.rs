@@ -48,7 +48,8 @@ pub async fn reroute(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     req: Request<Body>,
 ) -> impl IntoResponse {
-    let path = req.uri().path();
+    let uri = req.uri();
+    let path = uri.path();
     let config = state.config.load();
     let router = state.router.load();
 
@@ -75,8 +76,12 @@ pub async fn reroute(
 
     let ck = CacheKey {
         token: token.map(|s| s.to_string()),
-        path: path.to_string(),
+        path: uri.query().map_or_else(
+            || path.to_string(),
+            |q| format!("{}?{}", path, q)
+        ),
     };
+
     let method = req.method().clone();
 
     match static_cache::try_find(&state, path) {
