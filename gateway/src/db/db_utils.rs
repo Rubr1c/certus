@@ -1,6 +1,6 @@
 use rusqlite::Connection;
 
-use crate::db::models::LogEntry;
+use crate::{db::models::LogEntry, logging::log_util::LogEntryDTO};
 
 pub fn connect_db() -> Result<Connection, rusqlite::Error> {
     //TODO: Change path and name
@@ -8,9 +8,14 @@ pub fn connect_db() -> Result<Connection, rusqlite::Error> {
 }
 
 pub fn migrate(conn: &Connection) -> rusqlite::Result<()> {
-    //TODO: Change cols
     let querys = vec![
-        "CREATE TABLE IF NOT EXISTS logs(id INTEGER PRIMARY KEY AUTOINCREMENT, entry TEXT)",
+        "CREATE TABLE IF NOT EXISTS logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT NOT NULL,
+            level TEXT NOT NULL,
+            message TEXT NOT NULL,
+            fields TEXT NOT NULL
+        );",
     ];
 
     for query in querys {
@@ -19,8 +24,15 @@ pub fn migrate(conn: &Connection) -> rusqlite::Result<()> {
     Ok(())
 }
 
-pub fn save_log(conn: &Connection, entry: String) -> rusqlite::Result<()> {
-    conn.execute("INSERT INTO logs (entry) VALUES (?1)", [entry])?;
+pub fn save_log(conn: &Connection, entry: LogEntryDTO) -> rusqlite::Result<()> {
+    let fields_json = serde_json::to_string(&entry.fields)
+        .unwrap_or_else(|_| "{}".to_string());
+
+    conn.execute(
+        "INSERT INTO logs (timestamp, level, message, fields) 
+                  VALUES (?1, ?2, ?3, ?4)",
+        [entry.timestamp, entry.level, entry.message, fields_json],
+    )?;
 
     Ok(())
 }
@@ -28,7 +40,13 @@ pub fn save_log(conn: &Connection, entry: String) -> rusqlite::Result<()> {
 pub fn get_logs(conn: &Connection) -> rusqlite::Result<Vec<LogEntry>> {
     let mut stmt = conn.prepare("SELECT id, entry FROM logs")?;
     let logs = stmt.query_map([], |row| {
-        Ok(LogEntry { id: row.get(0)?, entry: row.get(1)? })
+        Ok(LogEntry {
+            id: row.get(0)?,
+            timestamp: row.get(1)?,
+            level: row.get(2)?,
+            message: row.get(3)?,
+            fields: row.get(4)?,
+        })
     })?;
     let mut log_vec: Vec<LogEntry> = Vec::new();
     for log in logs {

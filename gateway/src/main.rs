@@ -4,8 +4,9 @@ use std::sync::Arc;
 use axum::{Router, routing::any};
 use clap::Parser;
 use tokio::sync::{Mutex, mpsc};
-use tracing::Level;
-use tracing_subscriber::{EnvFilter, FmtSubscriber};
+use tracing_subscriber::{
+    EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt,
+};
 
 use gateway::{
     config::{
@@ -13,25 +14,28 @@ use gateway::{
         models::CmdArgs,
     },
     db::db_utils,
-    logging::log_util::LogChannelWriter,
-    server::{app_state, app_state::AppState, middleware::router},
+    logging::log_util::{LogChannelLayer, LogEntryDTO},
+    server::{
+        app_state::{self, AppState},
+        middleware::router,
+    },
 };
 
 #[tokio::main]
 async fn main() {
-    let (tx, mut rx) = mpsc::channel::<Vec<u8>>(1024);
+    let (tx, mut rx) = mpsc::channel::<LogEntryDTO>(1024);
 
-    let log_writer = LogChannelWriter { sender: tx };
+    let console_layer = tracing_subscriber::fmt::layer().with_filter(
+        EnvFilter::try_from_default_env()
+            .unwrap_or_else(|_| EnvFilter::new("info")),
+    );
 
-    let subscriber = FmtSubscriber::builder()
-        .with_env_filter(
-            EnvFilter::from_default_env().add_directive(Level::INFO.into()),
-        )
-        .with_writer(log_writer)
-        .finish();
+    let db_layer = LogChannelLayer { tx };
 
-    tracing::subscriber::set_global_default(subscriber)
-        .expect("setting default subscriber failed");
+    let _ = tracing_subscriber::registry()
+        .with(console_layer)
+        .with(db_layer)
+        .try_init();
 
     let args = CmdArgs::try_parse().unwrap();
 
@@ -55,22 +59,19 @@ async fn main() {
     let conn_clone = conn.clone();
 
     tokio::spawn(async move {
-    while let Some(log_bytes) = rx.recv().await {
-        let log_string = String::from_utf8_lossy(&log_bytes).to_string();
-        
-        print!("{}", log_string);
+        while let Some(log_entry) = rx.recv().await {
+            let conn_clone = conn_clone.clone();
 
-        let conn_clone = conn_clone.clone();
+            let _ = tokio::task::spawn_blocking(move || {
+                let conn_guard = conn_clone.blocking_lock();
 
-        let _ = tokio::task::spawn_blocking(move || {
-            let conn_guard = conn_clone.blocking_lock(); 
-            
-            if let Err(e) = db_utils::save_log(&conn_guard, log_string) {
-                eprintln!("Database Error: {}", e);
-            }
-        }).await;
-    }
-});
+                if let Err(e) = db_utils::save_log(&conn_guard, log_entry) {
+                    eprintln!("Database Error: {}", e);
+                }
+            })
+            .await;
+        }
+    });
 
     let state =
         Arc::new(AppState::new(reload_config(config_path).await.unwrap()));
