@@ -6,5 +6,9 @@
     "dev:config": "cargo run -p gateway -- -c examples/certus.config.yaml",
     "dev:test": "bun dev:config & ./test/start-test-servers.sh & wait",
     "bench": "cargo bench -p gateway"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7"
   }
 }
