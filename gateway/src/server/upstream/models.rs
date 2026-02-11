@@ -9,7 +9,7 @@ pub enum HealthState {
     Dead,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Protocol {
     HTTP1,
     HTTP2,

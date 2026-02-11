@@ -40,15 +40,21 @@ pub fn run(
     bucket_entry.tokens = (bucket_entry.tokens + tokens_to_add).min(max_tokens);
     bucket_entry.last_refill = now;
 
-    tracing::info!("Checking Rate Limit");
+    tracing::info!(remaining = bucket_entry.tokens, "Checking Rate Limit");
 
     if bucket_entry.tokens < target_route.token_weight {
-        tracing::info!("Checking Rate Exceeded");
+        tracing::info!(
+            target = target_route.token_weight,
+            "Checking Rate Exceeded"
+        );
         return Err(GatewayError::RateLimited);
     }
     bucket_entry.tokens -= target_route.token_weight;
-    tracing::info!("Removed {} tokens from bucket", target_route.token_weight);
-    tracing::info!("Remaining tokens: {:.2}", bucket_entry.tokens);
+    tracing::info!(
+        remaining = bucket_entry.tokens,
+        "Removed {} tokens from bucket",
+        target_route.token_weight
+    );
     drop(bucket_entry);
     Ok(())
 }

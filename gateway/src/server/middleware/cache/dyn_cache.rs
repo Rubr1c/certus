@@ -27,6 +27,7 @@ pub async fn try_save(
     let response = cached.clone().into_response();
     // only cache get requests
     if method == Method::GET {
+        tracing::info!("Saving to cache");
         state.cache.insert(ck, cached);
     }
     response

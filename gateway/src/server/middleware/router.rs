@@ -7,6 +7,7 @@ use axum::{
     response::IntoResponse,
 };
 use matchit::Router;
+use tracing::{Level, instrument};
 
 use crate::server::{
     app_state::AppState,
@@ -43,6 +44,7 @@ pub fn build_tree(state: Arc<AppState>) {
     state.router.store(Arc::new(router));
 }
 
+#[instrument(name = "router", skip_all, fields(ip = %addr.ip()))]
 pub async fn reroute(
     State(state): State<Arc<AppState>>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
@@ -63,6 +65,9 @@ pub async fn reroute(
     let target_route =
         config.routes.get(matched_route_key).expect("route should exist");
 
+    let span = tracing::span!(Level::INFO, "route");
+    let _span_guard = span.enter();
+
     match rate_limit::run(&target_route, addr.ip(), &config, &state) {
         Ok(_) => {}
         Err(err) => return err.into_response(),
@@ -76,10 +81,9 @@ pub async fn reroute(
 
     let ck = CacheKey {
         token: token.map(|s| s.to_string()),
-        path: uri.query().map_or_else(
-            || path.to_string(),
-            |q| format!("{}?{}", path, q)
-        ),
+        path: uri
+            .query()
+            .map_or_else(|| path.to_string(), |q| format!("{}?{}", path, q)),
     };
 
     let method = req.method().clone();

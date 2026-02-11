@@ -25,6 +25,7 @@ pub enum GatewayError {
     RateLimited,
 }
 
+//TODO: make errors trace here
 impl IntoResponse for GatewayError {
     fn into_response(self) -> Response {
         let (status, error_message) = match &self {
