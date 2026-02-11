@@ -1,0 +1,4 @@
+{
+  "frontend/**/*.{ts,tsx,js,jsx,json,md,css}": "bun run --cwd frontend prettier --write",
+  "*.rs": "bash -c 'cargo fmt --all'"
+}

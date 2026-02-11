@@ -6,12 +6,15 @@ use tokio::fs;
 use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use tokio::sync::mpsc;
 
-use crate::config::error::ConfigError;
-use crate::config::models::Config;
-use crate::server::app_state::{self, AppState};
-use crate::server::routing::routes;
+use crate::{
+    config::{error::ConfigError, models::Config},
+    server::{
+        app_state::{self, AppState},
+        middleware::router,
+    },
+};
 
-pub fn watch_config(
+pub async fn watch_config(
     path: &str,
     state: Arc<AppState>,
 ) -> notify::Result<RecommendedWatcher> {
@@ -39,22 +42,26 @@ pub fn watch_config(
                         // Drain any other events that occurred during the sleep
                         while rx.try_recv().is_ok() {}
 
-                        println!("Reloading config...");
+                        tracing::info!("Realoding config");
                         match reload_config(&path).await {
                             Ok(new_config) => {
                                 state.config.store(Arc::new(new_config));
-                                routes::build_tree(state.clone());
-                                app_state::init_server_state(state.clone());
-                                println!("Config hot-reloaded");
+                                router::build_tree(state.clone());
+                                app_state::init_server_state(state.clone())
+                                    .await;
+                                tracing::info!("Config hot-reloaded");
                             }
                             Err(e) => {
-                                eprintln!("Failed to reload config: {}", e);
+                                tracing::error!(
+                                    "Failed to reload config: {}",
+                                    e
+                                );
                             }
                         }
                     }
                 }
                 Err(e) => {
-                    eprintln!("Watcher error: {}", e);
+                    tracing::error!("Watcher error: {}", e);
                 }
             }
         }
