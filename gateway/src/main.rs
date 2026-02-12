@@ -1,9 +1,10 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use axum::{Router, routing::any};
+use axum::{Router, http::HeaderValue, routing::any};
 use clap::Parser;
 use tokio::sync::{Mutex, mpsc};
+use tower_http::cors::{self, CorsLayer};
 use tracing_subscriber::{
     EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt,
 };
@@ -93,8 +94,25 @@ async fn main() {
     tracing::info!("Certus Gateway Running on port {}", port);
     println!("Config watcher started. Press Ctrl+C to exit.");
 
-    let app =
+    let mut app =
         Router::new().route("/{*any}", any(router::reroute)).with_state(state);
+
+    let origins = config.server.origins.clone();
+
+    //TODO: make emit logs
+    app = if origins.is_empty() {
+        tracing::warn!("No cors set allowing from all origins");
+        app.layer(CorsLayer::new().allow_origin(cors::Any))
+    } else {
+        let parsed_origins: Vec<HeaderValue> = origins
+            .iter()
+            .map(|ip| ip.parse().expect("Invalid Origin IP"))
+            .collect();
+
+        println!("{:?}", origins);
+
+        app.layer(CorsLayer::new().allow_origin(parsed_origins))
+    };
 
     let shutdown_signal = async {
         tokio::signal::ctrl_c().await.expect("Failed to listen for Ctrl+C");
