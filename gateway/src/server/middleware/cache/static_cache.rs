@@ -30,6 +30,7 @@ pub async fn send_and_save(
     cache: &DashMap<String, CachedResponse>,
     upstream: &UpstreamServer,
     path: &String,
+    timeout: u64,
 ) {
     let req = match Request::builder()
         .method(http::Method::GET)
@@ -44,7 +45,7 @@ pub async fn send_and_save(
         }
     };
 
-    let res = handler::handle_request(&upstream, req).await;
+    let res = handler::handle_request(&upstream, req, timeout).await;
 
     //TODO: remove reused code
     match res {

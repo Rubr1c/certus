@@ -40,8 +40,9 @@ async fn forward_request(
 pub async fn handle_request(
     upstream: &UpstreamServer,
     req: Request<Body>,
+    timeout: u64,
 ) -> Result<Response<Incoming>, GatewayError> {
-    let sender = connection::borrow_connection(&upstream).await?;
+    let sender = connection::borrow_connection(&upstream, timeout).await?;
 
     let (res, sender) = match forward_request(sender, req).await {
         Ok((res, sender)) => (res, sender),

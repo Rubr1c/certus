@@ -60,6 +60,11 @@ pub struct RateLimitConfig {
     pub refill_rate: f64,
 }
 
+#[derive(Debug, Default, Deserialize)]
+pub struct ConnectionConfig {
+    pub connect_timeout: u64,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct Config {
     pub server: ServerConfig,
@@ -67,6 +72,8 @@ pub struct Config {
     #[serde(default = "default_rate_limit")]
     pub rate_limit: RateLimitConfig,
     pub routes: HashMap<String, RouteConfig>,
+    #[serde(default = "default_connetion_config")]
+    pub connection: ConnectionConfig,
     #[serde(default = "default_socket_addr")]
     pub default_server: SocketAddr,
 }
@@ -79,6 +86,7 @@ impl Default for Config {
             rate_limit: default_rate_limit(),
             routes: HashMap::new(),
             default_server: default_socket_addr(),
+            connection: default_connetion_config(),
         }
     }
 }
@@ -93,4 +101,8 @@ fn default_token_weight() -> f64 {
 
 fn default_rate_limit() -> RateLimitConfig {
     RateLimitConfig { max_tokens: 100.0, refill_rate: 1.0 }
+}
+
+fn default_connetion_config() -> ConnectionConfig {
+    ConnectionConfig { connect_timeout: 2000 }
 }

@@ -67,6 +67,7 @@ pub async fn init_server_state(state: Arc<AppState>) {
                     &state.static_cache,
                     &upstream,
                     route,
+                    config.connection.connect_timeout,
                 )
                 .await;
                 is_static_and_not_fetched = false;

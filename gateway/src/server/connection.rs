@@ -1,4 +1,4 @@
-use std::sync::atomic::Ordering;
+use std::{sync::atomic::Ordering, time::Duration};
 
 use axum::body::Body;
 use hyper::client::conn;
@@ -15,10 +15,14 @@ use crate::server::{
 #[instrument(skip_all, fields(protocol = ?upstream.pool.protocol))]
 pub async fn open_connection(
     upstream: &UpstreamServer,
+    timeout: u64,
 ) -> Result<PooledConnection, Box<dyn std::error::Error + Send + Sync>> {
-    //TODO: timeout connection
     tracing::info!("Connecting to new upstream");
-    let stream = TcpStream::connect(upstream.pool.server_addr).await?;
+    let connect_future = TcpStream::connect(upstream.pool.server_addr);
+    let stream =
+        tokio::time::timeout(Duration::from_secs(timeout), connect_future)
+            .await??;
+
     let io = TokioIo::new(stream);
 
     let sender = match upstream.pool.protocol {
@@ -50,6 +54,7 @@ pub async fn open_connection(
 
 pub async fn borrow_connection(
     upstream: &UpstreamServer,
+    timeout: u64,
 ) -> Result<PooledConnection, GatewayError> {
     tracing::info!("Checking for idle connetions");
     if let Some(sender) = upstream.pool.idle_connections.pop() {
@@ -65,7 +70,7 @@ pub async fn borrow_connection(
         return Err(GatewayError::Overloaded);
     }
 
-    let sender = open_connection(upstream)
+    let sender = open_connection(upstream, timeout)
         .await
         .map_err(|e| GatewayError::ConnectionFailed(e.to_string()))?;
 

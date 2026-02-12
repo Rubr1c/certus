@@ -108,7 +108,13 @@ pub async fn reroute(
         Err(e) => return e.into_response(),
     }
 
-    let res = handler::handle_request(&upstream, req).await;
+    let res = handler::handle_request(
+        &upstream,
+        req,
+        config.connection.connect_timeout,
+    )
+    .await;
+
     match res {
         Ok(response) => {
             return dyn_cache::try_save(response, &method, &state, ck).await;
