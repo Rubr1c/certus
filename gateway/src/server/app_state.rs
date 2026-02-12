@@ -57,9 +57,8 @@ pub async fn init_server_state(state: Arc<AppState>) {
         for server in &route_config.endpoints {
             let upstream = Arc::new(UpstreamServer::new(
                 *server,
-                //TODO: make dynamic from config
-                100,
-                Protocol::HTTP1,
+                route_config.max_connections,
+                route_config.protocol,
                 route_config.needs_auth.is_some_and(|c| c),
             ));
             if is_static_and_not_fetched {

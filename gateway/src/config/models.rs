@@ -4,6 +4,19 @@ use std::net::SocketAddr;
 use clap::Parser;
 use serde::Deserialize;
 
+use crate::server::upstream::models::Protocol;
+
+//TODO: change all optional with defaults to access them better
+//      in the code i realized that it would be better that way
+//      but im not focused on config right now. all new options
+//      will do that.
+//
+//      also i can just implment Default myself for some of them
+//      which would make the code more clean i think
+//
+//      some config options live duplicated in memory in 2 seperate
+//      places should probably optimize that
+
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 pub struct CmdArgs {
@@ -50,6 +63,10 @@ pub struct RouteConfig {
     pub auth: Option<AuthConfig>,
     pub is_static: Option<bool>,
     pub needs_auth: Option<bool>,
+    #[serde(default)]
+    pub protocol: Protocol,
+    #[serde(default = "default_max_connections")]
+    pub max_connections: usize,
     #[serde(default = "default_token_weight")]
     pub token_weight: f64,
 }
@@ -105,4 +122,8 @@ fn default_rate_limit() -> RateLimitConfig {
 
 fn default_connetion_config() -> ConnectionConfig {
     ConnectionConfig { connect_timeout: 2000 }
+}
+
+fn default_max_connections() -> usize {
+    100
 }

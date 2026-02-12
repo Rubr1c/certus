@@ -1,16 +1,18 @@
-use std::{net::SocketAddr, sync::atomic::AtomicUsize};
+use std::{default, net::SocketAddr, sync::atomic::AtomicUsize};
 
 use axum::body::Body;
 use crossbeam::queue::SegQueue;
 use hyper::client::conn;
+use serde::Deserialize;
 
 pub enum HealthState {
     Alive,
     Dead,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Default, Copy)]
 pub enum Protocol {
+    #[default]
     HTTP1,
     HTTP2,
 }
