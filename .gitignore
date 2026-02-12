@@ -22,6 +22,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 bun.lock
+forntend/bun.lock
 
 # IDEs
 .idea/
