@@ -1,4 +1,4 @@
-use std::{default, net::SocketAddr, sync::atomic::AtomicUsize};
+use std::{net::SocketAddr, sync::atomic::AtomicUsize};
 
 use axum::body::Body;
 use crossbeam::queue::SegQueue;

@@ -18,16 +18,21 @@ use crate::{
                 static_cache,
             },
             rate_limit::TokenBucket,
+            router,
         },
-        upstream::models::{Protocol, UpstreamServer},
+        upstream::models::UpstreamServer,
     },
 };
 
+pub struct RoutingTable {
+    pub router: Router<String>,
+    pub routes: HashMap<SocketAddr, Arc<UpstreamServer>>,
+}
+
 //TODO: Add db connection in efficent way to use in metrics endpoints
 pub struct AppState {
-    pub routes: ArcSwap<HashMap<SocketAddr, Arc<UpstreamServer>>>,
+    pub routing_table: ArcSwap<RoutingTable>,
     pub config: ArcSwap<Config>,
-    pub router: ArcSwap<Router<String>>,
     pub cache: Cache<CacheKey, CachedResponse>,
     pub static_cache: DashMap<String, CachedResponse>,
     pub user_tokens: DashMap<IpAddr, TokenBucket>,
@@ -36,9 +41,11 @@ pub struct AppState {
 impl AppState {
     pub fn new(config: Config) -> Self {
         Self {
-            routes: ArcSwap::from_pointee(HashMap::new()),
+            routing_table: ArcSwap::from_pointee(RoutingTable {
+                router: Router::new(),
+                routes: HashMap::new(),
+            }),
             config: ArcSwap::from_pointee(config),
-            router: ArcSwap::from_pointee(Router::new()),
             cache: Cache::new(1000),
             static_cache: DashMap::new(),
             user_tokens: DashMap::new(),
@@ -75,5 +82,9 @@ pub async fn init_server_state(state: Arc<AppState>) {
         }
     }
 
-    state.routes.store(Arc::new(new_routes_map));
+    let new_router = router::build_tree(state.clone());
+
+    let new_table = RoutingTable { router: new_router, routes: new_routes_map };
+
+    state.routing_table.store(Arc::new(new_table));
 }

@@ -19,7 +19,7 @@ use crate::server::{
     },
 };
 
-pub fn build_tree(state: Arc<AppState>) {
+pub fn build_tree(state: Arc<AppState>) -> Router<String> {
     let config = state.config.load();
     let route_conf = &config.routes;
 
@@ -41,7 +41,7 @@ pub fn build_tree(state: Arc<AppState>) {
         }
     }
 
-    state.router.store(Arc::new(router));
+    router
 }
 
 #[instrument(name = "router", skip_all, fields(ip = %addr.ip()))]
@@ -53,9 +53,9 @@ pub async fn reroute(
     let uri = req.uri();
     let path = uri.path();
     let config = state.config.load();
-    let router = state.router.load();
+    let routing_table = state.routing_table.load();
 
-    let matched_route_key = match router.at(&path) {
+    let matched_route_key = match routing_table.router.at(&path) {
         Ok(match_result) => match_result.value,
         Err(_) => {
             return GatewayError::NotFound.into_response();
@@ -98,10 +98,13 @@ pub async fn reroute(
         _ => {}
     }
 
-    let routes = state.routes.load();
-
-    let server = load_balance::p2c_pick(&routes, &target_route, &config);
-    let upstream = routes.get(&server).expect("Upstream Should Exist").clone();
+    let server =
+        load_balance::p2c_pick(&routing_table.routes, &target_route, &config);
+    let upstream = routing_table
+        .routes
+        .get(&server)
+        .expect("Upstream Should Exist")
+        .clone();
 
     match auth::run(&upstream, &config, token) {
         Ok(_) => {}

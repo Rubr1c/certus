@@ -8,10 +8,7 @@ use tokio::sync::mpsc;
 
 use crate::{
     config::{error::ConfigError, models::Config},
-    server::{
-        app_state::{self, AppState},
-        middleware::router,
-    },
+    server::app_state::{self, AppState},
 };
 
 pub async fn watch_config(
@@ -46,7 +43,6 @@ pub async fn watch_config(
                         match reload_config(&path).await {
                             Ok(new_config) => {
                                 state.config.store(Arc::new(new_config));
-                                router::build_tree(state.clone());
                                 app_state::init_server_state(state.clone())
                                     .await;
                                 tracing::info!("Config hot-reloaded");

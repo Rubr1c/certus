@@ -81,7 +81,6 @@ async fn main() {
         Err(_) => None,
     };
 
-    router::build_tree(state.clone());
     app_state::init_server_state(state.clone()).await;
 
     let config = state.config.load();
