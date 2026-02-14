@@ -8,6 +8,27 @@ use crate::{
     server::app_state::{self, AppState},
 };
 
+/// Watches the config file and when changed updates all related structs
+///
+/// # Arguments
+///
+/// * `path` - filepath of the config file
+/// * `state` - app state that stores all configs
+///
+/// # Errors
+///
+/// Returns an error if:
+/// * Watcher failes to initalize
+/// * Failed to read file due to incorrect path or other reason
+///
+/// # Example
+/// ```
+/// let app_state: Arc<AppState> = Arc::new(/* */);
+/// let _watcher = match watch_config("config.yaml", app_state.clone()).await {
+///     Ok(watcher) => Some(watcher)
+///     Err(_) => None
+/// };
+/// ```
 pub async fn watch_config(
     path: &str,
     state: Arc<AppState>,
@@ -63,6 +84,26 @@ pub async fn watch_config(
     Ok(watcher)
 }
 
+/// Reads a file and parses it to yaml for the config
+///
+/// # Arguments
+///
+/// * `path` - filepath of the config file
+///
+/// # Errors
+///
+/// Returns an error if:
+/// * Failed to read file due to incorrect path or other reason
+/// * Failed to parse to yaml
+///
+/// # Examples
+///
+/// ```
+/// let config = match reload_config("config.yaml").await {
+///     Ok(c) => c,
+///     Err(_) => Config::default(),
+/// };
+/// ```
 pub async fn reload_config(path: &str) -> Result<Config, ConfigError> {
     let contents = fs::read_to_string(path).await?;
 

@@ -19,6 +19,8 @@ use crate::server::upstream::Protocol;
 //      some config options live duplicated in memory in 2 seperate
 //      places should probably optimize that
 
+/// Command line argument parser with all the commands
+/// available in certus
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 pub struct CmdArgs {
@@ -26,6 +28,7 @@ pub struct CmdArgs {
     pub config: Option<String>,
 }
 
+/// Config struct for all configurable server options
 #[derive(Debug, Deserialize)]
 pub struct ServerConfig {
     #[serde(default = "default_port")]
@@ -35,6 +38,8 @@ pub struct ServerConfig {
 }
 
 impl Default for ServerConfig {
+    /// Returns default server config with port being 8080
+    /// and empty origins vec
     fn default() -> Self {
         ServerConfig { port: default_port(), origins: Vec::new() }
     }
@@ -44,6 +49,7 @@ fn default_port() -> u16 {
     8080
 }
 
+/// Enum for all authentication types available
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum AuthType {
@@ -54,11 +60,14 @@ pub enum AuthType {
     },
 }
 
+/// Config struct that just holds the method [`AuthType`]
 #[derive(Debug, Default, Deserialize)]
 pub struct AuthConfig {
     pub method: AuthType,
 }
 
+/// Config struct that holds all configurable options
+/// for each route registered in the config
 #[derive(Debug, Default, Deserialize)]
 pub struct RouteConfig {
     pub endpoints: Vec<SocketAddr>,
@@ -73,17 +82,20 @@ pub struct RouteConfig {
     pub token_weight: f64,
 }
 
+/// Config struct that holds all rate limiting options
 #[derive(Debug, Default, Deserialize)]
 pub struct RateLimitConfig {
     pub max_tokens: f64,
     pub refill_rate: f64,
 }
 
+/// Config struct that holds all connection options
 #[derive(Debug, Default, Deserialize)]
 pub struct ConnectionConfig {
     pub connect_timeout: u64,
 }
 
+/// Main config struct that holds all configurable items
 #[derive(Debug, Deserialize)]
 pub struct Config {
     pub server: ServerConfig,
@@ -98,6 +110,7 @@ pub struct Config {
 }
 
 impl Default for Config {
+    /// Returns default config for certus (not recommended)
     fn default() -> Self {
         Config {
             server: ServerConfig::default(),
