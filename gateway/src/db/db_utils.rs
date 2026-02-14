@@ -1,4 +1,7 @@
+use std::sync::Arc;
+
 use rusqlite::Connection;
+use tokio::sync::Mutex;
 
 use crate::{db::models::LogEntry, logging::log_util::LogEntryDTO};
 
@@ -37,6 +40,33 @@ pub fn save_log(conn: &Connection, entry: LogEntryDTO) -> rusqlite::Result<()> {
     Ok(())
 }
 
+pub fn save_logs(
+    conn: &mut Connection,
+    entries: Vec<LogEntryDTO>,
+) -> rusqlite::Result<()> {
+    let tx = conn.transaction()?;
+    {
+        let mut query = tx.prepare(
+            "INSERT INTO logs (timestamp, level, message, fields)
+         VALUES (?1, ?2, ?3, ?4)",
+        )?;
+
+        for entry in entries {
+            let fields_json = serde_json::to_string(&entry.fields)
+                .unwrap_or_else(|_| "{}".to_string());
+
+            query.execute([
+                entry.timestamp,
+                entry.level,
+                entry.message,
+                fields_json,
+            ])?;
+        }
+    }
+    tx.commit()?;
+    Ok(())
+}
+
 pub fn get_logs(conn: &Connection) -> rusqlite::Result<Vec<LogEntry>> {
     let mut stmt = conn.prepare("SELECT id, entry FROM logs")?;
     let logs = stmt.query_map([], |row| {
@@ -53,4 +83,21 @@ pub fn get_logs(conn: &Connection) -> rusqlite::Result<Vec<LogEntry>> {
         log_vec.push(log?);
     }
     Ok(log_vec)
+}
+
+// should prob move this into another mod
+pub async fn flush_batch(
+    conn: &Arc<Mutex<Connection>>,
+    batch: &mut Vec<LogEntryDTO>,
+) {
+    let logs = std::mem::replace(batch, Vec::with_capacity(100));
+    let conn_clone = Arc::clone(conn);
+
+    tokio::task::spawn_blocking(move || {
+        let mut conn_guard = conn_clone.blocking_lock();
+
+        if let Err(e) = save_logs(&mut conn_guard, logs) {
+            tracing::error!(err = ?e, "Failed to batch save logs");
+        }
+    });
 }

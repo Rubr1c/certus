@@ -1,9 +1,12 @@
-use std::net::SocketAddr;
 use std::sync::Arc;
+use std::{net::SocketAddr, time::Duration};
 
 use axum::{Router, http::HeaderValue, routing::any};
 use clap::Parser;
-use tokio::sync::{Mutex, mpsc};
+use tokio::{
+    sync::{Mutex, mpsc},
+    time,
+};
 use tower_http::cors::{self, CorsLayer};
 use tracing_subscriber::{
     EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt,
@@ -26,6 +29,8 @@ use gateway::{
 async fn main() {
     let (tx, mut rx) = mpsc::channel::<LogEntryDTO>(1024);
 
+    // maybe make custom writer for this to send to a channel too?
+    // not sure that will make a different or not just a thought
     let console_layer = tracing_subscriber::fmt::layer().with_filter(
         EnvFilter::try_from_default_env()
             .unwrap_or_else(|_| EnvFilter::new("info")),
@@ -60,17 +65,26 @@ async fn main() {
     let conn_clone = conn.clone();
 
     tokio::spawn(async move {
-        while let Some(log_entry) = rx.recv().await {
-            let conn_clone = conn_clone.clone();
+        let mut batch: Vec<LogEntryDTO> = Vec::with_capacity(100);
 
-            let _ = tokio::task::spawn_blocking(move || {
-                let conn_guard = conn_clone.blocking_lock();
+        let mut interval = time::interval(Duration::from_secs(1));
 
-                if let Err(e) = db_utils::save_log(&conn_guard, log_entry) {
-                    eprintln!("Database Error: {}", e);
+        loop {
+            tokio::select! {
+                Some(entry) = rx.recv() => {
+                    batch.push(entry);
+
+                    if batch.len() >= 100 {
+                        db_utils::flush_batch(&conn_clone, &mut batch).await;
+                    }
                 }
-            })
-            .await;
+
+                _ = interval.tick() => {
+                    if !batch.is_empty() {
+                        db_utils::flush_batch(&conn_clone, &mut batch).await;
+                    }
+                }
+            }
         }
     });
 
