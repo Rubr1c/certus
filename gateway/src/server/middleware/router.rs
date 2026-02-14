@@ -1,5 +1,4 @@
-use std::net::SocketAddr;
-use std::sync::Arc;
+use std::{net::SocketAddr, sync::Arc};
 
 use axum::{
     body::Body,
@@ -14,7 +13,7 @@ use crate::server::{
     error::GatewayError,
     middleware::{
         auth,
-        cache::{dyn_cache, models::CacheKey, static_cache},
+        cache::{CacheKey, dyn_cache, static_cache},
         handler, load_balance, rate_limit,
     },
 };

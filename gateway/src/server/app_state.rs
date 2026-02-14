@@ -10,18 +10,15 @@ use matchit::Router;
 use moka::sync::Cache;
 
 use crate::{
-    config::models::Config,
+    config::Config,
     server::{
         connection,
         middleware::{
-            cache::{
-                models::{CacheKey, CachedResponse},
-                static_cache,
-            },
+            cache::{CacheKey, CachedResponse, static_cache},
             rate_limit::TokenBucket,
             router,
         },
-        upstream::models::UpstreamServer,
+        upstream::UpstreamServer,
     },
 };
 

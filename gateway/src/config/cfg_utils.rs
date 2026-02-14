@@ -1,13 +1,10 @@
-use std::path::Path;
-use std::sync::Arc;
-use std::time::Duration;
-use tokio::fs;
+use std::{path::Path, sync::Arc, time::Duration};
 
 use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
-use tokio::sync::mpsc;
+use tokio::{fs, sync::mpsc};
 
 use crate::{
-    config::{error::ConfigError, models::Config},
+    config::{Config, error::ConfigError},
     server::app_state::{self, AppState},
 };
 

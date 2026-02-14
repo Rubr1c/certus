@@ -9,8 +9,8 @@ use rand::{SeedableRng, rngs::SmallRng, seq::IndexedRandom};
 use tracing::instrument;
 
 use crate::{
-    config::models::{Config, RouteConfig},
-    server::upstream::models::UpstreamServer,
+    config::{Config, RouteConfig},
+    server::upstream::UpstreamServer,
 };
 
 thread_local! {

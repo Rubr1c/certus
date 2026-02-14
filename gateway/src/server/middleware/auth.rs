@@ -2,13 +2,14 @@ use jsonwebtoken::{DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    config::models::{AuthType, Config},
-    server::{error::GatewayError, upstream::models::UpstreamServer},
+    config::{AuthType, Config},
+    server::{error::GatewayError, upstream::UpstreamServer},
 };
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
-    // keeping it optional and passing null to header might be best way incase use does not need fields
+    // keeping it optional and passing null to header
+    // might be best way incase use does not need fields
     user_id: Option<String>,
     role: Option<String>,
     exp: usize,
@@ -18,6 +19,8 @@ pub struct Claims {
 pub fn decode(token: &str, secret: &String) -> Result<Claims, GatewayError> {
     match jsonwebtoken::decode::<Claims>(
         token,
+        //TODO: change to not create a decoding key each time
+        //      keeping it in app_state would be better.
         &DecodingKey::from_secret(secret.as_ref()),
         &Validation::default(),
     ) {

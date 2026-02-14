@@ -7,7 +7,7 @@ use moka::sync::Cache;
 
 use crate::server::{
     app_state::AppState,
-    middleware::cache::models::{CacheKey, CachedResponse},
+    middleware::cache::{CacheKey, CachedResponse},
 };
 
 #[inline]

@@ -1,5 +1,4 @@
-use std::sync::Arc;
-use std::{net::SocketAddr, time::Duration};
+use std::{net::SocketAddr, sync::Arc, time::Duration};
 
 use axum::{Router, http::HeaderValue, routing::any};
 use clap::Parser;
@@ -14,8 +13,8 @@ use tracing_subscriber::{
 
 use gateway::{
     config::{
+        CmdArgs,
         cfg_utils::{reload_config, watch_config},
-        models::CmdArgs,
     },
     db::db_utils,
     logging::log_util::{LogChannelLayer, LogEntryDTO},

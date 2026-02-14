@@ -9,7 +9,7 @@ use tracing::instrument;
 use crate::server::{
     error::GatewayError,
     middleware::handler,
-    upstream::models::{PooledConnection, Protocol, UpstreamServer},
+    upstream::{PooledConnection, Protocol, UpstreamServer},
 };
 
 //TODO: make sure atomic ordering correct

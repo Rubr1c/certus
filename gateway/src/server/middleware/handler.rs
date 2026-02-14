@@ -7,7 +7,7 @@ use tracing::instrument;
 use crate::server::{
     connection,
     error::GatewayError,
-    upstream::models::{PooledConnection, UpstreamServer},
+    upstream::{PooledConnection, UpstreamServer},
 };
 
 async fn forward_request(

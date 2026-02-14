@@ -1,8 +1,7 @@
-use std::net::IpAddr;
-use std::time::Instant;
+use std::{net::IpAddr, time::Instant};
 
 use crate::{
-    config::models::{Config, RouteConfig},
+    config::{Config, RouteConfig},
     server::{app_state::AppState, error::GatewayError},
 };
 
