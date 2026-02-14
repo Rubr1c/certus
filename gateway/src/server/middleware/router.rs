@@ -120,7 +120,8 @@ pub async fn reroute(
 
     match res {
         Ok(response) => {
-            return dyn_cache::try_save(response, &method, &state, ck).await;
+            return dyn_cache::try_save(response, &method, &state.cache, ck)
+                .await;
         }
         Err(e) => e.into_response(),
     }
