@@ -1,13 +1,14 @@
 use std::{sync::atomic::Ordering, time::Duration};
 
 use axum::body::Body;
-use hyper::client::conn;
+use hyper::{Method, Request, client::conn, header};
 use hyper_util::rt::{TokioExecutor, TokioIo};
 use tokio::net::TcpStream;
 use tracing::instrument;
 
 use crate::server::{
     error::GatewayError,
+    middleware::handler,
     upstream::models::{PooledConnection, Protocol, UpstreamServer},
 };
 
@@ -93,5 +94,30 @@ pub async fn release_connection(
     } else {
         tracing::info!("Connetion not reusable");
         upstream.pool.total_connections.fetch_sub(1, Ordering::Release);
+    }
+}
+
+pub async fn health_ok(upstream: &UpstreamServer) -> bool {
+    let req = match Request::builder()
+        .method(Method::GET)
+        .uri("/health")
+        .header(header::HOST, upstream.pool.server_addr.to_string())
+        .body(Body::empty())
+    {
+        Ok(r) => r,
+        Err(e) => {
+            tracing::error!(err = ?e, "error building health req");
+            return false;
+        }
+    };
+
+    match handler::handle_request(&upstream, req, 2000).await {
+        Ok(res) => {
+            if res.status().is_success() {
+                return true;
+            }
+            false
+        }
+        Err(_) => false,
     }
 }

@@ -12,6 +12,7 @@ use moka::sync::Cache;
 use crate::{
     config::models::Config,
     server::{
+        connection,
         middleware::{
             cache::{
                 models::{CacheKey, CachedResponse},
@@ -78,7 +79,13 @@ pub async fn init_server_state(state: Arc<AppState>) {
                 .await;
                 is_static_and_not_fetched = false;
             }
-            new_routes_map.insert(*server, upstream);
+            let ok = connection::health_ok(&upstream).await;
+
+            if ok {
+                new_routes_map.insert(*server, upstream);
+            } else {
+                tracing::error!(server = ?server, "Health not ok for server")
+            }
         }
     }
 
