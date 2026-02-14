@@ -10,6 +10,16 @@ pub fn connect_db() -> Result<Connection, rusqlite::Error> {
     Connection::open("dev.db")
 }
 
+/// Runs all queries to create tables and initalize db
+///
+/// # Arguments
+///
+/// * `conn` - connection to sqlite database
+///
+/// # Errors
+///
+/// Returns an error if:
+/// * query is failed to execute
 pub fn migrate(conn: &Connection) -> rusqlite::Result<()> {
     let querys = vec![
         "CREATE TABLE IF NOT EXISTS logs (
@@ -27,6 +37,18 @@ pub fn migrate(conn: &Connection) -> rusqlite::Result<()> {
     Ok(())
 }
 
+/// Saves a log to an sqlite database
+///
+/// # Arguments
+///
+/// * `conn` - connection to sqlite database
+/// * `entry` - data of the log to save
+///
+/// # Errors
+///
+/// Returns an error if:
+/// * Failed to execute query
+///
 pub fn save_log(conn: &Connection, entry: LogEntryDTO) -> rusqlite::Result<()> {
     let fields_json = serde_json::to_string(&entry.fields)
         .unwrap_or_else(|_| "{}".to_string());
@@ -40,6 +62,20 @@ pub fn save_log(conn: &Connection, entry: LogEntryDTO) -> rusqlite::Result<()> {
     Ok(())
 }
 
+/// Saves a vec of logs transactionaly
+///
+/// # Arguments
+///
+/// * `conn` - mutable connection to sqlite database
+/// * `entries` - vector of logs to save
+///
+/// # Errors
+///
+/// Returns an error if:
+/// * Failed to start transaction
+/// * Failed to prepare query
+/// * Failed to execute query
+/// * Failed to commit transaction
 pub fn save_logs(
     conn: &mut Connection,
     entries: Vec<LogEntryDTO>,
@@ -67,6 +103,18 @@ pub fn save_logs(
     Ok(())
 }
 
+/// Returns all logs from an sqlite database
+///
+/// # Arguments
+///
+/// * `conn` - connection to sqlite database
+///
+/// # Errors
+///
+/// Returns an error if:
+/// * Failed to prepare query
+/// * Failed to get element
+/// * Failed to map query
 pub fn get_logs(conn: &Connection) -> rusqlite::Result<Vec<LogEntry>> {
     let mut stmt = conn.prepare("SELECT id, entry FROM logs")?;
     let logs = stmt.query_map([], |row| {
@@ -86,6 +134,13 @@ pub fn get_logs(conn: &Connection) -> rusqlite::Result<Vec<LogEntry>> {
 }
 
 // should prob move this into another mod
+
+/// Saves a batch of logs concurrently
+///
+/// # Arguments
+///
+/// * `conn` - arc mutex connection of a sqlite database
+/// * `batch` - mutable vector of logs to save
 pub async fn flush_batch(
     conn: &Arc<Mutex<Connection>>,
     batch: &mut Vec<LogEntryDTO>,
