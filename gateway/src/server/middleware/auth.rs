@@ -15,6 +15,18 @@ pub struct Claims {
     exp: usize,
 }
 
+/// Decodes a jwt token from a secret
+///
+/// # Arguments
+///
+/// * `token` - token to decode
+/// * `secret` - secret to use for decoding
+///
+/// # Errors
+///
+/// Returns an error if:
+/// * Failed to decode token
+/// * Token is expired
 #[inline]
 pub fn decode(token: &str, secret: &String) -> Result<Claims, GatewayError> {
     match jsonwebtoken::decode::<Claims>(
@@ -29,6 +41,19 @@ pub fn decode(token: &str, secret: &String) -> Result<Claims, GatewayError> {
     }
 }
 
+/// Tries to authenticate the user if route requires auth
+///
+/// # Arguments
+///
+/// * `upstream` - server trying to connect to
+/// * `config` - gateway config
+/// * `token` - optional token if exists
+///
+/// # Errors
+///
+/// Returns an error if:
+/// * Authentication is enabled and no token was provided
+/// * Token failed to be decoded [`decode`]
 #[inline]
 pub fn run(
     upstream: &UpstreamServer,

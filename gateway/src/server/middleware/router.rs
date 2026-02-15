@@ -18,6 +18,12 @@ use crate::server::{
     },
 };
 
+/// Builds a radix tree router of all the routes configured
+/// and returns the router built
+///
+/// # Arguments
+///
+/// * `state` - arc of the AppState used to get the routes
 pub fn build_tree(state: Arc<AppState>) -> Router<String> {
     let config = state.config.load();
     let route_conf = &config.routes;
@@ -43,6 +49,14 @@ pub fn build_tree(state: Arc<AppState>) -> Router<String> {
     router
 }
 
+/// Main axum function of the gateway that calls all the modules
+/// with the request data and app state and returns a response
+///
+/// # Arguments
+///
+/// * `state` - app state injected by axum
+/// * `addr` - socket address of requester
+/// * `req` - request body
 #[instrument(name = "router", skip_all, fields(ip = %addr.ip()))]
 pub async fn reroute(
     State(state): State<Arc<AppState>>,

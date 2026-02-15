@@ -4,6 +4,7 @@ use axum::{
 };
 use thiserror::Error;
 
+/// Error enum for any error that may happen related in the gateway
 #[derive(Debug, Error)]
 pub enum GatewayError {
     #[error("Upstream overloaded")]
@@ -27,6 +28,8 @@ pub enum GatewayError {
 
 //TODO: make errors trace here
 impl IntoResponse for GatewayError {
+    /// Turns the GatewayError into a response that can be
+    /// returned from the server with a status and message
     fn into_response(self) -> Response {
         let (status, error_message) = match &self {
             GatewayError::Overloaded => {

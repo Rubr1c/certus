@@ -14,10 +14,21 @@ use crate::{
 };
 
 thread_local! {
+    /// Small random number generator that has one instance per thread
+    /// to avoid too many syscalls
     static THREAD_RNG: RefCell<SmallRng> = RefCell::new(SmallRng::from_os_rng());
 }
 
 // only power of 2 choices for now
+
+/// Picks randomly between 2 servers and picks the one
+/// with the least load
+///
+/// # Arguments
+///
+/// * `routes` - map of all addresses to servers
+/// * `target` - the config for the route targeted
+/// * `config` - gateway config
 #[inline]
 #[instrument(name = "lb_p2c", skip_all)]
 pub fn p2c_pick(

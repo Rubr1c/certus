@@ -13,6 +13,20 @@ use crate::server::{
 };
 
 //TODO: make sure atomic ordering correct
+
+/// Opens a connection to a tcp stream
+///
+/// # Arguments
+///
+/// * `upstream` - target server to conenct to
+/// * `timeout` - when to timeout trying to connect
+///
+/// # Errors
+///
+/// Returns an error if:
+/// * Failed to connect to server
+/// * Timed out while trying to connect
+/// * Failed to perform handshake with server
 #[instrument(skip_all, fields(protocol = ?upstream.pool.protocol))]
 pub async fn open_connection(
     upstream: &UpstreamServer,
@@ -53,6 +67,19 @@ pub async fn open_connection(
     Ok(sender)
 }
 
+/// Tries to borrow an idle connection if not able it
+/// opens a new one
+///
+/// # Arguments
+///
+/// * `upstream` - target server to conenct to
+/// * `timeout` - when to timeout trying to make a new connection
+///
+/// # Errors
+///
+/// Returns an error if:
+/// * Max connections to server reached
+/// * Failed to open new connection
 pub async fn borrow_connection(
     upstream: &UpstreamServer,
     timeout: u64,
@@ -81,6 +108,13 @@ pub async fn borrow_connection(
     Ok(sender)
 }
 
+/// Removes connection to server and keeps it idle if possible
+///
+/// # Arguments
+///
+/// * `upstream` - target server to release
+/// * `sender` - connection to the server
+/// * `reusable` - if the connection can be reused and put in idle
 pub async fn release_connection(
     upstream: &UpstreamServer,
     sender: PooledConnection,
@@ -97,6 +131,11 @@ pub async fn release_connection(
     }
 }
 
+/// Checks if the health of the server is ok
+///
+/// # Arguments
+///
+/// * `upstream` - target server trying to check
 pub async fn health_ok(upstream: &UpstreamServer) -> bool {
     let req = match Request::builder()
         .method(Method::GET)

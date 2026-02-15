@@ -12,6 +12,12 @@ use crate::server::{
     upstream::UpstreamServer,
 };
 
+/// Tries to find a response in static cache
+///
+/// # Arguments
+///
+/// * `state` - gateway app state
+/// * `path` - full path of the request
 #[inline]
 pub fn try_find(state: &AppState, path: &str) -> Option<Response<Body>> {
     match state.static_cache.get(path) {
@@ -26,6 +32,14 @@ pub fn try_find(state: &AppState, path: &str) -> Option<Response<Body>> {
     }
 }
 
+/// Sends a request to an endpoint and saves it in the static cache
+///
+/// # Arguments
+///
+/// * `cache` - cache map to save in
+/// * `upstream` - server to send request to
+/// * `path` - full path of the request
+/// * `timeout` - when to timeout trying to connect to server
 pub async fn send_and_save(
     cache: &DashMap<String, CachedResponse>,
     upstream: &UpstreamServer,

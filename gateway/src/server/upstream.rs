@@ -5,11 +5,13 @@ use crossbeam::queue::SegQueue;
 use hyper::client::conn;
 use serde::Deserialize;
 
+/// Enum representing if server is healthy or not
 pub enum HealthState {
     Alive,
     Dead,
 }
 
+/// Enum for all available protocols
 #[derive(Clone, Debug, Deserialize, Default, Copy)]
 pub enum Protocol {
     #[default]
@@ -17,12 +19,15 @@ pub enum Protocol {
     HTTP2,
 }
 
+/// Enum holding send request of the protocols
 pub enum PooledConnection {
     Http1(conn::http1::SendRequest<Body>),
     Http2(conn::http2::SendRequest<Body>),
 }
 
 //TODO: add/remove nessesary/unesseseary fleids
+
+/// Main server state holding all connection info
 pub struct UpstreamServer {
     pub active_connctions: AtomicUsize,
     pub health_state: HealthState,
@@ -30,6 +35,7 @@ pub struct UpstreamServer {
     pub req_auth: bool,
 }
 
+/// Holds info for the connection pool of a server
 pub struct ConnectionPool {
     pub server_addr: SocketAddr,
     pub protocol: Protocol,

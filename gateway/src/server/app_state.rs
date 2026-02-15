@@ -22,12 +22,16 @@ use crate::{
     },
 };
 
+/// Struct holding route related data that should be
+/// updated at the same time
 pub struct RoutingTable {
     pub router: Router<String>,
     pub routes: HashMap<SocketAddr, Arc<UpstreamServer>>,
 }
 
 //TODO: Add db connection in efficent way to use in metrics endpoints
+
+/// Holds state of whole app passed to the reroute function
 pub struct AppState {
     pub routing_table: ArcSwap<RoutingTable>,
     pub config: ArcSwap<Config>,

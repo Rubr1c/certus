@@ -5,6 +5,7 @@ use crate::{
     server::{app_state::AppState, error::GatewayError},
 };
 
+/// Holds the tokens remaining and last time bucket was refilled
 pub struct TokenBucket {
     pub tokens: f64,
     pub last_refill: Instant,
@@ -16,6 +17,22 @@ impl TokenBucket {
     }
 }
 
+/// Runs rate limiting by getting the bucket associated to the ip
+/// then fills the bucket based on time passed based on last refill
+/// finally checks if user is rate limited for the target route and
+/// removes tokens from bucket if not
+///
+/// # Arguments
+///
+/// * `target_route` - config info of the target route
+/// * `ip` - ip of the requester
+/// * `config` - gateway config
+/// * `state` - gateway app state
+///
+/// # Errors
+///
+/// Returns an error if:
+/// * Rate limit exceeded
 #[inline]
 pub fn run(
     target_route: &RouteConfig,

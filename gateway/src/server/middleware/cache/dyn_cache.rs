@@ -10,6 +10,14 @@ use crate::server::{
     middleware::cache::{CacheKey, CachedResponse},
 };
 
+/// Tries to save a response to a cache
+///
+/// # Arguments
+///
+/// * `response` - response stream from the server
+/// * `method` - http method used for request
+/// * `cache` - target cache to save in
+/// * `ck` - CacheKey for the request
 #[inline]
 pub async fn try_save(
     response: Response<Incoming>,
@@ -41,6 +49,14 @@ pub async fn try_save(
     response
 }
 
+/// Tries to find a response in cache
+///
+/// # Arguments
+///
+/// * `state` - gateway app state
+/// * `path` - full path of the request
+/// * `ck` - CacheKey for the request
+/// * `method` - http method used for request
 #[inline]
 pub fn try_find(
     state: &AppState,

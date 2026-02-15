@@ -10,6 +10,17 @@ use crate::server::{
     upstream::{PooledConnection, UpstreamServer},
 };
 
+/// Takes a connection to a server then forwards a request
+///
+/// # Arguments
+///
+/// * `conn` - connection to the server
+/// * `req` - request sent from client
+///
+/// # Errors
+///
+/// Returns an error if:
+/// * Failed to send request to server
 async fn forward_request(
     conn: PooledConnection,
     req: Request<Body>,
@@ -36,6 +47,20 @@ async fn forward_request(
     Ok((res, sender))
 }
 
+/// Takes a server gets a connection to it and forwards it
+/// then releases it if needed
+///
+/// # Arguments
+///
+/// * `upstream` - target server
+/// * `req` - request from the client
+/// * `timeout` - when to timeout trying to connect
+///
+/// # Errors
+///
+/// Returns an error if:
+/// * Failed to get or create a connection
+/// * Failed to forward the request
 #[instrument(name = "request", skip_all, fields(server = %upstream.pool.server_addr))]
 pub async fn handle_request(
     upstream: &UpstreamServer,
