@@ -3,6 +3,7 @@ use tokio::sync::mpsc;
 use tracing::{Subscriber, field::Visit};
 use tracing_subscriber::Layer;
 
+/// Struct for tracing visitor to save tracing fields in a hashmap
 #[derive(Default)]
 struct LogVisitor {
     fields: HashMap<String, String>,
@@ -31,6 +32,8 @@ impl Visit for LogVisitor {
     }
 }
 
+/// Log entry data transfer object; all fields required
+/// to add a new entry to the database
 pub struct LogEntryDTO {
     pub timestamp: String,
     pub level: String,
@@ -38,6 +41,8 @@ pub struct LogEntryDTO {
     pub fields: HashMap<String, String>,
 }
 
+/// Layer for tracing subscriber to get fields form events
+/// and send them to a channel to save to database
 pub struct LogChannelLayer {
     pub tx: mpsc::Sender<LogEntryDTO>,
 }
@@ -46,6 +51,9 @@ impl<S> Layer<S> for LogChannelLayer
 where
     S: Subscriber,
 {
+    /// Takes the event from tracing and extracts the fields from
+    /// the event and contructs a [`LogEntryDTO`] to be sent to
+    /// the channel to be saved
     fn on_event(
         &self,
         event: &tracing::Event<'_>,
