@@ -95,6 +95,12 @@ pub struct ConnectionConfig {
     pub connect_timeout: u64,
 }
 
+/// Config struct that holds all cache options
+#[derive(Debug, Default, Deserialize)]
+pub struct CacheConfig {
+    pub size: u64,
+}
+
 /// Main config struct that holds all configurable items
 #[derive(Debug, Deserialize)]
 pub struct Config {
@@ -105,6 +111,8 @@ pub struct Config {
     pub routes: HashMap<String, RouteConfig>,
     #[serde(default = "default_connetion_config")]
     pub connection: ConnectionConfig,
+    #[serde(default = "default_cache_config")]
+    pub cache: CacheConfig,
     #[serde(default = "default_socket_addr")]
     pub default_server: SocketAddr,
 }
@@ -119,6 +127,7 @@ impl Default for Config {
             routes: HashMap::new(),
             default_server: default_socket_addr(),
             connection: default_connetion_config(),
+            cache: default_cache_config(),
         }
     }
 }
@@ -142,3 +151,8 @@ fn default_connetion_config() -> ConnectionConfig {
 fn default_max_connections() -> usize {
     100
 }
+
+fn default_cache_config() -> CacheConfig {
+    CacheConfig { size: 1000 }
+}
+

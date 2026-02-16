@@ -47,8 +47,8 @@ impl AppState {
                 router: Router::new(),
                 routes: HashMap::new(),
             }),
+            cache: Cache::new(config.cache.size),
             config: ArcSwap::from_pointee(config),
-            cache: Cache::new(1000),
             static_cache: DashMap::new(),
             user_tokens: DashMap::new(),
         }

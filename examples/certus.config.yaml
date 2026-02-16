@@ -12,6 +12,9 @@ rate_limit:
   max_tokens: 50
   refill_rate: 10
 
+cache:
+  size: 100
+
 routes:
   /users:
     endpoints: ['127.0.0.1:3001', '127.0.0.1:3002']
