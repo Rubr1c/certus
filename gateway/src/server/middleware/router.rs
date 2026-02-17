@@ -81,7 +81,8 @@ pub async fn reroute(
     let span = tracing::span!(Level::INFO, "route");
     let _span_guard = span.enter();
 
-    match rate_limit::run(&target_route, addr.ip(), &config, &state) {
+    match rate_limit::run(&target_route, addr.ip(), &config, &state.user_tokens)
+    {
         Ok(_) => {}
         Err(err) => return err.into_response(),
     }
@@ -101,18 +102,23 @@ pub async fn reroute(
 
     let method = req.method().clone();
 
-    match static_cache::try_find(&state, path) {
+    //can maybe combine both cache methods into one fn
+
+    match static_cache::try_find(&state.static_cache, path) {
         Some(res) => return res,
         _ => {}
     }
 
-    match dyn_cache::try_find(&state, path, &ck, &method) {
+    match dyn_cache::try_find(&state.cache, path, &ck, &method) {
         Some(res) => return res,
         _ => {}
     }
 
-    let server =
-        load_balance::p2c_pick(&routing_table.routes, &target_route, &config);
+    let server = load_balance::p2c_pick(
+        &routing_table.routes,
+        &target_route,
+        &config.default_server,
+    );
     let upstream = routing_table
         .routes
         .get(&server)

@@ -5,10 +5,7 @@ use axum::{
 use hyper::{Method, Response, body::Incoming};
 use moka::sync::Cache;
 
-use crate::server::{
-    app_state::AppState,
-    middleware::cache::{CacheKey, CachedResponse},
-};
+use crate::server::middleware::cache::{CacheKey, CachedResponse};
 
 /// Tries to save a response to a cache
 ///
@@ -59,12 +56,12 @@ pub async fn try_save(
 /// * `method` - http method used for request
 #[inline]
 pub fn try_find(
-    state: &AppState,
+    cache: &Cache<CacheKey, CachedResponse>,
     path: &str,
     ck: &CacheKey,
     method: &Method,
 ) -> Option<Response<Body>> {
-    match state.cache.get(ck) {
+    match cache.get(ck) {
         Some(res) => {
             if method == Method::GET {
                 tracing::info!("Returning cached response to {}", path);

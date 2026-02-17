@@ -8,10 +8,7 @@ use std::{
 use rand::{SeedableRng, rngs::SmallRng, seq::IndexedRandom};
 use tracing::instrument;
 
-use crate::{
-    config::{Config, RouteConfig},
-    server::upstream::UpstreamServer,
-};
+use crate::{config::RouteConfig, server::upstream::UpstreamServer};
 
 thread_local! {
     /// Small random number generator that has one instance per thread
@@ -31,17 +28,17 @@ thread_local! {
 /// * `config` - gateway config
 #[inline]
 #[instrument(name = "lb_p2c", skip_all)]
-pub fn p2c_pick(
-    routes: &HashMap<SocketAddr, Arc<UpstreamServer>>,
-    target: &RouteConfig,
-    config: &Config,
-) -> SocketAddr {
+pub fn p2c_pick<'a>(
+    routes: &'a HashMap<SocketAddr, Arc<UpstreamServer>>,
+    target: &'a RouteConfig,
+    default_server: &'a SocketAddr,
+) -> &'a SocketAddr {
     tracing::info!("Finding endpoint");
     let endpoints = &target.endpoints;
     if endpoints.is_empty() {
         tracing::warn!("No endpoints found");
         tracing::info!("returning default server");
-        return config.default_server;
+        return default_server;
     }
 
     THREAD_RNG.with(|rng_cell| {
@@ -57,9 +54,9 @@ pub fn p2c_pick(
         if upstream_server1.active_connctions.load(Ordering::Acquire)
             < upstream_server2.active_connctions.load(Ordering::Acquire)
         {
-            *server1
+            server1
         } else {
-            *server2
+            server2
         }
     })
 }

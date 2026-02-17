@@ -1,8 +1,10 @@
 use std::{net::IpAddr, time::Instant};
 
+use dashmap::DashMap;
+
 use crate::{
     config::{Config, RouteConfig},
-    server::{app_state::AppState, error::GatewayError},
+    server::error::GatewayError,
 };
 
 /// Holds the tokens remaining and last time bucket was refilled
@@ -38,15 +40,13 @@ pub fn run(
     target_route: &RouteConfig,
     ip: IpAddr,
     config: &Config,
-    state: &AppState,
+    user_tokens: &DashMap<IpAddr, TokenBucket>,
 ) -> Result<(), GatewayError> {
     let max_tokens = config.rate_limit.max_tokens;
     let refill_rate = config.rate_limit.refill_rate;
 
-    let mut bucket_entry = state
-        .user_tokens
-        .entry(ip)
-        .or_insert(TokenBucket::new(config.rate_limit.max_tokens));
+    let mut bucket_entry =
+        user_tokens.entry(ip).or_insert(TokenBucket::new(max_tokens));
 
     let now = Instant::now();
     let duration = now.duration_since(bucket_entry.last_refill).as_secs_f64();

@@ -7,7 +7,6 @@ use dashmap::DashMap;
 use hyper::{Request, Response};
 
 use crate::server::{
-    app_state::AppState,
     middleware::{cache::CachedResponse, handler},
     upstream::UpstreamServer,
 };
@@ -16,11 +15,14 @@ use crate::server::{
 ///
 /// # Arguments
 ///
-/// * `state` - gateway app state
+/// * `cache` - static cache to search in
 /// * `path` - full path of the request
 #[inline]
-pub fn try_find(state: &AppState, path: &str) -> Option<Response<Body>> {
-    match state.static_cache.get(path) {
+pub fn try_find(
+    cache: &DashMap<String, CachedResponse>,
+    path: &str,
+) -> Option<Response<Body>> {
+    match cache.get(path) {
         Some(res) => {
             tracing::info!("Returning static cached response to {}", path);
             Some(res.clone().into_response())
