@@ -6,11 +6,12 @@ use std::{
 
 use arc_swap::ArcSwap;
 use dashmap::DashMap;
+use jsonwebtoken::DecodingKey;
 use matchit::Router;
 use moka::sync::Cache;
 
 use crate::{
-    config::Config,
+    config::{AuthType, Config},
     server::{
         connection,
         middleware::{
@@ -30,6 +31,10 @@ pub struct RoutingTable {
 }
 
 //TODO: Add db connection in efficent way to use in metrics endpoints
+//
+//TODO: make sure reloading changes related things too if changed like
+//      decoding_key. also some of the data here is probably duplicated
+//      and saved in more than one place in memeory this should be reduced
 
 /// Holds state of whole app passed to the reroute function
 pub struct AppState {
@@ -38,6 +43,7 @@ pub struct AppState {
     pub cache: Cache<CacheKey, CachedResponse>,
     pub static_cache: DashMap<String, CachedResponse>,
     pub user_tokens: DashMap<IpAddr, TokenBucket>,
+    pub decoding_key: Option<DecodingKey>,
 }
 
 impl AppState {
@@ -48,9 +54,18 @@ impl AppState {
                 routes: HashMap::new(),
             }),
             cache: Cache::new(config.cache.size),
-            config: ArcSwap::from_pointee(config),
             static_cache: DashMap::new(),
             user_tokens: DashMap::new(),
+            decoding_key: match config.auth.as_ref() {
+                Some(auth) => match &auth.method {
+                    AuthType::JWT { secret } => {
+                        Some(DecodingKey::from_secret(secret.as_ref()))
+                    }
+                    _ => None,
+                },
+                _ => None,
+            },
+            config: ArcSwap::from_pointee(config),
         }
     }
 }

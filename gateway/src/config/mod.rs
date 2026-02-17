@@ -155,4 +155,3 @@ fn default_max_connections() -> usize {
 fn default_cache_config() -> CacheConfig {
     CacheConfig { size: 1000 }
 }
-

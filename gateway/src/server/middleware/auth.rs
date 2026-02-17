@@ -2,8 +2,10 @@ use jsonwebtoken::{DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    config::{AuthType, Config},
-    server::{error::GatewayError, upstream::UpstreamServer},
+    config::AuthType,
+    server::{
+        app_state::AppState, error::GatewayError, upstream::UpstreamServer,
+    },
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -28,14 +30,8 @@ pub struct Claims {
 /// * Failed to decode token
 /// * Token is expired
 #[inline]
-pub fn decode(token: &str, secret: &String) -> Result<Claims, GatewayError> {
-    match jsonwebtoken::decode::<Claims>(
-        token,
-        //TODO: change to not create a decoding key each time
-        //      keeping it in app_state would be better.
-        &DecodingKey::from_secret(secret.as_ref()),
-        &Validation::default(),
-    ) {
+pub fn decode(token: &str, key: &DecodingKey) -> Result<Claims, GatewayError> {
+    match jsonwebtoken::decode::<Claims>(token, key, &Validation::default()) {
         Ok(decoded) => Ok(decoded.claims),
         Err(_) => Err(GatewayError::Unauthorized),
     }
@@ -57,18 +53,22 @@ pub fn decode(token: &str, secret: &String) -> Result<Claims, GatewayError> {
 #[inline]
 pub fn run(
     upstream: &UpstreamServer,
-    config: &Config,
+    state: &AppState,
     token: Option<&str>,
 ) -> Result<(), GatewayError> {
+    let config = state.config.load();
+
     //TODO: strip any prefix and define in config
     if let Some(ref a) = config.auth {
         if upstream.req_auth {
+            tracing::info!(?token, "Authenticating user");
             match token {
                 Some(t) => match &a.method {
-                    AuthType::JWT { secret } => {
-                        match decode(t, secret) {
+                    AuthType::JWT { secret: _ } => {
+                        match decode(t, &state.decoding_key.as_ref().unwrap()) {
                             Ok(_) => {
                                 //TODO: put claims in header
+                                tracing::info!("User authenticated");
                                 return Ok(());
                             }
                             Err(e) => {

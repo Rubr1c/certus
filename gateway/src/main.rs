@@ -121,8 +121,6 @@ async fn main() {
             .map(|ip| ip.parse().expect("Invalid Origin IP"))
             .collect();
 
-        println!("{:?}", origins);
-
         app.layer(CorsLayer::new().allow_origin(parsed_origins))
     };
 
