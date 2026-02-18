@@ -116,7 +116,9 @@ pub fn save_logs(
 /// * Failed to get element
 /// * Failed to map query
 pub fn get_logs(conn: &Connection) -> rusqlite::Result<Vec<LogEntry>> {
-    let mut stmt = conn.prepare("SELECT id, entry FROM logs")?;
+    let mut stmt =
+        conn.prepare("SELECT id, timestamp, level, message, fields FROM logs")?;
+
     let logs = stmt.query_map([], |row| {
         Ok(LogEntry {
             id: row.get(0)?,
