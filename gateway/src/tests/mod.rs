@@ -2,8 +2,11 @@ use std::net::SocketAddr;
 
 pub mod auth;
 pub mod cache;
+pub mod connection;
 pub mod lb;
+pub mod pipeline;
 pub mod rate_limit;
+pub mod reload;
 pub mod router;
 
 fn create_socket_addr(count: i32) -> Vec<SocketAddr> {

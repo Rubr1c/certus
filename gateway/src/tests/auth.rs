@@ -86,7 +86,7 @@ fn auth_enabled_valid_token() {
         &upstream,
         &state,
         Some(
-            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNzcxMzk1NTA3LCJleHAiOjE3NzEzOTkxMDd9.XMYhV7efJUgoTqRKUuF_lOmPowcC4FfoA8rg8cnREkE",
+            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNzcxNDE2NzEzLCJleHAiOjk5OTk5OTk5OTk5OTk5OX0.pc2WtJqpDMbWWvOrEOjPcQRkwJD2rxphmf-glLtyxqM",
         ),
     );
     assert!(res.is_ok());
