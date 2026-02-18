@@ -41,22 +41,26 @@ pub fn p2c_pick<'a>(
         return default_server;
     }
 
+    if endpoints.len() == 1 {
+        return &endpoints[0];
+    }
+
     THREAD_RNG.with(|rng_cell| {
         let mut rng = rng_cell.borrow_mut();
 
-        let server1 = endpoints.choose(&mut rng).unwrap();
-        let server2 = endpoints.choose(&mut rng).unwrap();
+        let [addr1, addr2]: [SocketAddr; 2] =
+            endpoints.choose_multiple_array(&mut *rng).unwrap();
 
-        let upstream_server1 = routes.get(server1).unwrap();
-        let upstream_server2 = routes.get(server2).unwrap();
+        let (key1, upstream1) = routes.get_key_value(&addr1).unwrap();
+        let (key2, upstream2) = routes.get_key_value(&addr2).unwrap();
 
-        tracing::info!("Selecting server will least load");
-        if upstream_server1.active_connctions.load(Ordering::Acquire)
-            < upstream_server2.active_connctions.load(Ordering::Acquire)
+        tracing::info!("Selecting server with least load");
+        if upstream1.active_connctions.load(Ordering::Acquire)
+            <= upstream2.active_connctions.load(Ordering::Acquire)
         {
-            server1
+            key1
         } else {
-            server2
+            key2
         }
     })
 }

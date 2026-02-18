@@ -22,10 +22,10 @@ use crate::{
 /// * Failed to read file due to incorrect path or other reason
 ///
 /// # Example
-/// ```
+/// ```ignore
 /// let app_state: Arc<AppState> = Arc::new(/* */);
 /// let _watcher = match watch_config("config.yaml", app_state.clone()).await {
-///     Ok(watcher) => Some(watcher)
+///     Ok(watcher) => Some(watcher),
 ///     Err(_) => None
 /// };
 /// ```
@@ -98,7 +98,7 @@ pub async fn watch_config(
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// let config = match reload_config("config.yaml").await {
 ///     Ok(c) => c,
 ///     Err(_) => Config::default(),
