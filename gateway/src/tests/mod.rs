@@ -1,7 +1,10 @@
 use std::net::SocketAddr;
 
 pub mod auth;
+pub mod cache;
 pub mod lb;
+pub mod rate_limit;
+pub mod router;
 
 fn create_socket_addr(count: i32) -> Vec<SocketAddr> {
     let mut addrs = Vec::<SocketAddr>::new();

@@ -22,7 +22,8 @@ fn auth_not_enabled() {
 
     let state = AppState::new(config);
 
-    auth::run(&upstream, &state, None).unwrap();
+    let res = auth::run(&upstream, &state, None);
+    assert!(res.is_ok());
 }
 
 #[test]
@@ -42,7 +43,6 @@ fn auth_enabled_no_token() {
     let state = AppState::new(config);
 
     let res = auth::run(&upstream, &state, None);
-
     assert!(res.is_err());
 }
 
@@ -63,7 +63,6 @@ fn auth_enabled_invalid_token() {
     let state = AppState::new(config);
 
     let res = auth::run(&upstream, &state, Some("wdundw"));
-
     assert!(res.is_err());
 }
 
@@ -83,9 +82,12 @@ fn auth_enabled_valid_token() {
 
     let state = AppState::new(config);
 
-    auth::run(
+    let res = auth::run(
         &upstream,
         &state,
-        Some("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNzcxMzk1NTA3LCJleHAiOjE3NzEzOTkxMDd9.XMYhV7efJUgoTqRKUuF_lOmPowcC4FfoA8rg8cnREkE")
-    ).unwrap();
+        Some(
+            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNzcxMzk1NTA3LCJleHAiOjE3NzEzOTkxMDd9.XMYhV7efJUgoTqRKUuF_lOmPowcC4FfoA8rg8cnREkE",
+        ),
+    );
+    assert!(res.is_ok());
 }
