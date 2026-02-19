@@ -43,7 +43,7 @@ pub struct AppState {
     pub cache: Cache<CacheKey, CachedResponse>,
     pub static_cache: DashMap<String, CachedResponse>,
     pub user_tokens: DashMap<IpAddr, TokenBucket>,
-    pub decoding_key: Option<DecodingKey>,
+    pub decoding_key: ArcSwap<Option<DecodingKey>>,
 }
 
 impl AppState {
@@ -57,10 +57,10 @@ impl AppState {
             static_cache: DashMap::new(),
             user_tokens: DashMap::new(),
             decoding_key: match &config.auth.method {
-                AuthType::JWT { secret } => {
-                    Some(DecodingKey::from_secret(secret.as_ref()))
-                }
-                _ => None,
+                AuthType::JWT { secret } => ArcSwap::from_pointee(Some(
+                    DecodingKey::from_secret(secret.as_ref()),
+                )),
+                _ => ArcSwap::from_pointee(None),
             },
             config: ArcSwap::from_pointee(config),
         }
@@ -103,6 +103,15 @@ pub async fn init_server_state(state: Arc<AppState>) {
             }
         }
     }
+
+    let new_key = match &config.auth.method {
+        AuthType::JWT { secret } => {
+            Some(DecodingKey::from_secret(secret.as_ref()))
+        }
+        _ => None,
+    };
+
+    state.decoding_key.store(Arc::new(new_key));
 
     let new_router = router::build_tree(state.clone());
 
