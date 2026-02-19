@@ -64,15 +64,26 @@ pub fn run(
         match token {
             Some(t) => match &config.auth.method {
                 AuthType::JWT { secret: _ } => {
-                    match decode(t, &state.decoding_key.as_ref().unwrap()) {
-                        Ok(_) => {
-                            //TODO: put claims in header
-                            tracing::info!("User authenticated");
-                            return Ok(());
-                        }
-                        Err(e) => {
-                            tracing::info!("User not authenticated");
-                            return Err(e);
+                    let key_guard = state.decoding_key.load();
+
+                    let key_ref = key_guard.as_ref().as_ref();
+
+                    match key_ref {
+                        Some(key) => match decode(t, key) {
+                            Ok(_) => {
+                                tracing::info!("User authenticated");
+                                return Ok(());
+                            }
+                            Err(e) => {
+                                tracing::info!("User not authenticated");
+                                return Err(e);
+                            }
+                        },
+                        None => {
+                            tracing::error!(
+                                "JWT auth required but no decoding key is loaded"
+                            );
+                            return Err(GatewayError::Unauthorized);
                         }
                     }
                 }
