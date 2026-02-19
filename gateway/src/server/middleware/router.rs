@@ -125,7 +125,7 @@ pub async fn reroute(
         .expect("Upstream Should Exist")
         .clone();
 
-    match auth::run(&upstream, &state, token) {
+    match auth::run(&upstream, &config, token) {
         Ok(_) => {}
         Err(e) => return e.into_response(),
     }

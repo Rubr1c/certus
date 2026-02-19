@@ -1,13 +1,12 @@
 use crate::{
     config::{AuthConfig, AuthType, Config},
     server::{
-        app_state::AppState,
         middleware::auth,
         upstream::{Protocol, UpstreamServer},
     },
 };
 
-use super::{create_socket_addr, test_db_conn};
+use super::create_socket_addr;
 
 #[test]
 fn auth_not_enabled() {
@@ -20,9 +19,7 @@ fn auth_not_enabled() {
 
     let config = Config::default();
 
-    let state = AppState::new(config, test_db_conn());
-
-    let res = auth::run(&upstream, &state, None);
+    let res = auth::run(&upstream, &config, None);
     assert!(res.is_ok());
 }
 
@@ -39,9 +36,7 @@ fn auth_enabled_no_token() {
     config.auth =
         AuthConfig { method: AuthType::JWT { secret: "secret".to_string() } };
 
-    let state = AppState::new(config, test_db_conn());
-
-    let res = auth::run(&upstream, &state, None);
+    let res = auth::run(&upstream, &config, None);
     assert!(res.is_err());
 }
 
@@ -58,9 +53,7 @@ fn auth_enabled_invalid_token() {
     config.auth =
         AuthConfig { method: AuthType::JWT { secret: "secret".to_string() } };
 
-    let state = AppState::new(config, test_db_conn());
-
-    let res = auth::run(&upstream, &state, Some("wdundw"));
+    let res = auth::run(&upstream, &config, Some("wdundw"));
     assert!(res.is_err());
 }
 
@@ -77,11 +70,9 @@ fn auth_enabled_valid_token() {
     config.auth =
         AuthConfig { method: AuthType::JWT { secret: "secret".to_string() } };
 
-    let state = AppState::new(config, test_db_conn());
-
     let res = auth::run(
         &upstream,
-        &state,
+        &config,
         Some(
             "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNzcxNDE2NzEzLCJleHAiOjk5OTk5OTk5OTk5OTk5OX0.pc2WtJqpDMbWWvOrEOjPcQRkwJD2rxphmf-glLtyxqM",
         ),

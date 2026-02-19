@@ -6,14 +6,13 @@ use std::{
 
 use arc_swap::ArcSwap;
 use dashmap::DashMap;
-use jsonwebtoken::DecodingKey;
 use matchit::Router;
 use moka::sync::Cache;
 use parking_lot::Mutex;
 use rusqlite::Connection;
 
 use crate::{
-    config::{AuthType, CmdArgs, Config},
+    config::{CmdArgs, Config},
     db::db_utils,
     server::{
         connection,
@@ -33,9 +32,8 @@ pub struct RoutingTable {
     pub routes: HashMap<SocketAddr, Arc<UpstreamServer>>,
 }
 
-//TODO: make sure reloading changes related things too if changed like
-//      decoding_key. also some of the data here is probably duplicated
-//      and saved in more than one place in memeory this should be reduced
+//TODO: some of the data here is duplicated and saved in more
+//      than one place in memeory this should be reduced
 
 /// Holds state of whole app passed to the reroute function
 pub struct AppState {
@@ -44,7 +42,6 @@ pub struct AppState {
     pub cache: Cache<CacheKey, CachedResponse>,
     pub static_cache: DashMap<String, CachedResponse>,
     pub user_tokens: DashMap<IpAddr, TokenBucket>,
-    pub decoding_key: ArcSwap<Option<DecodingKey>>,
     pub db_conn: Arc<Mutex<Connection>>,
 }
 
@@ -56,15 +53,9 @@ impl AppState {
                 routes: HashMap::new(),
             }),
             cache: Cache::new(config.cache.size),
+            config: ArcSwap::from_pointee(config),
             static_cache: DashMap::new(),
             user_tokens: DashMap::new(),
-            decoding_key: match &config.auth.method {
-                AuthType::JWT { secret } => ArcSwap::from_pointee(Some(
-                    DecodingKey::from_secret(secret.as_ref()),
-                )),
-                _ => ArcSwap::from_pointee(None),
-            },
-            config: ArcSwap::from_pointee(config),
             db_conn: conn,
         }
     }
@@ -106,15 +97,6 @@ pub async fn init_server_state(state: Arc<AppState>, args: Arc<CmdArgs>) {
             }
         }
     }
-
-    let new_key = match &config.auth.method {
-        AuthType::JWT { secret } => {
-            Some(DecodingKey::from_secret(secret.as_ref()))
-        }
-        _ => None,
-    };
-
-    state.decoding_key.store(Arc::new(new_key));
 
     let new_router = router::build_tree(state.clone());
 
