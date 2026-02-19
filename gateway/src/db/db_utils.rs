@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
+use parking_lot::Mutex;
 use rusqlite::Connection;
-use tokio::sync::Mutex;
 
 use crate::{
     config::Config, db::models::LogEntry, logging::log_util::LogEntryDTO,
@@ -142,10 +142,7 @@ pub fn get_logs(conn: &Connection) -> rusqlite::Result<Vec<LogEntry>> {
     Ok(log_vec)
 }
 
-pub async fn save_config(
-    conn: &Connection,
-    config: &Config,
-) -> rusqlite::Result<()> {
+pub fn save_config(conn: &Connection, config: &Config) -> rusqlite::Result<()> {
     let json_str = serde_json::to_string(config)
         .expect("failed to serialize config to JSON");
 
@@ -178,7 +175,7 @@ pub async fn flush_batch(
     let conn_clone = Arc::clone(conn);
 
     tokio::task::spawn_blocking(move || {
-        let mut conn_guard = conn_clone.blocking_lock();
+        let mut conn_guard = conn_clone.lock();
 
         if let Err(e) = save_logs(&mut conn_guard, logs) {
             tracing::error!(err = ?e, "Failed to batch save logs");

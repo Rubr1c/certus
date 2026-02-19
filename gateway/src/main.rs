@@ -2,10 +2,8 @@ use std::{net::SocketAddr, sync::Arc, time::Duration};
 
 use axum::{Router, http::HeaderValue, routing::any};
 use clap::Parser;
-use tokio::{
-    sync::{Mutex, mpsc},
-    time,
-};
+use parking_lot::Mutex;
+use tokio::{sync::mpsc, time};
 use tower_http::cors::{self, CorsLayer};
 use tracing_subscriber::{
     EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt,
@@ -42,7 +40,7 @@ async fn main() {
         .with(db_layer)
         .try_init();
 
-    let args = CmdArgs::try_parse().unwrap();
+    let args = Arc::new(CmdArgs::try_parse().unwrap());
 
     let config_path = args
         .config
@@ -61,6 +59,12 @@ async fn main() {
     }
 
     let conn = Arc::new(Mutex::new(conn));
+
+    let state = Arc::new(AppState::new(
+        reload_config(config_path).await.unwrap(),
+        conn.clone(),
+    ));
+
     let conn_clone = conn.clone();
 
     tokio::spawn(async move {
@@ -87,14 +91,13 @@ async fn main() {
         }
     });
 
-    let state =
-        Arc::new(AppState::new(reload_config(config_path).await.unwrap()));
-    let _watcher = match watch_config(config_path, state.clone()).await {
-        Ok(watcher) => Some(watcher),
-        Err(_) => None,
-    };
+    let _watcher =
+        match watch_config(config_path, state.clone(), args.clone()).await {
+            Ok(watcher) => Some(watcher),
+            Err(_) => None,
+        };
 
-    app_state::init_server_state(state.clone()).await;
+    app_state::init_server_state(state.clone(), args).await;
 
     let config = state.config.load();
     let port = config.server.port;

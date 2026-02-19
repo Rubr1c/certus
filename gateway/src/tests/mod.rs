@@ -1,4 +1,8 @@
 use std::net::SocketAddr;
+use std::sync::Arc;
+
+use parking_lot::Mutex;
+use rusqlite::Connection;
 
 pub mod auth;
 pub mod cache;
@@ -17,4 +21,8 @@ fn create_socket_addr(count: i32) -> Vec<SocketAddr> {
     }
 
     addrs
+}
+
+fn test_db_conn() -> Arc<Mutex<Connection>> {
+    Arc::new(Mutex::new(Connection::open_in_memory().unwrap()))
 }

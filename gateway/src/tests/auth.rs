@@ -7,7 +7,7 @@ use crate::{
     },
 };
 
-use super::create_socket_addr;
+use super::{create_socket_addr, test_db_conn};
 
 #[test]
 fn auth_not_enabled() {
@@ -20,7 +20,7 @@ fn auth_not_enabled() {
 
     let config = Config::default();
 
-    let state = AppState::new(config);
+    let state = AppState::new(config, test_db_conn());
 
     let res = auth::run(&upstream, &state, None);
     assert!(res.is_ok());
@@ -39,7 +39,7 @@ fn auth_enabled_no_token() {
     config.auth =
         AuthConfig { method: AuthType::JWT { secret: "secret".to_string() } };
 
-    let state = AppState::new(config);
+    let state = AppState::new(config, test_db_conn());
 
     let res = auth::run(&upstream, &state, None);
     assert!(res.is_err());
@@ -58,7 +58,7 @@ fn auth_enabled_invalid_token() {
     config.auth =
         AuthConfig { method: AuthType::JWT { secret: "secret".to_string() } };
 
-    let state = AppState::new(config);
+    let state = AppState::new(config, test_db_conn());
 
     let res = auth::run(&upstream, &state, Some("wdundw"));
     assert!(res.is_err());
@@ -77,7 +77,7 @@ fn auth_enabled_valid_token() {
     config.auth =
         AuthConfig { method: AuthType::JWT { secret: "secret".to_string() } };
 
-    let state = AppState::new(config);
+    let state = AppState::new(config, test_db_conn());
 
     let res = auth::run(
         &upstream,

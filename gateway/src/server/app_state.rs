@@ -9,9 +9,12 @@ use dashmap::DashMap;
 use jsonwebtoken::DecodingKey;
 use matchit::Router;
 use moka::sync::Cache;
+use parking_lot::Mutex;
+use rusqlite::Connection;
 
 use crate::{
-    config::{AuthType, Config},
+    config::{AuthType, CmdArgs, Config},
+    db::db_utils,
     server::{
         connection,
         middleware::{
@@ -44,10 +47,11 @@ pub struct AppState {
     pub static_cache: DashMap<String, CachedResponse>,
     pub user_tokens: DashMap<IpAddr, TokenBucket>,
     pub decoding_key: ArcSwap<Option<DecodingKey>>,
+    pub db_conn: Arc<Mutex<Connection>>,
 }
 
 impl AppState {
-    pub fn new(config: Config) -> Self {
+    pub fn new(config: Config, conn: Arc<Mutex<Connection>>) -> Self {
         Self {
             routing_table: ArcSwap::from_pointee(RoutingTable {
                 router: Router::new(),
@@ -63,11 +67,12 @@ impl AppState {
                 _ => ArcSwap::from_pointee(None),
             },
             config: ArcSwap::from_pointee(config),
+            db_conn: conn,
         }
     }
 }
 
-pub async fn init_server_state(state: Arc<AppState>) {
+pub async fn init_server_state(state: Arc<AppState>, args: Arc<CmdArgs>) {
     let config = state.config.load();
 
     let mut new_routes_map = HashMap::new();
@@ -118,4 +123,11 @@ pub async fn init_server_state(state: Arc<AppState>) {
     let new_table = RoutingTable { router: new_router, routes: new_routes_map };
 
     state.routing_table.store(Arc::new(new_table));
+
+    if args.save {
+        let conn_guard = state.db_conn.lock();
+        if let Err(e) = db_utils::save_config(&conn_guard, &config) {
+            tracing::error!(err = ?e, "Failed to save config");
+        }
+    }
 }

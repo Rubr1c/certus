@@ -16,6 +16,8 @@ use crate::config::{
 use crate::server::app_state::{AppState, RoutingTable};
 use crate::server::upstream::UpstreamServer;
 
+use super::test_db_conn;
+
 async fn mock_upstream_ok(listener: TcpListener) {
     loop {
         let Ok((mut stream, _)) = listener.accept().await else {
@@ -64,7 +66,7 @@ fn build_state_with_upstream(
     config: Config,
     addr: SocketAddr,
 ) -> Arc<AppState> {
-    let state = Arc::new(AppState::new(config));
+    let state = Arc::new(AppState::new(config, test_db_conn()));
 
     let upstream =
         Arc::new(UpstreamServer::new(addr, 100, Default::default(), false));
@@ -83,7 +85,7 @@ fn build_auth_state_with_upstream(
     config: Config,
     addr: SocketAddr,
 ) -> Arc<AppState> {
-    let state = Arc::new(AppState::new(config));
+    let state = Arc::new(AppState::new(config, test_db_conn()));
 
     let upstream =
         Arc::new(UpstreamServer::new(addr, 100, Default::default(), true));

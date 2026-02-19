@@ -4,7 +4,7 @@ use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use tokio::{fs, sync::mpsc};
 
 use crate::{
-    config::{Config, error::ConfigError},
+    config::{CmdArgs, Config, error::ConfigError},
     server::app_state::{self, AppState},
 };
 
@@ -14,6 +14,7 @@ use crate::{
 ///
 /// * `path` - filepath of the config file
 /// * `state` - app state that stores all configs
+/// * `args` - command line arguments
 ///
 /// # Errors
 ///
@@ -24,7 +25,8 @@ use crate::{
 /// # Example
 /// ```ignore
 /// let app_state: Arc<AppState> = Arc::new(/* */);
-/// let _watcher = match watch_config("config.yaml", app_state.clone()).await {
+/// let args = Arc::new(CmdArgs::try_parse().unwrap());
+/// let _watcher = match watch_config("config.yaml", app_state.clone(), args.clone()).await {
 ///     Ok(watcher) => Some(watcher),
 ///     Err(_) => None
 /// };
@@ -32,6 +34,7 @@ use crate::{
 pub async fn watch_config(
     path: &str,
     state: Arc<AppState>,
+    args: Arc<CmdArgs>,
 ) -> notify::Result<RecommendedWatcher> {
     let (tx, mut rx) = mpsc::channel(1);
 
@@ -61,8 +64,11 @@ pub async fn watch_config(
                         match reload_config(&path).await {
                             Ok(new_config) => {
                                 state.config.store(Arc::new(new_config));
-                                app_state::init_server_state(state.clone())
-                                    .await;
+                                app_state::init_server_state(
+                                    state.clone(),
+                                    args.clone(),
+                                )
+                                .await;
                                 tracing::info!("Config hot-reloaded");
                             }
                             Err(e) => {

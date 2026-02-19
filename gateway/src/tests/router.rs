@@ -4,12 +4,14 @@ use crate::config::{Config, RouteConfig};
 use crate::server::app_state::AppState;
 use crate::server::middleware::router;
 
+use super::test_db_conn;
+
 #[test]
 fn build_tree_matches_configured_route() {
     let mut config = Config::default();
     config.routes.insert("/api".to_string(), RouteConfig::default());
 
-    let state = Arc::new(AppState::new(config));
+    let state = Arc::new(AppState::new(config, test_db_conn()));
     let tree = router::build_tree(state);
 
     let matched = tree.at("/api").unwrap();
@@ -22,7 +24,7 @@ fn build_tree_matches_wildcard_subpath() {
     let mut config = Config::default();
     config.routes.insert("/api".to_string(), RouteConfig::default());
 
-    let state = Arc::new(AppState::new(config));
+    let state = Arc::new(AppState::new(config, test_db_conn()));
     let tree = router::build_tree(state);
 
     let matched = tree.at("/api/users/123").unwrap();
@@ -35,7 +37,7 @@ fn build_tree_no_match_returns_err() {
     let mut config = Config::default();
     config.routes.insert("/api".to_string(), RouteConfig::default());
 
-    let state = Arc::new(AppState::new(config));
+    let state = Arc::new(AppState::new(config, test_db_conn()));
     let tree = router::build_tree(state);
 
     let res = tree.at("/other");
@@ -48,7 +50,7 @@ fn build_tree_root_route() {
     let mut config = Config::default();
     config.routes.insert("/".to_string(), RouteConfig::default());
 
-    let state = Arc::new(AppState::new(config));
+    let state = Arc::new(AppState::new(config, test_db_conn()));
     let tree = router::build_tree(state);
 
     assert_eq!(tree.at("/").unwrap().value, "/");
@@ -61,7 +63,7 @@ fn build_tree_multiple_routes() {
     config.routes.insert("/api".to_string(), RouteConfig::default());
     config.routes.insert("/health".to_string(), RouteConfig::default());
 
-    let state = Arc::new(AppState::new(config));
+    let state = Arc::new(AppState::new(config, test_db_conn()));
     let tree = router::build_tree(state);
 
     assert_eq!(tree.at("/api").unwrap().value, "/api");
