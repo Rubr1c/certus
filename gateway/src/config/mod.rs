@@ -8,16 +8,8 @@ use serde::Deserialize;
 
 use crate::server::upstream::Protocol;
 
-//TODO: change all optional with defaults to access them better
-//      in the code i realized that it would be better that way
-//      but im not focused on config right now. all new options
-//      will do that.
-//
-//      also i can just implment Default myself for some of them
-//      which would make the code more clean i think
-//
-//      some config options live duplicated in memory in 2 seperate
-//      places should probably optimize that
+//TODO: some config options live duplicated in memory
+//      in 2 seperate places should probably optimize that
 
 /// Command line argument parser with all the commands
 /// available in certus
@@ -37,18 +29,6 @@ pub struct ServerConfig {
     pub origins: Vec<String>,
 }
 
-impl Default for ServerConfig {
-    /// Returns default server config with port being 8080
-    /// and empty origins vec
-    fn default() -> Self {
-        ServerConfig { port: default_port(), origins: Vec::new() }
-    }
-}
-
-fn default_port() -> u16 {
-    8080
-}
-
 /// Enum for all authentication types available
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -61,41 +41,44 @@ pub enum AuthType {
 }
 
 /// Config struct that just holds the method [`AuthType`]
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct AuthConfig {
     pub method: AuthType,
 }
 
 /// Config struct that holds all configurable options
 /// for each route registered in the config
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct RouteConfig {
     pub endpoints: Vec<SocketAddr>,
-    pub is_static: Option<bool>,
-    pub needs_auth: Option<bool>,
+    #[serde(default)]
+    pub is_static: bool,
+    #[serde(default)]
+    pub needs_auth: bool,
     #[serde(default)]
     pub protocol: Protocol,
     #[serde(default = "default_max_connections")]
     pub max_connections: usize,
-    #[serde(default = "default_token_weight")]
+    #[serde(default)]
     pub token_weight: f64,
 }
 
 /// Config struct that holds all rate limiting options
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct RateLimitConfig {
     pub max_tokens: f64,
+    #[serde(default = "default_refill_rate")]
     pub refill_rate: f64,
 }
 
 /// Config struct that holds all connection options
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct ConnectionConfig {
     pub connect_timeout: u64,
 }
 
 /// Config struct that holds all cache options
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct CacheConfig {
     pub size: u64,
 }
@@ -104,53 +87,89 @@ pub struct CacheConfig {
 #[derive(Debug, Deserialize)]
 pub struct Config {
     pub server: ServerConfig,
-    pub auth: Option<AuthConfig>,
-    #[serde(default = "default_rate_limit")]
-    pub rate_limit: RateLimitConfig,
     pub routes: HashMap<String, RouteConfig>,
-    #[serde(default = "default_connetion_config")]
+    #[serde(default)]
+    pub auth: AuthConfig,
+    #[serde(default)]
+    pub rate_limit: RateLimitConfig,
+    #[serde(default)]
     pub connection: ConnectionConfig,
-    #[serde(default = "default_cache_config")]
+    #[serde(default)]
     pub cache: CacheConfig,
     #[serde(default = "default_socket_addr")]
     pub default_server: SocketAddr,
 }
 
 impl Default for Config {
-    /// Returns default config for certus (not recommended)
+    /// Default config for certus (not recommended)
     fn default() -> Self {
         Config {
             server: ServerConfig::default(),
-            auth: None,
-            rate_limit: default_rate_limit(),
+            auth: AuthConfig::default(),
+            rate_limit: RateLimitConfig::default(),
             routes: HashMap::new(),
             default_server: default_socket_addr(),
-            connection: default_connetion_config(),
-            cache: default_cache_config(),
+            connection: ConnectionConfig::default(),
+            cache: CacheConfig::default(),
         }
     }
+}
+
+impl Default for ServerConfig {
+    fn default() -> Self {
+        ServerConfig { port: default_port(), origins: Vec::new() }
+    }
+}
+
+impl Default for RouteConfig {
+    fn default() -> Self {
+        RouteConfig {
+            endpoints: Vec::new(),
+            is_static: false,
+            needs_auth: false,
+            protocol: Protocol::HTTP1,
+            max_connections: 100,
+            token_weight: 0.0,
+        }
+    }
+}
+
+impl Default for RateLimitConfig {
+    fn default() -> Self {
+        RateLimitConfig { max_tokens: 100.0, refill_rate: 1.0 }
+    }
+}
+
+impl Default for CacheConfig {
+    fn default() -> Self {
+        CacheConfig { size: 1000 }
+    }
+}
+
+impl Default for ConnectionConfig {
+    fn default() -> Self {
+        ConnectionConfig { connect_timeout: 2000 }
+    }
+}
+
+impl Default for AuthConfig {
+    fn default() -> Self {
+        AuthConfig { method: AuthType::default() }
+    }
+}
+
+fn default_port() -> u16 {
+    8080
 }
 
 fn default_socket_addr() -> SocketAddr {
     "127.0.0.1:80".parse().unwrap()
 }
 
-fn default_token_weight() -> f64 {
-    1.0
-}
-
-fn default_rate_limit() -> RateLimitConfig {
-    RateLimitConfig { max_tokens: 100.0, refill_rate: 1.0 }
-}
-
-fn default_connetion_config() -> ConnectionConfig {
-    ConnectionConfig { connect_timeout: 2000 }
-}
-
 fn default_max_connections() -> usize {
     100
 }
 
-fn default_cache_config() -> CacheConfig {
-    CacheConfig { size: 1000 }
+fn default_refill_rate() -> f64 {
+    1.0
 }

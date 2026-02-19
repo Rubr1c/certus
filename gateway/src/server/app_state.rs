@@ -56,13 +56,10 @@ impl AppState {
             cache: Cache::new(config.cache.size),
             static_cache: DashMap::new(),
             user_tokens: DashMap::new(),
-            decoding_key: match config.auth.as_ref() {
-                Some(auth) => match &auth.method {
-                    AuthType::JWT { secret } => {
-                        Some(DecodingKey::from_secret(secret.as_ref()))
-                    }
-                    _ => None,
-                },
+            decoding_key: match &config.auth.method {
+                AuthType::JWT { secret } => {
+                    Some(DecodingKey::from_secret(secret.as_ref()))
+                }
                 _ => None,
             },
             config: ArcSwap::from_pointee(config),
@@ -76,15 +73,16 @@ pub async fn init_server_state(state: Arc<AppState>) {
     let mut new_routes_map = HashMap::new();
 
     for (route, route_config) in config.routes.iter() {
-        let mut is_static_and_not_fetched =
-            route_config.is_static.is_some_and(|c| c);
+        let mut is_static_and_not_fetched = route_config.is_static;
+
         for server in &route_config.endpoints {
             let upstream = Arc::new(UpstreamServer::new(
                 *server,
                 route_config.max_connections,
                 route_config.protocol,
-                route_config.needs_auth.is_some_and(|c| c),
+                route_config.needs_auth,
             ));
+
             if is_static_and_not_fetched {
                 static_cache::send_and_save(
                     &state.static_cache,
@@ -95,6 +93,7 @@ pub async fn init_server_state(state: Arc<AppState>) {
                 .await;
                 is_static_and_not_fetched = false;
             }
+
             let ok = connection::health_ok(&upstream).await;
 
             if ok {

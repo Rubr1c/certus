@@ -59,33 +59,30 @@ pub fn run(
     let config = state.config.load();
 
     //TODO: strip any prefix and define in config
-    if let Some(ref a) = config.auth {
-        if upstream.req_auth {
-            tracing::info!(?token, "Authenticating user");
-            match token {
-                Some(t) => match &a.method {
-                    AuthType::JWT { secret: _ } => {
-                        match decode(t, &state.decoding_key.as_ref().unwrap()) {
-                            Ok(_) => {
-                                //TODO: put claims in header
-                                tracing::info!("User authenticated");
-                                return Ok(());
-                            }
-                            Err(e) => {
-                                tracing::info!("User not authenticated");
-                                return Err(e);
-                            }
+    if upstream.req_auth {
+        tracing::info!(?token, "Authenticating user");
+        match token {
+            Some(t) => match &config.auth.method {
+                AuthType::JWT { secret: _ } => {
+                    match decode(t, &state.decoding_key.as_ref().unwrap()) {
+                        Ok(_) => {
+                            //TODO: put claims in header
+                            tracing::info!("User authenticated");
+                            return Ok(());
+                        }
+                        Err(e) => {
+                            tracing::info!("User not authenticated");
+                            return Err(e);
                         }
                     }
-                    AuthType::None => return Ok(()),
-                },
-                _ => {
-                    tracing::info!("User not authenticated");
-                    return Err(GatewayError::Unauthorized);
                 }
+                AuthType::None => return Ok(()),
+            },
+            _ => {
+                tracing::info!("User not authenticated");
+                return Err(GatewayError::Unauthorized);
             }
         }
-        return Ok(());
     }
-    Ok(())
+    return Ok(());
 }
