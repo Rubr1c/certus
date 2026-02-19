@@ -33,8 +33,6 @@ pub struct RoutingTable {
     pub routes: HashMap<SocketAddr, Arc<UpstreamServer>>,
 }
 
-//TODO: Add db connection in efficent way to use in metrics endpoints
-//
 //TODO: make sure reloading changes related things too if changed like
 //      decoding_key. also some of the data here is probably duplicated
 //      and saved in more than one place in memeory this should be reduced

@@ -10,6 +10,9 @@ use crate::server::upstream::Protocol;
 
 //TODO: some config options live duplicated in memory
 //      in 2 seperate places should probably optimize that
+//
+//      make the config be able to be read from db instead of
+//      yaml if no file is found
 
 /// Command line argument parser with all the commands
 /// available in certus
