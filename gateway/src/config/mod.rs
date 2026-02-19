@@ -30,7 +30,7 @@ pub struct ServerConfig {
 }
 
 /// Enum for all authentication types available
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum AuthType {
     #[default]

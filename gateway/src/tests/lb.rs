@@ -34,8 +34,8 @@ fn p2c_returns_correct_server() {
     let config = RouteConfig {
         endpoints: vec![addrs[0], addrs[1]],
         max_connections: 100,
-        needs_auth: None,
-        is_static: None,
+        needs_auth: false,
+        is_static: false,
         protocol: Protocol::HTTP1,
         token_weight: 1.0,
     };
@@ -58,8 +58,8 @@ fn p2c_with_one_server() {
     let config = RouteConfig {
         endpoints: vec![addrs[0]],
         max_connections: 100,
-        needs_auth: None,
-        is_static: None,
+        needs_auth: false,
+        is_static: false,
         protocol: Protocol::HTTP1,
         token_weight: 1.0,
     };
@@ -78,8 +78,8 @@ fn p2c_default_server() {
     let config = RouteConfig {
         endpoints: vec![],
         max_connections: 100,
-        needs_auth: None,
-        is_static: None,
+        needs_auth: false,
+        is_static: false,
         protocol: Protocol::HTTP1,
         token_weight: 1.0,
     };

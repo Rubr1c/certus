@@ -35,7 +35,7 @@ async fn mock_upstream_ok(listener: TcpListener) {
 
 fn build_config(
     addr: SocketAddr,
-    auth: Option<AuthConfig>,
+    auth: AuthConfig,
     rate_limit: RateLimitConfig,
 ) -> Config {
     let mut routes = HashMap::new();
@@ -43,7 +43,7 @@ fn build_config(
         "/api".to_string(),
         RouteConfig {
             endpoints: vec![addr],
-            needs_auth: if auth.is_some() { Some(true) } else { None },
+            needs_auth: auth.method != AuthType::None,
             token_weight: 1.0,
             ..RouteConfig::default()
         },
@@ -129,7 +129,7 @@ async fn reroute_forwards_to_upstream() {
 
     let config = build_config(
         addr,
-        None,
+        AuthConfig::default(),
         RateLimitConfig { max_tokens: 100.0, refill_rate: 1.0 },
     );
     let state = build_state_with_upstream(config, addr);
@@ -147,7 +147,7 @@ async fn reroute_returns_not_found_for_unknown_path() {
 
     let config = build_config(
         addr,
-        None,
+        AuthConfig::default(),
         RateLimitConfig { max_tokens: 100.0, refill_rate: 1.0 },
     );
     let state = build_state_with_upstream(config, addr);
@@ -165,7 +165,7 @@ async fn reroute_rate_limits() {
 
     let config = build_config(
         addr,
-        None,
+        AuthConfig::default(),
         RateLimitConfig { max_tokens: 1.0, refill_rate: 0.0 },
     );
     let state = build_state_with_upstream(config, addr);
@@ -186,9 +186,10 @@ async fn reroute_rejects_unauthorized() {
     let auth = AuthConfig {
         method: AuthType::JWT { secret: "test-secret".to_string() },
     };
+
     let config = build_config(
         addr,
-        Some(auth),
+        auth,
         RateLimitConfig { max_tokens: 100.0, refill_rate: 1.0 },
     );
     let state = build_auth_state_with_upstream(config, addr);
@@ -225,7 +226,7 @@ async fn reroute_caches_get_response() {
 
     let config = build_config(
         addr,
-        None,
+        AuthConfig::default(),
         RateLimitConfig { max_tokens: 100.0, refill_rate: 1.0 },
     );
     let state = build_state_with_upstream(config, addr);

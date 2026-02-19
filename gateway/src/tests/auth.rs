@@ -36,9 +36,8 @@ fn auth_enabled_no_token() {
     );
 
     let mut config = Config::default();
-    config.auth = Some(AuthConfig {
-        method: AuthType::JWT { secret: "secret".to_string() },
-    });
+    config.auth =
+        AuthConfig { method: AuthType::JWT { secret: "secret".to_string() } };
 
     let state = AppState::new(config);
 
@@ -56,9 +55,8 @@ fn auth_enabled_invalid_token() {
     );
 
     let mut config = Config::default();
-    config.auth = Some(AuthConfig {
-        method: AuthType::JWT { secret: "secret".to_string() },
-    });
+    config.auth =
+        AuthConfig { method: AuthType::JWT { secret: "secret".to_string() } };
 
     let state = AppState::new(config);
 
@@ -76,9 +74,8 @@ fn auth_enabled_valid_token() {
     );
 
     let mut config = Config::default();
-    config.auth = Some(AuthConfig {
-        method: AuthType::JWT { secret: "secret".to_string() },
-    });
+    config.auth =
+        AuthConfig { method: AuthType::JWT { secret: "secret".to_string() } };
 
     let state = AppState::new(config);
 
