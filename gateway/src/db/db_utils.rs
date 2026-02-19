@@ -3,7 +3,9 @@ use std::sync::Arc;
 use rusqlite::Connection;
 use tokio::sync::Mutex;
 
-use crate::{db::models::LogEntry, logging::log_util::LogEntryDTO};
+use crate::{
+    config::Config, db::models::LogEntry, logging::log_util::LogEntryDTO,
+};
 
 pub fn connect_db() -> Result<Connection, rusqlite::Error> {
     //TODO: Change path and name
@@ -28,6 +30,11 @@ pub fn migrate(conn: &Connection) -> rusqlite::Result<()> {
             level TEXT NOT NULL,
             message TEXT NOT NULL,
             fields TEXT NOT NULL
+        );",
+        "CREATE TABLE IF NOT EXISTS config (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            config_data TEXT NOT NULL,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );",
     ];
 
@@ -133,6 +140,26 @@ pub fn get_logs(conn: &Connection) -> rusqlite::Result<Vec<LogEntry>> {
         log_vec.push(log?);
     }
     Ok(log_vec)
+}
+
+pub async fn save_config(
+    conn: &Connection,
+    config: &Config,
+) -> rusqlite::Result<()> {
+    let json_str = serde_json::to_string(config)
+        .expect("failed to serialize config to JSON");
+
+    conn.execute(
+        "INSERT INTO config (id, config_data, updated_at)
+             VALUES (1, ?1, CURRENT_TIMESTAMP)
+                ON CONFLICT(id) DO UPDATE SET 
+                config_data = excluded.config_data,
+                updated_at = CURRENT_TIMESTAMP
+            ",
+        [json_str],
+    )?;
+
+    Ok(())
 }
 
 // should prob move this into another mod

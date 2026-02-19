@@ -109,7 +109,3 @@ pub async fn reload_config(path: &str) -> Result<Config, ConfigError> {
 
     Ok(serde_yaml::from_str::<Config>(&contents)?)
 }
-
-pub fn save_config() -> rusqlite::Result<()> {
-    todo!()
-}

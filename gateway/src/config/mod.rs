@@ -4,7 +4,7 @@ pub mod error;
 use std::{collections::HashMap, net::SocketAddr};
 
 use clap::Parser;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::server::upstream::Protocol;
 
@@ -18,10 +18,12 @@ use crate::server::upstream::Protocol;
 pub struct CmdArgs {
     #[arg(short, long)]
     pub config: Option<String>,
+    #[arg(long)]
+    pub save: bool,
 }
 
 /// Config struct for all configurable server options
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ServerConfig {
     #[serde(default = "default_port")]
     pub port: u16,
@@ -30,7 +32,7 @@ pub struct ServerConfig {
 }
 
 /// Enum for all authentication types available
-#[derive(Debug, Default, Deserialize, PartialEq)]
+#[derive(Debug, Default, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum AuthType {
     #[default]
@@ -41,14 +43,14 @@ pub enum AuthType {
 }
 
 /// Config struct that just holds the method [`AuthType`]
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct AuthConfig {
     pub method: AuthType,
 }
 
 /// Config struct that holds all configurable options
 /// for each route registered in the config
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct RouteConfig {
     pub endpoints: Vec<SocketAddr>,
     #[serde(default)]
@@ -64,7 +66,7 @@ pub struct RouteConfig {
 }
 
 /// Config struct that holds all rate limiting options
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct RateLimitConfig {
     pub max_tokens: f64,
     #[serde(default = "default_refill_rate")]
@@ -72,19 +74,19 @@ pub struct RateLimitConfig {
 }
 
 /// Config struct that holds all connection options
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ConnectionConfig {
     pub connect_timeout: u64,
 }
 
 /// Config struct that holds all cache options
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct CacheConfig {
     pub size: u64,
 }
 
 /// Main config struct that holds all configurable items
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
     pub server: ServerConfig,
     pub routes: HashMap<String, RouteConfig>,

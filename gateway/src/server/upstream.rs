@@ -3,7 +3,7 @@ use std::{net::SocketAddr, sync::atomic::AtomicUsize};
 use axum::body::Body;
 use crossbeam::queue::SegQueue;
 use hyper::client::conn;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 /// Enum representing if server is healthy or not
 pub enum HealthState {
@@ -12,7 +12,7 @@ pub enum HealthState {
 }
 
 /// Enum for all available protocols
-#[derive(Clone, Debug, Deserialize, Default, Copy)]
+#[derive(Clone, Debug, Deserialize, Serialize, Default, Copy)]
 pub enum Protocol {
     #[default]
     HTTP1,
