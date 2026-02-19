@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     config::{AuthType, Config},
-    server::{error::GatewayError, upstream::UpstreamServer},
+    server::error::GatewayError,
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -45,7 +45,7 @@ pub fn decode(token: &str, secret: &String) -> Result<Claims, GatewayError> {
 ///
 /// # Arguments
 ///
-/// * `upstream` - server trying to connect to
+/// * `needs_auth` - whether the route requires authentication
 /// * `config` - gateway config
 /// * `token` - optional token if exists
 ///
@@ -56,12 +56,12 @@ pub fn decode(token: &str, secret: &String) -> Result<Claims, GatewayError> {
 /// * Token failed to be decoded [`decode`]
 #[inline]
 pub fn run(
-    upstream: &UpstreamServer,
+    needs_auth: bool,
     config: &Config,
     token: Option<&str>,
 ) -> Result<(), GatewayError> {
     //TODO: strip any prefix and define in config
-    if upstream.req_auth {
+    if needs_auth {
         tracing::info!(?token, "Authenticating user");
         match token {
             Some(t) => match &config.auth.method {

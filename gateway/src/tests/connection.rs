@@ -9,7 +9,7 @@ use crate::server::upstream::UpstreamServer;
 async fn borrow_increments_counters() {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
-    let upstream = UpstreamServer::new(addr, 10, Default::default(), false);
+    let upstream = UpstreamServer::new(addr, 10, Default::default());
 
     let accept = tokio::spawn(async move {
         let (stream, _) = listener.accept().await.unwrap();
@@ -28,7 +28,7 @@ async fn borrow_increments_counters() {
 async fn release_reusable_keeps_total() {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
-    let upstream = UpstreamServer::new(addr, 10, Default::default(), false);
+    let upstream = UpstreamServer::new(addr, 10, Default::default());
 
     let accept = tokio::spawn(async move {
         let (stream, _) = listener.accept().await.unwrap();
@@ -49,7 +49,7 @@ async fn release_reusable_keeps_total() {
 async fn release_not_reusable_decrements_total() {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
-    let upstream = UpstreamServer::new(addr, 10, Default::default(), false);
+    let upstream = UpstreamServer::new(addr, 10, Default::default());
 
     let accept = tokio::spawn(async move {
         let (stream, _) = listener.accept().await.unwrap();
@@ -70,7 +70,7 @@ async fn release_not_reusable_decrements_total() {
 async fn borrow_returns_overloaded_at_max() {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
-    let upstream = UpstreamServer::new(addr, 1, Default::default(), false);
+    let upstream = UpstreamServer::new(addr, 1, Default::default());
 
     let accept = tokio::spawn(async move {
         let (stream, _) = listener.accept().await.unwrap();
@@ -89,7 +89,7 @@ async fn borrow_returns_overloaded_at_max() {
 async fn handle_request_failure_cleans_up_counters() {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
-    let upstream = UpstreamServer::new(addr, 10, Default::default(), false);
+    let upstream = UpstreamServer::new(addr, 10, Default::default());
 
     let accept = tokio::spawn(async move {
         let (stream, _) = listener.accept().await.unwrap();

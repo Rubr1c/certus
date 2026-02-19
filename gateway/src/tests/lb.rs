@@ -20,10 +20,8 @@ fn p2c_returns_correct_server() {
 
     let addrs = create_socket_addr(3);
 
-    let mut upstream1 =
-        UpstreamServer::new(addrs[0], 100, Protocol::HTTP1, false);
-    let mut upstream2 =
-        UpstreamServer::new(addrs[1], 100, Protocol::HTTP1, false);
+    let mut upstream1 = UpstreamServer::new(addrs[0], 100, Protocol::HTTP1);
+    let mut upstream2 = UpstreamServer::new(addrs[1], 100, Protocol::HTTP1);
 
     upstream1.active_connctions = AtomicUsize::new(6);
     upstream2.active_connctions = AtomicUsize::new(10);
@@ -51,7 +49,7 @@ fn p2c_with_one_server() {
 
     let addrs = create_socket_addr(2);
 
-    let upstream = UpstreamServer::new(addrs[0], 100, Protocol::HTTP1, false);
+    let upstream = UpstreamServer::new(addrs[0], 100, Protocol::HTTP1);
 
     routes.insert(addrs[0], Arc::new(upstream));
 

@@ -68,27 +68,7 @@ fn build_state_with_upstream(
 ) -> Arc<AppState> {
     let state = Arc::new(AppState::new(config, test_db_conn()));
 
-    let upstream =
-        Arc::new(UpstreamServer::new(addr, 100, Default::default(), false));
-
-    let mut routes_map = HashMap::new();
-    routes_map.insert(addr, upstream);
-
-    let router = crate::server::middleware::router::build_tree(state.clone());
-    let table = RoutingTable { router, routes: routes_map };
-    state.routing_table.store(Arc::new(table));
-
-    state
-}
-
-fn build_auth_state_with_upstream(
-    config: Config,
-    addr: SocketAddr,
-) -> Arc<AppState> {
-    let state = Arc::new(AppState::new(config, test_db_conn()));
-
-    let upstream =
-        Arc::new(UpstreamServer::new(addr, 100, Default::default(), true));
+    let upstream = Arc::new(UpstreamServer::new(addr, 100, Default::default()));
 
     let mut routes_map = HashMap::new();
     routes_map.insert(addr, upstream);
@@ -194,7 +174,7 @@ async fn reroute_rejects_unauthorized() {
         auth,
         RateLimitConfig { max_tokens: 100.0, refill_rate: 1.0 },
     );
-    let state = build_auth_state_with_upstream(config, addr);
+    let state = build_state_with_upstream(config, addr);
 
     let res = call_reroute(state, "GET", "/api", None).await;
 

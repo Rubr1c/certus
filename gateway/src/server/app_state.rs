@@ -32,9 +32,6 @@ pub struct RoutingTable {
     pub routes: HashMap<SocketAddr, Arc<UpstreamServer>>,
 }
 
-//TODO: some of the data here is duplicated and saved in more
-//      than one place in memeory this should be reduced
-
 /// Holds state of whole app passed to the reroute function
 pub struct AppState {
     pub routing_table: ArcSwap<RoutingTable>,
@@ -74,7 +71,6 @@ pub async fn init_server_state(state: Arc<AppState>, args: Arc<CmdArgs>) {
                 *server,
                 route_config.max_connections,
                 route_config.protocol,
-                route_config.needs_auth,
             ));
 
             if is_static_and_not_fetched {
