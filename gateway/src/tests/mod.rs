@@ -1,4 +1,3 @@
-use std::net::SocketAddr;
 use std::sync::Arc;
 
 use parking_lot::Mutex;
@@ -13,11 +12,11 @@ pub mod rate_limit;
 pub mod reload;
 pub mod router;
 
-fn create_socket_addr(count: i32) -> Vec<SocketAddr> {
-    let mut addrs = Vec::<SocketAddr>::new();
+fn create_addrs(count: i32) -> Vec<String> {
+    let mut addrs = Vec::<String>::new();
 
     for i in 0..count {
-        addrs.push(format!("127.0.0.{}:3000", i).parse().unwrap());
+        addrs.push(format!("127.0.0.{}:3000", i));
     }
 
     addrs

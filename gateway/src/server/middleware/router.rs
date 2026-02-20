@@ -121,7 +121,7 @@ pub async fn reroute(
     );
     let upstream = routing_table
         .routes
-        .get(&server)
+        .get(server)
         .expect("Upstream Should Exist")
         .clone();
 

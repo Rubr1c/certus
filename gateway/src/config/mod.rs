@@ -1,7 +1,7 @@
 pub mod cfg_utils;
 pub mod error;
 
-use std::{collections::HashMap, net::SocketAddr};
+use std::collections::HashMap;
 
 use clap::Parser;
 use serde::{Deserialize, Serialize};
@@ -55,7 +55,7 @@ pub struct AuthConfig {
 /// for each route registered in the config
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RouteConfig {
-    pub endpoints: Vec<SocketAddr>,
+    pub endpoints: Vec<String>,
     #[serde(default)]
     pub is_static: bool,
     #[serde(default)]
@@ -101,8 +101,8 @@ pub struct Config {
     pub connection: ConnectionConfig,
     #[serde(default)]
     pub cache: CacheConfig,
-    #[serde(default = "default_socket_addr")]
-    pub default_server: SocketAddr,
+    #[serde(default = "default_server_addr")]
+    pub default_server: String,
 }
 
 impl Default for Config {
@@ -113,7 +113,7 @@ impl Default for Config {
             auth: AuthConfig::default(),
             rate_limit: RateLimitConfig::default(),
             routes: HashMap::new(),
-            default_server: default_socket_addr(),
+            default_server: default_server_addr(),
             connection: ConnectionConfig::default(),
             cache: CacheConfig::default(),
         }
@@ -167,8 +167,8 @@ fn default_port() -> u16 {
     8080
 }
 
-fn default_socket_addr() -> SocketAddr {
-    "127.0.0.1:80".parse().unwrap()
+fn default_server_addr() -> String {
+    "127.0.0.1:80".to_string()
 }
 
 fn default_max_connections() -> usize {

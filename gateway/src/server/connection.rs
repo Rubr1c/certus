@@ -33,7 +33,7 @@ pub async fn open_connection(
     timeout: u64,
 ) -> Result<PooledConnection, Box<dyn std::error::Error + Send + Sync>> {
     tracing::info!("Connecting to new upstream");
-    let connect_future = TcpStream::connect(upstream.pool.server_addr);
+    let connect_future = TcpStream::connect(upstream.pool.server_addr.as_str());
     let stream =
         tokio::time::timeout(Duration::from_secs(timeout), connect_future)
             .await??;
@@ -140,7 +140,7 @@ pub async fn health_ok(upstream: &UpstreamServer) -> bool {
     let req = match Request::builder()
         .method(Method::GET)
         .uri("/health")
-        .header(header::HOST, upstream.pool.server_addr.to_string())
+        .header(header::HOST, upstream.pool.server_addr.as_str())
         .body(Body::empty())
     {
         Ok(r) => r,

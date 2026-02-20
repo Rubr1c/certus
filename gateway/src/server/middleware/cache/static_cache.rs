@@ -59,7 +59,7 @@ pub async fn send_and_save(
         .method(http::Method::GET)
         .uri(full_uri)
         .version(version)
-        .header(http::header::HOST, upstream.pool.server_addr.to_string())
+        .header(http::header::HOST, upstream.pool.server_addr.as_str())
         .body(Body::empty())
     {
         Ok(r) => r,

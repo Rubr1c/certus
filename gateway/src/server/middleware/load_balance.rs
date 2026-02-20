@@ -1,7 +1,6 @@
 use std::{
     cell::RefCell,
     collections::HashMap,
-    net::SocketAddr,
     sync::{Arc, atomic::Ordering},
 };
 
@@ -29,10 +28,10 @@ thread_local! {
 #[inline]
 #[instrument(name = "lb_p2c", skip_all)]
 pub fn p2c_pick<'a>(
-    routes: &'a HashMap<SocketAddr, Arc<UpstreamServer>>,
+    routes: &'a HashMap<String, Arc<UpstreamServer>>,
     target: &'a RouteConfig,
-    default_server: &'a SocketAddr,
-) -> &'a SocketAddr {
+    default_server: &'a String,
+) -> &'a String {
     tracing::info!("Finding endpoint");
     let endpoints = &target.endpoints;
     if endpoints.is_empty() {
@@ -48,11 +47,11 @@ pub fn p2c_pick<'a>(
     THREAD_RNG.with(|rng_cell| {
         let mut rng = rng_cell.borrow_mut();
 
-        let [addr1, addr2]: [SocketAddr; 2] =
+        let [addr1, addr2]: [String; 2] =
             endpoints.choose_multiple_array(&mut *rng).unwrap();
 
-        let (key1, upstream1) = routes.get_key_value(&addr1).unwrap();
-        let (key2, upstream2) = routes.get_key_value(&addr2).unwrap();
+        let (key1, upstream1) = routes.get_key_value(addr1.as_str()).unwrap();
+        let (key2, upstream2) = routes.get_key_value(addr2.as_str()).unwrap();
 
         tracing::info!("Selecting server with least load");
         if upstream1.active_connctions.load(Ordering::Acquire)

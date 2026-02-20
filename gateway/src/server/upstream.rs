@@ -1,4 +1,4 @@
-use std::{net::SocketAddr, sync::atomic::AtomicUsize};
+use std::sync::atomic::AtomicUsize;
 
 use axum::body::Body;
 use crossbeam::queue::SegQueue;
@@ -36,7 +36,7 @@ pub struct UpstreamServer {
 
 /// Holds info for the connection pool of a server
 pub struct ConnectionPool {
-    pub server_addr: SocketAddr,
+    pub server_addr: String,
     pub http_version: HttpVersion,
     pub max_connections: usize,
     pub total_connections: AtomicUsize,
@@ -45,7 +45,7 @@ pub struct ConnectionPool {
 
 impl UpstreamServer {
     pub fn new(
-        address: SocketAddr,
+        address: String,
         max_connections: usize,
         http_version: HttpVersion,
     ) -> Self {

@@ -36,7 +36,7 @@ async fn mock_upstream_ok(listener: TcpListener) {
 }
 
 fn build_config(
-    addr: SocketAddr,
+    addr: &str,
     auth: AuthConfig,
     rate_limit: RateLimitConfig,
 ) -> Config {
@@ -44,7 +44,7 @@ fn build_config(
     routes.insert(
         "/api".to_string(),
         RouteConfig {
-            endpoints: vec![addr],
+            endpoints: vec![addr.to_string()],
             needs_auth: auth.method != AuthType::None,
             token_weight: 1.0,
             ..RouteConfig::default()
@@ -56,22 +56,23 @@ fn build_config(
         auth,
         rate_limit,
         routes,
-        default_server: addr,
+        default_server: addr.to_string(),
         connection: ConnectionConfig { connect_timeout: 5 },
         cache: CacheConfig { size: 100 },
     }
 }
 
-fn build_state_with_upstream(
-    config: Config,
-    addr: SocketAddr,
-) -> Arc<AppState> {
+fn build_state_with_upstream(config: Config, addr: &str) -> Arc<AppState> {
     let state = Arc::new(AppState::new(config, test_db_conn()));
 
-    let upstream = Arc::new(UpstreamServer::new(addr, 100, Default::default()));
+    let upstream = Arc::new(UpstreamServer::new(
+        addr.to_string(),
+        100,
+        Default::default(),
+    ));
 
     let mut routes_map = HashMap::new();
-    routes_map.insert(addr, upstream);
+    routes_map.insert(addr.to_string(), upstream);
 
     let router = crate::server::middleware::router::build_tree(state.clone());
     let table = RoutingTable { router, routes: routes_map };
@@ -106,15 +107,15 @@ async fn call_reroute(
 #[tokio::test]
 async fn reroute_forwards_to_upstream() {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
+    let addr = listener.local_addr().unwrap().to_string();
     tokio::spawn(mock_upstream_ok(listener));
 
     let config = build_config(
-        addr,
+        &addr,
         AuthConfig::default(),
         RateLimitConfig { max_tokens: 100.0, refill_rate: 1.0 },
     );
-    let state = build_state_with_upstream(config, addr);
+    let state = build_state_with_upstream(config, &addr);
 
     let res = call_reroute(state, "GET", "/api", None).await;
 
@@ -124,15 +125,15 @@ async fn reroute_forwards_to_upstream() {
 #[tokio::test]
 async fn reroute_returns_not_found_for_unknown_path() {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
+    let addr = listener.local_addr().unwrap().to_string();
     tokio::spawn(mock_upstream_ok(listener));
 
     let config = build_config(
-        addr,
+        &addr,
         AuthConfig::default(),
         RateLimitConfig { max_tokens: 100.0, refill_rate: 1.0 },
     );
-    let state = build_state_with_upstream(config, addr);
+    let state = build_state_with_upstream(config, &addr);
 
     let res = call_reroute(state, "GET", "/unknown", None).await;
 
@@ -142,15 +143,15 @@ async fn reroute_returns_not_found_for_unknown_path() {
 #[tokio::test]
 async fn reroute_rate_limits() {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
+    let addr = listener.local_addr().unwrap().to_string();
     tokio::spawn(mock_upstream_ok(listener));
 
     let config = build_config(
-        addr,
+        &addr,
         AuthConfig::default(),
         RateLimitConfig { max_tokens: 1.0, refill_rate: 0.0 },
     );
-    let state = build_state_with_upstream(config, addr);
+    let state = build_state_with_upstream(config, &addr);
 
     let first = call_reroute(state.clone(), "GET", "/api", None).await;
     assert_eq!(first.status(), 200);
@@ -162,7 +163,7 @@ async fn reroute_rate_limits() {
 #[tokio::test]
 async fn reroute_rejects_unauthorized() {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
+    let addr = listener.local_addr().unwrap().to_string();
     tokio::spawn(mock_upstream_ok(listener));
 
     let auth = AuthConfig {
@@ -170,11 +171,11 @@ async fn reroute_rejects_unauthorized() {
     };
 
     let config = build_config(
-        addr,
+        &addr,
         auth,
         RateLimitConfig { max_tokens: 100.0, refill_rate: 1.0 },
     );
-    let state = build_state_with_upstream(config, addr);
+    let state = build_state_with_upstream(config, &addr);
 
     let res = call_reroute(state, "GET", "/api", None).await;
 
@@ -184,7 +185,7 @@ async fn reroute_rejects_unauthorized() {
 #[tokio::test]
 async fn reroute_caches_get_response() {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
+    let addr = listener.local_addr().unwrap().to_string();
 
     let accept_count = Arc::new(std::sync::atomic::AtomicUsize::new(0));
     let counter = accept_count.clone();
@@ -207,11 +208,11 @@ async fn reroute_caches_get_response() {
     });
 
     let config = build_config(
-        addr,
+        &addr,
         AuthConfig::default(),
         RateLimitConfig { max_tokens: 100.0, refill_rate: 1.0 },
     );
-    let state = build_state_with_upstream(config, addr);
+    let state = build_state_with_upstream(config, &addr);
 
     let first = call_reroute(state.clone(), "GET", "/api", None).await;
     assert_eq!(first.status(), 200);

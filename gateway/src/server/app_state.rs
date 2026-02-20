@@ -1,8 +1,4 @@
-use std::{
-    collections::HashMap,
-    net::{IpAddr, SocketAddr},
-    sync::Arc,
-};
+use std::{collections::HashMap, net::IpAddr, sync::Arc};
 
 use arc_swap::ArcSwap;
 use dashmap::DashMap;
@@ -29,7 +25,7 @@ use crate::{
 /// updated at the same time
 pub struct RoutingTable {
     pub router: Router<String>,
-    pub routes: HashMap<SocketAddr, Arc<UpstreamServer>>,
+    pub routes: HashMap<String, Arc<UpstreamServer>>,
 }
 
 /// Holds state of whole app passed to the reroute function
@@ -68,7 +64,7 @@ pub async fn init_server_state(state: Arc<AppState>, args: Arc<CmdArgs>) {
 
         for server in &route_config.endpoints {
             let upstream = Arc::new(UpstreamServer::new(
-                *server,
+                server.clone(),
                 route_config.max_connections,
                 route_config.http_version,
             ));
@@ -87,7 +83,7 @@ pub async fn init_server_state(state: Arc<AppState>, args: Arc<CmdArgs>) {
             let ok = connection::health_ok(&upstream).await;
 
             if ok {
-                new_routes_map.insert(*server, upstream);
+                new_routes_map.insert(server.clone(), upstream);
             } else {
                 tracing::error!(server = ?server, "Health not ok for server")
             }

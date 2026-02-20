@@ -1,6 +1,5 @@
 use std::{
     collections::HashMap,
-    net::SocketAddr,
     sync::{Arc, atomic::AtomicUsize},
 };
 
@@ -12,25 +11,27 @@ use crate::{
     },
 };
 
-use super::create_socket_addr;
+use super::create_addrs;
 
 #[test]
 fn p2c_returns_correct_server() {
-    let mut routes: HashMap<SocketAddr, Arc<UpstreamServer>> = HashMap::new();
+    let mut routes: HashMap<String, Arc<UpstreamServer>> = HashMap::new();
 
-    let addrs = create_socket_addr(3);
+    let addrs = create_addrs(3);
 
-    let mut upstream1 = UpstreamServer::new(addrs[0], 100, HttpVersion::HTTP1);
-    let mut upstream2 = UpstreamServer::new(addrs[1], 100, HttpVersion::HTTP1);
+    let mut upstream1 =
+        UpstreamServer::new(addrs[0].clone(), 100, HttpVersion::HTTP1);
+    let mut upstream2 =
+        UpstreamServer::new(addrs[1].clone(), 100, HttpVersion::HTTP1);
 
     upstream1.active_connctions = AtomicUsize::new(6);
     upstream2.active_connctions = AtomicUsize::new(10);
 
-    routes.insert(addrs[0], Arc::new(upstream1));
-    routes.insert(addrs[1], Arc::new(upstream2));
+    routes.insert(addrs[0].clone(), Arc::new(upstream1));
+    routes.insert(addrs[1].clone(), Arc::new(upstream2));
 
     let config = RouteConfig {
-        endpoints: vec![addrs[0], addrs[1]],
+        endpoints: vec![addrs[0].clone(), addrs[1].clone()],
         max_connections: 100,
         needs_auth: false,
         is_static: false,
@@ -45,16 +46,17 @@ fn p2c_returns_correct_server() {
 
 #[test]
 fn p2c_with_one_server() {
-    let mut routes: HashMap<SocketAddr, Arc<UpstreamServer>> = HashMap::new();
+    let mut routes: HashMap<String, Arc<UpstreamServer>> = HashMap::new();
 
-    let addrs = create_socket_addr(2);
+    let addrs = create_addrs(2);
 
-    let upstream = UpstreamServer::new(addrs[0], 100, HttpVersion::HTTP1);
+    let upstream =
+        UpstreamServer::new(addrs[0].clone(), 100, HttpVersion::HTTP1);
 
-    routes.insert(addrs[0], Arc::new(upstream));
+    routes.insert(addrs[0].clone(), Arc::new(upstream));
 
     let config = RouteConfig {
-        endpoints: vec![addrs[0]],
+        endpoints: vec![addrs[0].clone()],
         max_connections: 100,
         needs_auth: false,
         is_static: false,
@@ -69,9 +71,9 @@ fn p2c_with_one_server() {
 
 #[test]
 fn p2c_default_server() {
-    let routes: HashMap<SocketAddr, Arc<UpstreamServer>> = HashMap::new();
+    let routes: HashMap<String, Arc<UpstreamServer>> = HashMap::new();
 
-    let addrs = create_socket_addr(1);
+    let addrs = create_addrs(1);
 
     let config = RouteConfig {
         endpoints: vec![],
