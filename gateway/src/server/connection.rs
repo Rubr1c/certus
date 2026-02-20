@@ -1,16 +1,30 @@
-use std::{sync::atomic::Ordering, time::Duration};
+use std::{sync::Arc, sync::atomic::Ordering, time::Duration};
 
 use axum::body::Body;
 use hyper::{Method, Request, client::conn, header};
 use hyper_util::rt::{TokioExecutor, TokioIo};
+use rustls::ClientConfig;
 use tokio::net::TcpStream;
+use tokio_rustls::TlsConnector;
 use tracing::instrument;
+use webpki_roots::TLS_SERVER_ROOTS;
 
 use crate::server::{
     error::GatewayError,
     middleware::handler,
-    upstream::{HttpVersion, PooledConnection, UpstreamServer},
+    upstream::{HttpVersion, PooledConnection, Protocol, UpstreamServer},
 };
+
+fn tls_connector() -> TlsConnector {
+    let root_store =
+        rustls::RootCertStore::from_iter(TLS_SERVER_ROOTS.iter().cloned());
+
+    let config = ClientConfig::builder()
+        .with_root_certificates(root_store)
+        .with_no_client_auth();
+
+    TlsConnector::from(Arc::new(config))
+}
 
 //TODO: make sure atomic ordering correct
 
@@ -38,27 +52,69 @@ pub async fn open_connection(
         tokio::time::timeout(Duration::from_secs(timeout), connect_future)
             .await??;
 
-    let io = TokioIo::new(stream);
-
     let sender = match upstream.pool.http_version {
-        HttpVersion::HTTP1 => {
-            let (sender, conn) = conn::http1::handshake::<_, Body>(io).await?;
-            tokio::task::spawn(async move {
-                if let Err(err) = conn.await {
-                    tracing::error!(?err, "Connection failed");
-                }
-            });
-            PooledConnection::Http1(sender)
-        }
+        HttpVersion::HTTP1 => match upstream.pool.protocol {
+            Protocol::HTTPS => {
+                let connector = tls_connector();
+                let domain = rustls::pki_types::ServerName::try_from(
+                    upstream.pool.hostname.as_str(),
+                )?
+                .to_owned();
+                let tls_stream = connector.connect(domain, stream).await?;
+                let io = TokioIo::new(tls_stream);
+                let (sender, conn) =
+                    conn::http1::handshake::<_, Body>(io).await?;
+                tokio::task::spawn(async move {
+                    if let Err(err) = conn.await {
+                        tracing::error!(?err, "Connection failed");
+                    }
+                });
+                PooledConnection::Http1(sender)
+            }
+            Protocol::HTTP => {
+                let io = TokioIo::new(stream);
+                let (sender, conn) =
+                    conn::http1::handshake::<_, Body>(io).await?;
+                tokio::task::spawn(async move {
+                    if let Err(err) = conn.await {
+                        tracing::error!(?err, "Connection failed");
+                    }
+                });
+                PooledConnection::Http1(sender)
+            }
+        },
         HttpVersion::HTTP2 => {
             let exec = TokioExecutor::new();
-            let (sender, conn) = conn::http2::handshake(exec, io).await?;
-            tokio::task::spawn(async move {
-                if let Err(err) = conn.await {
-                    tracing::error!(?err, "Connection failed");
+            match upstream.pool.protocol {
+                Protocol::HTTPS => {
+                    let connector = tls_connector();
+                    let domain = rustls::pki_types::ServerName::try_from(
+                        upstream.pool.hostname.as_str(),
+                    )?
+                    .to_owned();
+                    let tls_stream = connector.connect(domain, stream).await?;
+                    let io = TokioIo::new(tls_stream);
+                    let (sender, conn) =
+                        conn::http2::handshake(exec, io).await?;
+                    tokio::task::spawn(async move {
+                        if let Err(err) = conn.await {
+                            tracing::error!(?err, "Connection failed");
+                        }
+                    });
+                    PooledConnection::Http2(sender)
                 }
-            });
-            PooledConnection::Http2(sender)
+                Protocol::HTTP => {
+                    let io = TokioIo::new(stream);
+                    let (sender, conn) =
+                        conn::http2::handshake(exec, io).await?;
+                    tokio::task::spawn(async move {
+                        if let Err(err) = conn.await {
+                            tracing::error!(?err, "Connection failed");
+                        }
+                    });
+                    PooledConnection::Http2(sender)
+                }
+            }
         }
     };
 
@@ -139,8 +195,8 @@ pub async fn release_connection(
 pub async fn health_ok(upstream: &UpstreamServer) -> bool {
     let req = match Request::builder()
         .method(Method::GET)
-        .uri("/health")
-        .header(header::HOST, upstream.pool.server_addr.as_str())
+        .uri("/")
+        .header(header::HOST, upstream.pool.hostname.as_str())
         .body(Body::empty())
     {
         Ok(r) => r,
@@ -152,10 +208,8 @@ pub async fn health_ok(upstream: &UpstreamServer) -> bool {
 
     match handler::handle_request(&upstream, req, 2000).await {
         Ok(res) => {
-            if res.status().is_success() {
-                return true;
-            }
-            false
+            let status = res.status();
+            status.is_success() || status.is_redirection()
         }
         Err(_) => false,
     }

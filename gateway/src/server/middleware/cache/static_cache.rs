@@ -8,7 +8,7 @@ use hyper::{Request, Response};
 
 use crate::server::{
     middleware::{cache::CachedResponse, handler},
-    upstream::{HttpVersion, UpstreamServer},
+    upstream::{HttpVersion, Protocol, UpstreamServer},
 };
 
 /// Tries to find a response in static cache
@@ -53,13 +53,19 @@ pub async fn send_and_save(
         HttpVersion::HTTP2 => http::Version::HTTP_2,
     };
 
-    let full_uri = format!("http://{}{}", upstream.pool.server_addr, path);
+    let scheme = match upstream.pool.protocol {
+        Protocol::HTTPS => "https",
+        Protocol::HTTP => "http",
+    };
+
+    let full_uri =
+        format!("{}://{}{}", scheme, upstream.pool.server_addr, path);
 
     let req = match Request::builder()
         .method(http::Method::GET)
         .uri(full_uri)
         .version(version)
-        .header(http::header::HOST, upstream.pool.server_addr.as_str())
+        .header(http::header::HOST, upstream.pool.hostname.as_str())
         .body(Body::empty())
     {
         Ok(r) => r,
