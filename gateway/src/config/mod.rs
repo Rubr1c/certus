@@ -6,7 +6,7 @@ use std::{collections::HashMap, net::SocketAddr};
 use clap::Parser;
 use serde::{Deserialize, Serialize};
 
-use crate::server::upstream::Protocol;
+use crate::server::upstream::HttpVersion;
 
 //TODO: some config options live duplicated in memory
 //      in 2 seperate places should probably optimize that
@@ -61,7 +61,7 @@ pub struct RouteConfig {
     #[serde(default)]
     pub needs_auth: bool,
     #[serde(default)]
-    pub protocol: Protocol,
+    pub http_version: HttpVersion,
     #[serde(default = "default_max_connections")]
     pub max_connections: usize,
     #[serde(default)]
@@ -132,7 +132,7 @@ impl Default for RouteConfig {
             endpoints: Vec::new(),
             is_static: false,
             needs_auth: false,
-            protocol: Protocol::HTTP1,
+            http_version: HttpVersion::HTTP1,
             max_connections: 100,
             token_weight: 0.0,
         }

@@ -13,7 +13,7 @@ pub enum HealthState {
 
 /// Enum for all available protocols
 #[derive(Clone, Debug, Deserialize, Serialize, Default, Copy)]
-pub enum Protocol {
+pub enum HttpVersion {
     #[default]
     HTTP1,
     HTTP2,
@@ -37,7 +37,7 @@ pub struct UpstreamServer {
 /// Holds info for the connection pool of a server
 pub struct ConnectionPool {
     pub server_addr: SocketAddr,
-    pub protocol: Protocol,
+    pub http_version: HttpVersion,
     pub max_connections: usize,
     pub total_connections: AtomicUsize,
     pub idle_connections: SegQueue<PooledConnection>,
@@ -47,14 +47,14 @@ impl UpstreamServer {
     pub fn new(
         address: SocketAddr,
         max_connections: usize,
-        protocol: Protocol,
+        http_version: HttpVersion,
     ) -> Self {
         UpstreamServer {
             active_connctions: AtomicUsize::new(0),
             health_state: HealthState::Alive,
             pool: ConnectionPool {
                 server_addr: address,
-                protocol,
+                http_version,
                 max_connections,
                 total_connections: AtomicUsize::new(0),
                 idle_connections: SegQueue::new(),

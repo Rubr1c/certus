@@ -9,7 +9,7 @@ use tracing::instrument;
 use crate::server::{
     error::GatewayError,
     middleware::handler,
-    upstream::{PooledConnection, Protocol, UpstreamServer},
+    upstream::{HttpVersion, PooledConnection, UpstreamServer},
 };
 
 //TODO: make sure atomic ordering correct
@@ -27,7 +27,7 @@ use crate::server::{
 /// * Failed to connect to server
 /// * Timed out while trying to connect
 /// * Failed to perform handshake with server
-#[instrument(skip_all, fields(protocol = ?upstream.pool.protocol))]
+#[instrument(skip_all, fields(http_version = ?upstream.pool.http_version))]
 pub async fn open_connection(
     upstream: &UpstreamServer,
     timeout: u64,
@@ -40,8 +40,8 @@ pub async fn open_connection(
 
     let io = TokioIo::new(stream);
 
-    let sender = match upstream.pool.protocol {
-        Protocol::HTTP1 => {
+    let sender = match upstream.pool.http_version {
+        HttpVersion::HTTP1 => {
             let (sender, conn) = conn::http1::handshake::<_, Body>(io).await?;
             tokio::task::spawn(async move {
                 if let Err(err) = conn.await {
@@ -50,7 +50,7 @@ pub async fn open_connection(
             });
             PooledConnection::Http1(sender)
         }
-        Protocol::HTTP2 => {
+        HttpVersion::HTTP2 => {
             let exec = TokioExecutor::new();
             let (sender, conn) = conn::http2::handshake(exec, io).await?;
             tokio::task::spawn(async move {

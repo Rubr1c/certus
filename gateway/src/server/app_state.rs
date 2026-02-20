@@ -70,7 +70,7 @@ pub async fn init_server_state(state: Arc<AppState>, args: Arc<CmdArgs>) {
             let upstream = Arc::new(UpstreamServer::new(
                 *server,
                 route_config.max_connections,
-                route_config.protocol,
+                route_config.http_version,
             ));
 
             if is_static_and_not_fetched {
