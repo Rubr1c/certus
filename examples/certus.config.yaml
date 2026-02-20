@@ -3,6 +3,10 @@ server:
 
 default_server: '127.0.0.1:3000'
 
+tls:
+  cert_path: 'examples/certs/cert.pem'
+  key_path: 'examples/certs/key.pem'
+
 auth:
   method:
     !jwt

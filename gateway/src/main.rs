@@ -1,6 +1,7 @@
 use std::{net::SocketAddr, sync::Arc, time::Duration};
 
 use axum::{Router, http::HeaderValue, routing::any};
+use axum_server::tls_rustls::RustlsConfig;
 use clap::Parser;
 use parking_lot::Mutex;
 use tokio::{sync::mpsc, time};
@@ -60,10 +61,11 @@ async fn main() {
 
     let conn = Arc::new(Mutex::new(conn));
 
-    let state = Arc::new(AppState::new(
-        reload_config(config_path).await.unwrap(),
-        conn.clone(),
-    ));
+    let config = reload_config(config_path).await.unwrap();
+
+    let tls = config.tls.clone();
+
+    let state = Arc::new(AppState::new(config, conn.clone()));
 
     let conn_clone = conn.clone();
 
@@ -102,10 +104,6 @@ async fn main() {
     let config = state.config.load();
     let port = config.server.port;
 
-    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", port))
-        .await
-        .expect("Failed to bind TCP listener");
-
     tracing::info!("Certus Gateway Running on port {}", port);
     println!("Config watcher started. Press Ctrl+C to exit.");
 
@@ -127,16 +125,51 @@ async fn main() {
         app.layer(CorsLayer::new().allow_origin(parsed_origins))
     };
 
-    let shutdown_signal = async {
-        tokio::signal::ctrl_c().await.expect("Failed to listen for Ctrl+C");
-        tracing::info!("\nShutting down...");
-    };
+    let addr = SocketAddr::from(([0, 0, 0, 0], port));
 
-    axum::serve(
-        listener,
-        app.into_make_service_with_connect_info::<SocketAddr>(),
-    )
-    .with_graceful_shutdown(shutdown_signal)
-    .await
-    .unwrap();
+    match tls {
+        Some(conf) => {
+            let tls_conf =
+                RustlsConfig::from_pem_file(&conf.cert_path, &conf.key_path)
+                    .await
+                    .expect("Invalid TLS");
+
+            let handle = axum_server::Handle::new();
+            let shutdown_handle = handle.clone();
+
+            tokio::spawn(async move {
+                tokio::signal::ctrl_c()
+                    .await
+                    .expect("Failed to listen for Ctrl+C");
+                tracing::info!("\nShutting down...");
+                shutdown_handle.graceful_shutdown(None);
+            });
+
+            axum_server::bind_rustls(addr, tls_conf)
+                .handle(handle)
+                .serve(app.into_make_service_with_connect_info::<SocketAddr>())
+                .await
+                .unwrap();
+        }
+        _ => {
+            let listener = tokio::net::TcpListener::bind(addr)
+                .await
+                .expect("Failed to bind TCP listener");
+
+            let shutdown_signal = async {
+                tokio::signal::ctrl_c()
+                    .await
+                    .expect("Failed to listen for Ctrl+C");
+                tracing::info!("\nShutting down...");
+            };
+
+            axum::serve(
+                listener,
+                app.into_make_service_with_connect_info::<SocketAddr>(),
+            )
+            .with_graceful_shutdown(shutdown_signal)
+            .await
+            .unwrap();
+        }
+    }
 }

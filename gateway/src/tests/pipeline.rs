@@ -59,6 +59,7 @@ fn build_config(
         default_server: addr.to_string(),
         connection: ConnectionConfig { connect_timeout: 5 },
         cache: CacheConfig { size: 100 },
+        tls: None,
     }
 }
 

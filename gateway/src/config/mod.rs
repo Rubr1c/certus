@@ -51,6 +51,12 @@ pub struct AuthConfig {
     pub method: AuthType,
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct TLSConfig {
+    pub cert_path: String,
+    pub key_path: String,
+}
+
 /// Config struct that holds all configurable options
 /// for each route registered in the config
 #[derive(Debug, Deserialize, Serialize)]
@@ -93,6 +99,7 @@ pub struct CacheConfig {
 pub struct Config {
     pub server: ServerConfig,
     pub routes: HashMap<String, RouteConfig>,
+    pub tls: Option<TLSConfig>,
     #[serde(default)]
     pub auth: AuthConfig,
     #[serde(default)]
@@ -116,6 +123,7 @@ impl Default for Config {
             default_server: default_server_addr(),
             connection: ConnectionConfig::default(),
             cache: CacheConfig::default(),
+            tls: None,
         }
     }
 }
