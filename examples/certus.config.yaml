@@ -11,6 +11,7 @@ auth:
   method:
     !jwt
       secret: "wdauhwaiuyhdbuadbauwbdaudgbaydutwvawdyutvy"
+      algorithm: "HS256"
   prefix: "Test"
 
 rate_limit:

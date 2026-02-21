@@ -1,6 +1,6 @@
 use axum::http::HeaderValue;
 use hyper::HeaderMap;
-use jsonwebtoken::{DecodingKey, Validation};
+use jsonwebtoken::{Algorithm, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -30,13 +30,17 @@ pub struct Claims {
 /// * Failed to decode token
 /// * Token is expired
 #[inline]
-pub fn decode(token: &str, secret: &String) -> Result<Claims, GatewayError> {
+pub fn decode(
+    token: &str,
+    secret: &String,
+    algorithm: &Algorithm,
+) -> Result<Claims, GatewayError> {
     match jsonwebtoken::decode::<Claims>(
         token,
         //TODO: change to not create a decoding key each time
         //      keeping it in app_state would be better.
         &DecodingKey::from_secret(secret.as_ref()),
-        &Validation::default(),
+        &Validation::new(*algorithm),
     ) {
         Ok(decoded) => Ok(decoded.claims),
         Err(_) => Err(GatewayError::Unauthorized),
@@ -68,8 +72,8 @@ pub fn run(
         tracing::info!("Authenticating user");
         match token {
             Some(t) => match &config.auth.method {
-                AuthType::JWT { secret } => {
-                    match decode(t, secret) {
+                AuthType::JWT { secret, algorithm } => {
+                    match decode(t, secret, &algorithm) {
                         Ok(claims) => {
                             //TODO: put claims in header
                             tracing::info!("User authenticated");

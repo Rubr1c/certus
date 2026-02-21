@@ -6,6 +6,7 @@ use axum::body::Body;
 use axum::extract::{ConnectInfo, State};
 use axum::response::IntoResponse;
 use hyper::Request;
+use jsonwebtoken::Algorithm;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 
@@ -168,7 +169,10 @@ async fn reroute_rejects_unauthorized() {
     tokio::spawn(mock_upstream_ok(listener));
 
     let auth = AuthConfig {
-        method: AuthType::JWT { secret: "test-secret".to_string() },
+        method: AuthType::JWT {
+            secret: "test-secret".to_string(),
+            algorithm: Algorithm::default(),
+        },
         prefix: "Bearer".to_string(),
     };
 

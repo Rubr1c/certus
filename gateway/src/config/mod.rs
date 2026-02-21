@@ -42,6 +42,8 @@ pub enum AuthType {
     None,
     JWT {
         secret: String,
+        #[serde(default)]
+        algorithm: jsonwebtoken::Algorithm,
     },
 }
 

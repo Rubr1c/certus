@@ -1,5 +1,6 @@
 use axum::body::Body;
 use hyper::Request;
+use jsonwebtoken::Algorithm;
 
 use crate::{
     config::{AuthConfig, AuthType, Config},
@@ -23,7 +24,10 @@ fn auth_not_enabled() {
 fn auth_enabled_no_token() {
     let mut config = Config::default();
     config.auth = AuthConfig {
-        method: AuthType::JWT { secret: "secret".to_string() },
+        method: AuthType::JWT {
+            secret: "secret".to_string(),
+            algorithm: Algorithm::default(),
+        },
         prefix: "Bearer".to_string(),
     };
     let mut req = dummy_req();
@@ -36,9 +40,13 @@ fn auth_enabled_no_token() {
 fn auth_enabled_invalid_token() {
     let mut config = Config::default();
     config.auth = AuthConfig {
-        method: AuthType::JWT { secret: "secret".to_string() },
+        method: AuthType::JWT {
+            secret: "secret".to_string(),
+            algorithm: Algorithm::default(),
+        },
         prefix: "Bearer".to_string(),
     };
+
     let mut req = dummy_req();
 
     let res = auth::run(req.headers_mut(), Some("wdundw"), &config, true);
@@ -49,7 +57,10 @@ fn auth_enabled_invalid_token() {
 fn auth_enabled_valid_token() {
     let mut config = Config::default();
     config.auth = AuthConfig {
-        method: AuthType::JWT { secret: "secret".to_string() },
+        method: AuthType::JWT {
+            secret: "secret".to_string(),
+            algorithm: Algorithm::default(),
+        },
         prefix: "Bearer".to_string(),
     };
 
