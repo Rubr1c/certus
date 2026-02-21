@@ -4,7 +4,7 @@
     "format:ts": "bun run --cwd frontend prettier --write \"../**/*.{ts,tsx,js,jsx,json,md,css}\" --ignore-path ../.gitignore",
     "format:rs": "cargo fmt --all",
     "dev:config": "cargo run -p gateway -- -c examples/certus.config.yaml",
-    "dev:servers": "bun run --cwd test dev --http1 3000,3001,3002,3005,3006 --http2 3003,3004",
+    "dev:servers": "bun run --cwd test dev --http1 3000,3001,3002,3005,3006 --http2 3003,3004 --log",
     "dev:test": "bun dev:config & bun dev:servers & wait",
     "bench": "cargo bench -p gateway"
   },

@@ -61,7 +61,7 @@ pub fn build_tree(state: Arc<AppState>) -> Router<String> {
 pub async fn reroute(
     State(state): State<Arc<AppState>>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
-    req: Request<Body>,
+    mut req: Request<Body>,
 ) -> impl IntoResponse {
     let uri = req.uri();
     let path = uri.path();
@@ -91,10 +91,11 @@ pub async fn reroute(
         .headers()
         .get("Authorization")
         .and_then(|h| h.to_str().ok())
-        .and_then(|s| s.strip_prefix("Bearer "));
+        .and_then(|s| s.strip_prefix("Bearer "))
+        .map(|s| s.to_string());
 
     let ck = CacheKey {
-        token: token.map(|s| s.to_string()),
+        token: token.clone(),
         path: uri
             .query()
             .map_or_else(|| path.to_string(), |q| format!("{}?{}", path, q)),
@@ -125,7 +126,12 @@ pub async fn reroute(
         .expect("Upstream Should Exist")
         .clone();
 
-    match auth::run(target_route.needs_auth, &config, token) {
+    match auth::run(
+        req.headers_mut(),
+        token.as_deref(),
+        &config,
+        target_route.needs_auth,
+    ) {
         Ok(_) => {}
         Err(e) => return e.into_response(),
     }

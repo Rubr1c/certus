@@ -1,3 +1,5 @@
+use axum::http::HeaderValue;
+use hyper::HeaderMap;
 use jsonwebtoken::{DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
 
@@ -45,9 +47,10 @@ pub fn decode(token: &str, secret: &String) -> Result<Claims, GatewayError> {
 ///
 /// # Arguments
 ///
-/// * `needs_auth` - whether the route requires authentication
-/// * `config` - gateway config
+/// * `headers` - header ref to inject headers
 /// * `token` - optional token if exists
+/// * `config` - gateway config
+/// * `needs_auth` - whether the route requires authentication
 ///
 /// # Errors
 ///
@@ -56,20 +59,44 @@ pub fn decode(token: &str, secret: &String) -> Result<Claims, GatewayError> {
 /// * Token failed to be decoded [`decode`]
 #[inline]
 pub fn run(
-    needs_auth: bool,
-    config: &Config,
+    headers: &mut HeaderMap<HeaderValue>,
     token: Option<&str>,
+    config: &Config,
+    needs_auth: bool,
 ) -> Result<(), GatewayError> {
     //TODO: strip any prefix and define in config
     if needs_auth {
-        tracing::info!(?token, "Authenticating user");
+        tracing::info!("Authenticating user");
         match token {
             Some(t) => match &config.auth.method {
                 AuthType::JWT { secret } => {
                     match decode(t, secret) {
-                        Ok(_) => {
+                        Ok(claims) => {
                             //TODO: put claims in header
                             tracing::info!("User authenticated");
+
+                            match claims.user_id {
+                                Some(id) => {
+                                    headers.insert(
+                                        "X-User-Id",
+                                        HeaderValue::from_str(id.as_str())
+                                            .map_err(|_| GatewayError::InternalServerError)?
+                                    );
+                                }
+                                _ => {}
+                            }
+
+                            match claims.role {
+                                Some(role) => {
+                                    headers.insert(
+                                        "X-User-Role",
+                                        HeaderValue::from_str(role.as_str())
+                                            .map_err(|_| GatewayError::InternalServerError)?
+                                    );
+                                }
+                                _ => {}
+                            }
+
                             return Ok(());
                         }
                         Err(e) => {

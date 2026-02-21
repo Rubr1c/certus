@@ -24,6 +24,9 @@ pub enum GatewayError {
 
     #[error("Rate Limited")]
     RateLimited,
+
+    #[error("Internal Server Error")]
+    InternalServerError,
 }
 
 //TODO: make errors trace here
@@ -48,6 +51,9 @@ impl IntoResponse for GatewayError {
             }
             GatewayError::RateLimited => {
                 (StatusCode::TOO_MANY_REQUESTS, self.to_string())
+            }
+            GatewayError::InternalServerError => {
+                (StatusCode::INTERNAL_SERVER_ERROR, self.to_string())
             }
         };
 
