@@ -91,7 +91,10 @@ pub async fn reroute(
         .headers()
         .get("Authorization")
         .and_then(|h| h.to_str().ok())
-        .and_then(|s| s.strip_prefix("Bearer "))
+        .and_then(|s| {
+            let prefix = &config.auth.prefix;
+            s.strip_prefix(prefix.as_str())?.strip_prefix(' ')
+        })
         .map(|s| s.to_string());
 
     let ck = CacheKey {

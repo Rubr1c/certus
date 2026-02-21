@@ -49,6 +49,8 @@ pub enum AuthType {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct AuthConfig {
     pub method: AuthType,
+    #[serde(default = "default_auth_prefix")]
+    pub prefix: String,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -167,7 +169,10 @@ impl Default for ConnectionConfig {
 
 impl Default for AuthConfig {
     fn default() -> Self {
-        AuthConfig { method: AuthType::default() }
+        AuthConfig {
+            method: AuthType::default(),
+            prefix: default_auth_prefix(),
+        }
     }
 }
 
@@ -185,4 +190,8 @@ fn default_max_connections() -> usize {
 
 fn default_refill_rate() -> f64 {
     1.0
+}
+
+fn default_auth_prefix() -> String {
+    "Bearer".to_string()
 }

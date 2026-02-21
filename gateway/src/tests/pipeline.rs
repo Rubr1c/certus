@@ -169,6 +169,7 @@ async fn reroute_rejects_unauthorized() {
 
     let auth = AuthConfig {
         method: AuthType::JWT { secret: "test-secret".to_string() },
+        prefix: "Bearer".to_string(),
     };
 
     let config = build_config(

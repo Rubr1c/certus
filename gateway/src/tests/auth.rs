@@ -22,8 +22,10 @@ fn auth_not_enabled() {
 #[test]
 fn auth_enabled_no_token() {
     let mut config = Config::default();
-    config.auth =
-        AuthConfig { method: AuthType::JWT { secret: "secret".to_string() } };
+    config.auth = AuthConfig {
+        method: AuthType::JWT { secret: "secret".to_string() },
+        prefix: "Bearer".to_string(),
+    };
     let mut req = dummy_req();
 
     let res = auth::run(req.headers_mut(), None, &config, true);
@@ -33,8 +35,10 @@ fn auth_enabled_no_token() {
 #[test]
 fn auth_enabled_invalid_token() {
     let mut config = Config::default();
-    config.auth =
-        AuthConfig { method: AuthType::JWT { secret: "secret".to_string() } };
+    config.auth = AuthConfig {
+        method: AuthType::JWT { secret: "secret".to_string() },
+        prefix: "Bearer".to_string(),
+    };
     let mut req = dummy_req();
 
     let res = auth::run(req.headers_mut(), Some("wdundw"), &config, true);
@@ -44,8 +48,11 @@ fn auth_enabled_invalid_token() {
 #[test]
 fn auth_enabled_valid_token() {
     let mut config = Config::default();
-    config.auth =
-        AuthConfig { method: AuthType::JWT { secret: "secret".to_string() } };
+    config.auth = AuthConfig {
+        method: AuthType::JWT { secret: "secret".to_string() },
+        prefix: "Bearer".to_string(),
+    };
+
     let mut req = dummy_req();
 
     let res = auth::run(

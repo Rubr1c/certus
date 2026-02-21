@@ -64,7 +64,6 @@ pub fn run(
     config: &Config,
     needs_auth: bool,
 ) -> Result<(), GatewayError> {
-    //TODO: strip any prefix and define in config
     if needs_auth {
         tracing::info!("Authenticating user");
         match token {
