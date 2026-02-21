@@ -13,7 +13,7 @@ use crate::{
     server::{
         connection,
         middleware::{
-            cache::{CacheKey, CachedResponse, static_cache},
+            cache::{DynCacheBackend, StaticCacheBackend, static_cache},
             rate_limit::TokenBucket,
             router,
         },
@@ -32,8 +32,8 @@ pub struct RoutingTable {
 pub struct AppState {
     pub routing_table: ArcSwap<RoutingTable>,
     pub config: ArcSwap<Config>,
-    pub cache: Cache<CacheKey, CachedResponse>,
-    pub static_cache: DashMap<String, CachedResponse>,
+    pub cache: DynCacheBackend,
+    pub static_cache: StaticCacheBackend,
     pub user_tokens: DashMap<IpAddr, TokenBucket>,
     pub db_conn: Arc<Mutex<Connection>>,
 }
@@ -45,9 +45,9 @@ impl AppState {
                 router: Router::new(),
                 routes: HashMap::new(),
             }),
-            cache: Cache::new(config.cache.size),
+            cache: DynCacheBackend::InMemory(Cache::new(config.cache.size)),
             config: ArcSwap::from_pointee(config),
-            static_cache: DashMap::new(),
+            static_cache: StaticCacheBackend::InMemory(DashMap::new()),
             user_tokens: DashMap::new(),
             db_conn: conn,
         }

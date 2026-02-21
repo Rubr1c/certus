@@ -3,9 +3,10 @@ use axum::{
     response::IntoResponse,
 };
 use hyper::{Method, Response, body::Incoming};
-use moka::sync::Cache;
 
-use crate::server::middleware::cache::{CacheKey, CachedResponse};
+use crate::server::middleware::cache::{
+    CacheKey, CachedResponse, DynCacheBackend,
+};
 
 /// Tries to save a response to a cache
 ///
@@ -19,7 +20,7 @@ use crate::server::middleware::cache::{CacheKey, CachedResponse};
 pub async fn try_save(
     response: Response<Incoming>,
     method: &Method,
-    cache: &Cache<CacheKey, CachedResponse>,
+    cache: &DynCacheBackend,
     ck: CacheKey,
 ) -> Response<Body> {
     if method != Method::GET {
@@ -41,7 +42,7 @@ pub async fn try_save(
     let response = cached.clone().into_response();
 
     tracing::info!("Saving to cache");
-    cache.insert(ck, cached);
+    cache.set(ck, cached);
 
     response
 }
@@ -56,7 +57,7 @@ pub async fn try_save(
 /// * `method` - http method used for request
 #[inline]
 pub fn try_find(
-    cache: &Cache<CacheKey, CachedResponse>,
+    cache: &DynCacheBackend,
     path: &str,
     ck: &CacheKey,
     method: &Method,

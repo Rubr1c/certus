@@ -4,12 +4,13 @@ use hyper::{HeaderMap, Method, StatusCode};
 use moka::sync::Cache;
 
 use crate::server::middleware::cache::{
-    CacheKey, CachedResponse, dyn_cache, static_cache,
+    CacheKey, CachedResponse, DynCacheBackend, StaticCacheBackend, dyn_cache,
+    static_cache,
 };
 
 #[test]
 fn dyn_cache_miss_on_empty() {
-    let cache: Cache<CacheKey, CachedResponse> = Cache::new(100);
+    let cache = DynCacheBackend::InMemory(Cache::new(100));
     let ck = CacheKey { token: None, path: "/test".to_string() };
 
     let res = dyn_cache::try_find(&cache, "/test", &ck, &Method::GET);
@@ -19,7 +20,7 @@ fn dyn_cache_miss_on_empty() {
 
 #[test]
 fn dyn_cache_hit_on_get() {
-    let cache: Cache<CacheKey, CachedResponse> = Cache::new(100);
+    let inner = Cache::new(100);
     let ck = CacheKey { token: None, path: "/test".to_string() };
 
     let cached = CachedResponse {
@@ -27,7 +28,8 @@ fn dyn_cache_hit_on_get() {
         headers: HeaderMap::new(),
         body: Bytes::from("cached"),
     };
-    cache.insert(CacheKey { token: None, path: "/test".to_string() }, cached);
+    inner.insert(CacheKey { token: None, path: "/test".to_string() }, cached);
+    let cache = DynCacheBackend::InMemory(inner);
 
     let res = dyn_cache::try_find(&cache, "/test", &ck, &Method::GET);
 
@@ -37,7 +39,7 @@ fn dyn_cache_hit_on_get() {
 
 #[test]
 fn dyn_cache_miss_on_post() {
-    let cache: Cache<CacheKey, CachedResponse> = Cache::new(100);
+    let inner = Cache::new(100);
     let ck = CacheKey { token: None, path: "/test".to_string() };
 
     let cached = CachedResponse {
@@ -45,7 +47,8 @@ fn dyn_cache_miss_on_post() {
         headers: HeaderMap::new(),
         body: Bytes::from("cached"),
     };
-    cache.insert(CacheKey { token: None, path: "/test".to_string() }, cached);
+    inner.insert(CacheKey { token: None, path: "/test".to_string() }, cached);
+    let cache = DynCacheBackend::InMemory(inner);
 
     let res = dyn_cache::try_find(&cache, "/test", &ck, &Method::POST);
 
@@ -54,20 +57,21 @@ fn dyn_cache_miss_on_post() {
 
 #[test]
 fn dyn_cache_different_tokens_are_different_keys() {
-    let cache: Cache<CacheKey, CachedResponse> = Cache::new(100);
+    let inner = Cache::new(100);
 
     let cached = CachedResponse {
         status: StatusCode::OK,
         headers: HeaderMap::new(),
         body: Bytes::from("user1"),
     };
-    cache.insert(
+    inner.insert(
         CacheKey {
             token: Some("token_a".to_string()),
             path: "/test".to_string(),
         },
         cached,
     );
+    let cache = DynCacheBackend::InMemory(inner);
 
     let ck = CacheKey {
         token: Some("token_b".to_string()),
@@ -80,7 +84,7 @@ fn dyn_cache_different_tokens_are_different_keys() {
 
 #[test]
 fn static_cache_miss_on_empty() {
-    let cache: DashMap<String, CachedResponse> = DashMap::new();
+    let cache = StaticCacheBackend::InMemory(DashMap::new());
 
     let res = static_cache::try_find(&cache, "/missing");
 
@@ -89,9 +93,8 @@ fn static_cache_miss_on_empty() {
 
 #[test]
 fn static_cache_hit() {
-    let cache: DashMap<String, CachedResponse> = DashMap::new();
-
-    cache.insert(
+    let inner = DashMap::new();
+    inner.insert(
         "/static".to_string(),
         CachedResponse {
             status: StatusCode::OK,
@@ -99,6 +102,7 @@ fn static_cache_hit() {
             body: Bytes::from("static content"),
         },
     );
+    let cache = StaticCacheBackend::InMemory(inner);
 
     let res = static_cache::try_find(&cache, "/static");
 

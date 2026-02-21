@@ -3,11 +3,13 @@ use axum::{
     http,
     response::IntoResponse,
 };
-use dashmap::DashMap;
 use hyper::{Request, Response};
 
 use crate::server::{
-    middleware::{cache::CachedResponse, handler},
+    middleware::{
+        cache::{CachedResponse, StaticCacheBackend},
+        handler,
+    },
     upstream::{HttpVersion, Protocol, UpstreamServer},
 };
 
@@ -19,7 +21,7 @@ use crate::server::{
 /// * `path` - full path of the request
 #[inline]
 pub fn try_find(
-    cache: &DashMap<String, CachedResponse>,
+    cache: &StaticCacheBackend,
     path: &str,
 ) -> Option<Response<Body>> {
     match cache.get(path) {
@@ -43,7 +45,7 @@ pub fn try_find(
 /// * `path` - full path of the request
 /// * `timeout` - when to timeout trying to connect to server
 pub async fn send_and_save(
-    cache: &DashMap<String, CachedResponse>,
+    cache: &StaticCacheBackend,
     upstream: &UpstreamServer,
     path: &String,
     timeout: u64,
@@ -100,7 +102,7 @@ pub async fn send_and_save(
                 body,
             };
 
-            cache.insert(path.clone(), cached);
+            cache.set(path.clone(), cached);
             tracing::info!("Saved static path {} to cache", path);
         }
         Err(e) => {
