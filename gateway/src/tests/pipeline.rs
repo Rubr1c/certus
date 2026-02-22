@@ -11,7 +11,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 
 use crate::config::{
-    AuthConfig, AuthType, CacheConfig, Config, ConnectionConfig,
+    AuthConfig, AuthType, CacheConfig, CacheType, Config, ConnectionConfig,
     RateLimitConfig, RouteConfig, ServerConfig,
 };
 use crate::server::app_state::{AppState, RoutingTable};
@@ -59,13 +59,16 @@ fn build_config(
         routes,
         default_server: addr.to_string(),
         connection: ConnectionConfig { connect_timeout: 5 },
-        cache: CacheConfig { size: 100 },
+        cache: CacheConfig { size: 100, cache_type: CacheType::default() },
         tls: None,
     }
 }
 
-fn build_state_with_upstream(config: Config, addr: &str) -> Arc<AppState> {
-    let state = Arc::new(AppState::new(config, test_db_conn()));
+async fn build_state_with_upstream(
+    config: Config,
+    addr: &str,
+) -> Arc<AppState> {
+    let state = Arc::new(AppState::new(config, test_db_conn()).await);
 
     let upstream = Arc::new(UpstreamServer::new(
         addr.to_string(),
@@ -117,7 +120,7 @@ async fn reroute_forwards_to_upstream() {
         AuthConfig::default(),
         RateLimitConfig { max_tokens: 100.0, refill_rate: 1.0 },
     );
-    let state = build_state_with_upstream(config, &addr);
+    let state = build_state_with_upstream(config, &addr).await;
 
     let res = call_reroute(state, "GET", "/api", None).await;
 
@@ -135,7 +138,7 @@ async fn reroute_returns_not_found_for_unknown_path() {
         AuthConfig::default(),
         RateLimitConfig { max_tokens: 100.0, refill_rate: 1.0 },
     );
-    let state = build_state_with_upstream(config, &addr);
+    let state = build_state_with_upstream(config, &addr).await;
 
     let res = call_reroute(state, "GET", "/unknown", None).await;
 
@@ -153,7 +156,7 @@ async fn reroute_rate_limits() {
         AuthConfig::default(),
         RateLimitConfig { max_tokens: 1.0, refill_rate: 0.0 },
     );
-    let state = build_state_with_upstream(config, &addr);
+    let state = build_state_with_upstream(config, &addr).await;
 
     let first = call_reroute(state.clone(), "GET", "/api", None).await;
     assert_eq!(first.status(), 200);
@@ -181,7 +184,7 @@ async fn reroute_rejects_unauthorized() {
         auth,
         RateLimitConfig { max_tokens: 100.0, refill_rate: 1.0 },
     );
-    let state = build_state_with_upstream(config, &addr);
+    let state = build_state_with_upstream(config, &addr).await;
 
     let res = call_reroute(state, "GET", "/api", None).await;
 
@@ -218,7 +221,7 @@ async fn reroute_caches_get_response() {
         AuthConfig::default(),
         RateLimitConfig { max_tokens: 100.0, refill_rate: 1.0 },
     );
-    let state = build_state_with_upstream(config, &addr);
+    let state = build_state_with_upstream(config, &addr).await;
 
     let first = call_reroute(state.clone(), "GET", "/api", None).await;
     assert_eq!(first.status(), 200);

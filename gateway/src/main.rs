@@ -65,7 +65,7 @@ async fn main() {
 
     let tls = config.tls.clone();
 
-    let state = Arc::new(AppState::new(config, conn.clone()));
+    let state = Arc::new(AppState::new(config, conn.clone()).await);
 
     let conn_clone = conn.clone();
 

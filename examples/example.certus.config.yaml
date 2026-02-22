@@ -10,7 +10,7 @@ default_server: '127.0.0.1:3000'
 auth:
   method:
     !jwt
-      secret: "wdauhwaiuyhdbuadbauwbdaudgbaydutwvawdyutvy"
+      secret: "secret"
       algorithm: "HS256"
   prefix: "Test"
 
@@ -20,6 +20,9 @@ rate_limit:
 
 cache:
   size: 100
+  type:
+    !redis
+      url: redis://127.0.0.1
 
 routes:
   /users:

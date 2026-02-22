@@ -8,18 +8,18 @@ use crate::server::middleware::cache::{
     static_cache,
 };
 
-#[test]
-fn dyn_cache_miss_on_empty() {
+#[tokio::test]
+async fn dyn_cache_miss_on_empty() {
     let cache = DynCacheBackend::InMemory(Cache::new(100));
     let ck = CacheKey { token: None, path: "/test".to_string() };
 
-    let res = dyn_cache::try_find(&cache, "/test", &ck, &Method::GET);
+    let res = dyn_cache::try_find(&cache, "/test", &ck, &Method::GET).await;
 
     assert!(res.is_none());
 }
 
-#[test]
-fn dyn_cache_hit_on_get() {
+#[tokio::test]
+async fn dyn_cache_hit_on_get() {
     let inner = Cache::new(100);
     let ck = CacheKey { token: None, path: "/test".to_string() };
 
@@ -31,14 +31,14 @@ fn dyn_cache_hit_on_get() {
     inner.insert(CacheKey { token: None, path: "/test".to_string() }, cached);
     let cache = DynCacheBackend::InMemory(inner);
 
-    let res = dyn_cache::try_find(&cache, "/test", &ck, &Method::GET);
+    let res = dyn_cache::try_find(&cache, "/test", &ck, &Method::GET).await;
 
     assert!(res.is_some());
     assert_eq!(res.unwrap().status(), StatusCode::OK);
 }
 
-#[test]
-fn dyn_cache_miss_on_post() {
+#[tokio::test]
+async fn dyn_cache_miss_on_post() {
     let inner = Cache::new(100);
     let ck = CacheKey { token: None, path: "/test".to_string() };
 
@@ -50,13 +50,13 @@ fn dyn_cache_miss_on_post() {
     inner.insert(CacheKey { token: None, path: "/test".to_string() }, cached);
     let cache = DynCacheBackend::InMemory(inner);
 
-    let res = dyn_cache::try_find(&cache, "/test", &ck, &Method::POST);
+    let res = dyn_cache::try_find(&cache, "/test", &ck, &Method::POST).await;
 
     assert!(res.is_none());
 }
 
-#[test]
-fn dyn_cache_different_tokens_are_different_keys() {
+#[tokio::test]
+async fn dyn_cache_different_tokens_are_different_keys() {
     let inner = Cache::new(100);
 
     let cached = CachedResponse {
@@ -77,7 +77,7 @@ fn dyn_cache_different_tokens_are_different_keys() {
         token: Some("token_b".to_string()),
         path: "/test".to_string(),
     };
-    let res = dyn_cache::try_find(&cache, "/test", &ck, &Method::GET);
+    let res = dyn_cache::try_find(&cache, "/test", &ck, &Method::GET).await;
 
     assert!(res.is_none());
 }

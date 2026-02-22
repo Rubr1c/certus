@@ -42,7 +42,7 @@ pub async fn try_save(
     let response = cached.clone().into_response();
 
     tracing::info!("Saving to cache");
-    cache.set(ck, cached);
+    cache.set(ck, cached).await;
 
     response
 }
@@ -56,13 +56,13 @@ pub async fn try_save(
 /// * `ck` - CacheKey for the request
 /// * `method` - http method used for request
 #[inline]
-pub fn try_find(
+pub async fn try_find(
     cache: &DynCacheBackend,
     path: &str,
     ck: &CacheKey,
     method: &Method,
 ) -> Option<Response<Body>> {
-    match cache.get(ck) {
+    match cache.get(ck).await {
         Some(res) => {
             if method == Method::GET {
                 tracing::info!("Returning cached response to {}", path);

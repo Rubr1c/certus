@@ -1,6 +1,7 @@
 use std::{collections::HashMap, net::IpAddr, sync::Arc};
 
 use arc_swap::ArcSwap;
+use bb8_redis::RedisConnectionManager;
 use dashmap::DashMap;
 use matchit::Router;
 use moka::sync::Cache;
@@ -8,7 +9,7 @@ use parking_lot::Mutex;
 use rusqlite::Connection;
 
 use crate::{
-    config::{CmdArgs, Config},
+    config::{CacheType, CmdArgs, Config},
     db::db_utils,
     server::{
         connection,
@@ -39,13 +40,27 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub fn new(config: Config, conn: Arc<Mutex<Connection>>) -> Self {
+    pub async fn new(config: Config, conn: Arc<Mutex<Connection>>) -> Self {
         Self {
             routing_table: ArcSwap::from_pointee(RoutingTable {
                 router: Router::new(),
                 routes: HashMap::new(),
             }),
-            cache: DynCacheBackend::InMemory(Cache::new(config.cache.size)),
+            cache: match &config.cache.cache_type {
+                CacheType::InMemory => {
+                    DynCacheBackend::InMemory(Cache::new(config.cache.size))
+                }
+                CacheType::Redis { url } => {
+                    let manager = RedisConnectionManager::new(url.as_str())
+                        .expect("Failed to open redis client");
+
+                    let pool = bb8::Pool::builder()
+                        .build(manager)
+                        .await
+                        .expect("Failed to make connection bb8 pool");
+                    DynCacheBackend::Redis(pool)
+                }
+            },
             config: ArcSwap::from_pointee(config),
             static_cache: StaticCacheBackend::InMemory(DashMap::new()),
             user_tokens: DashMap::new(),

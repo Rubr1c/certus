@@ -55,6 +55,7 @@ pub struct AuthConfig {
     pub prefix: String,
 }
 
+/// Config struct for tls to run in https
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct TLSConfig {
     pub cert_path: String,
@@ -92,10 +93,25 @@ pub struct ConnectionConfig {
     pub connect_timeout: u64,
 }
 
+/// Enum for all cache types available
+#[derive(Debug, Default, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum CacheType {
+    #[default]
+    #[serde(rename = "in_memory")]
+    InMemory,
+    Redis {
+        url: String,
+    },
+}
+
 /// Config struct that holds all cache options
 #[derive(Debug, Deserialize, Serialize)]
 pub struct CacheConfig {
+    #[serde(default = "default_cache_size")]
     pub size: u64,
+    #[serde(default, rename = "type")]
+    pub cache_type: CacheType,
 }
 
 /// Main config struct that holds all configurable items
@@ -159,7 +175,7 @@ impl Default for RateLimitConfig {
 
 impl Default for CacheConfig {
     fn default() -> Self {
-        CacheConfig { size: 1000 }
+        CacheConfig { size: 1000, cache_type: CacheType::default() }
     }
 }
 
@@ -196,4 +212,8 @@ fn default_refill_rate() -> f64 {
 
 fn default_auth_prefix() -> String {
     "Bearer".to_string()
+}
+
+fn default_cache_size() -> u64 {
+    1000
 }

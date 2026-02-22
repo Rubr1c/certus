@@ -29,7 +29,7 @@ fn create_runtime() -> Runtime {
 async fn setup_state() -> Arc<AppState> {
     let config = reload_config("../examples/certus.config.yaml").await.unwrap();
     let conn = Arc::new(Mutex::new(Connection::open_in_memory().unwrap()));
-    let state = Arc::new(AppState::new(config, conn));
+    let state = Arc::new(AppState::new(config, conn).await);
     let args = Arc::new(CmdArgs { config: None, save: false });
     app_state::init_server_state(state.clone(), args).await;
     state

@@ -113,7 +113,7 @@ pub async fn reroute(
         _ => {}
     }
 
-    match dyn_cache::try_find(&state.cache, path, &ck, &method) {
+    match dyn_cache::try_find(&state.cache, path, &ck, &method).await {
         Some(res) => return res,
         _ => {}
     }
