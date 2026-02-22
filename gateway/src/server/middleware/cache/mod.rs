@@ -16,21 +16,39 @@ use serde::{Deserialize, Serialize};
 /// Only in-memory for now since static responses rarely change.
 pub enum StaticCacheBackend {
     InMemory(DashMap<String, CachedResponse>),
+    Redis(bb8::Pool<RedisConnectionManager>),
 }
 
 impl StaticCacheBackend {
-    pub fn get(&self, key: &str) -> Option<CachedResponse> {
+    pub async fn get(&self, key: &str) -> Option<CachedResponse> {
         match self {
             StaticCacheBackend::InMemory(map) => {
                 map.get(key).map(|v| v.clone())
             }
+            StaticCacheBackend::Redis(pool) => {
+                let mut conn = pool.get().await.ok()?;
+                let json: Option<String> = conn.get(&key).await.ok()?;
+                let json = json?;
+                let s: SerializableCachedResponse =
+                    serde_json::from_str(&json).ok()?;
+                Some(s.into())
+            }
         }
     }
 
-    pub fn set(&self, key: String, value: CachedResponse) {
+    pub async fn set(&self, key: String, value: CachedResponse) {
         match self {
             StaticCacheBackend::InMemory(map) => {
                 map.insert(key, value);
+            }
+            StaticCacheBackend::Redis(pool) => {
+                let Ok(mut conn) = pool.get().await else { return };
+                let Ok(json) = serde_json::to_string(
+                    &SerializableCachedResponse::from(&value),
+                ) else {
+                    return;
+                };
+                let _: Result<(), _> = conn.set(&key, json).await;
             }
         }
     }

@@ -51,22 +51,32 @@ impl AppState {
                     DynCacheBackend::InMemory(Cache::new(config.cache.size))
                 }
                 CacheType::Redis { url } => {
-                    let manager = RedisConnectionManager::new(url.as_str())
-                        .expect("Failed to open redis client");
-
-                    let pool = bb8::Pool::builder()
-                        .build(manager)
-                        .await
-                        .expect("Failed to make connection bb8 pool");
-                    DynCacheBackend::Redis(pool)
+                    DynCacheBackend::Redis(create_pool(url).await)
+                }
+            },
+            static_cache: match &config.cache.cache_type {
+                CacheType::InMemory => {
+                    StaticCacheBackend::InMemory(DashMap::new())
+                }
+                CacheType::Redis { url } => {
+                    StaticCacheBackend::Redis(create_pool(url).await)
                 }
             },
             config: ArcSwap::from_pointee(config),
-            static_cache: StaticCacheBackend::InMemory(DashMap::new()),
             user_tokens: DashMap::new(),
             db_conn: conn,
         }
     }
+}
+
+pub async fn create_pool(url: &String) -> bb8::Pool<RedisConnectionManager> {
+    let manager = RedisConnectionManager::new(url.as_str())
+        .expect("Failed to open redis client");
+
+    bb8::Pool::builder()
+        .build(manager)
+        .await
+        .expect("Failed to make connection bb8 pool")
 }
 
 pub async fn init_server_state(state: Arc<AppState>, args: Arc<CmdArgs>) {

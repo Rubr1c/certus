@@ -20,11 +20,11 @@ use crate::server::{
 /// * `cache` - static cache to search in
 /// * `path` - full path of the request
 #[inline]
-pub fn try_find(
+pub async fn try_find(
     cache: &StaticCacheBackend,
     path: &str,
 ) -> Option<Response<Body>> {
-    match cache.get(path) {
+    match cache.get(path).await {
         Some(res) => {
             tracing::info!("Returning static cached response to {}", path);
             Some(res.clone().into_response())
@@ -102,7 +102,7 @@ pub async fn send_and_save(
                 body,
             };
 
-            cache.set(path.clone(), cached);
+            cache.set(path.clone(), cached).await;
             tracing::info!("Saved static path {} to cache", path);
         }
         Err(e) => {

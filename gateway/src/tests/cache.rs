@@ -82,17 +82,17 @@ async fn dyn_cache_different_tokens_are_different_keys() {
     assert!(res.is_none());
 }
 
-#[test]
-fn static_cache_miss_on_empty() {
+#[tokio::test]
+async fn static_cache_miss_on_empty() {
     let cache = StaticCacheBackend::InMemory(DashMap::new());
 
-    let res = static_cache::try_find(&cache, "/missing");
+    let res = static_cache::try_find(&cache, "/missing").await;
 
     assert!(res.is_none());
 }
 
-#[test]
-fn static_cache_hit() {
+#[tokio::test]
+async fn static_cache_hit() {
     let inner = DashMap::new();
     inner.insert(
         "/static".to_string(),
@@ -104,7 +104,7 @@ fn static_cache_hit() {
     );
     let cache = StaticCacheBackend::InMemory(inner);
 
-    let res = static_cache::try_find(&cache, "/static");
+    let res = static_cache::try_find(&cache, "/static").await;
 
     assert!(res.is_some());
     assert_eq!(res.unwrap().status(), StatusCode::OK);

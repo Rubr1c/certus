@@ -105,6 +105,14 @@ pub enum CacheType {
     },
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+pub struct StaticCacheConfig {
+    #[serde(default, rename = "type")]
+    pub cache_type: CacheType,
+}
+
+//THIS IS SO BAD PLEASE CHANGE
+
 /// Config struct that holds all cache options
 #[derive(Debug, Deserialize, Serialize)]
 pub struct CacheConfig {
@@ -112,6 +120,8 @@ pub struct CacheConfig {
     pub size: u64,
     #[serde(default, rename = "type")]
     pub cache_type: CacheType,
+    #[serde(default, rename = "static")]
+    pub static_cache: StaticCacheConfig,
 }
 
 /// Main config struct that holds all configurable items
@@ -175,7 +185,17 @@ impl Default for RateLimitConfig {
 
 impl Default for CacheConfig {
     fn default() -> Self {
-        CacheConfig { size: 1000, cache_type: CacheType::default() }
+        CacheConfig {
+            size: 1000,
+            cache_type: CacheType::default(),
+            static_cache: StaticCacheConfig::default(),
+        }
+    }
+}
+
+impl Default for StaticCacheConfig {
+    fn default() -> Self {
+        StaticCacheConfig { cache_type: CacheType::default() }
     }
 }
 

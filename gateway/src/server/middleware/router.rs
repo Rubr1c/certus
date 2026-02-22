@@ -108,7 +108,7 @@ pub async fn reroute(
 
     //can maybe combine both cache methods into one fn
 
-    match static_cache::try_find(&state.static_cache, path) {
+    match static_cache::try_find(&state.static_cache, path).await {
         Some(res) => return res,
         _ => {}
     }
