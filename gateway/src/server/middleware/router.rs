@@ -5,6 +5,7 @@ use axum::{
     extract::{ConnectInfo, Request, State},
     response::IntoResponse,
 };
+use hyper::header::CACHE_CONTROL;
 use matchit::Router;
 use tracing::{Level, instrument};
 
@@ -87,8 +88,9 @@ pub async fn reroute(
         Err(err) => return err.into_response(),
     }
 
-    let token = req
-        .headers()
+    let headers = req.headers();
+
+    let token = headers
         .get("Authorization")
         .and_then(|h| h.to_str().ok())
         .and_then(|s| {
@@ -99,7 +101,6 @@ pub async fn reroute(
 
     let method = req.method().clone();
 
-    let no_cache = target_route.no_cache;
     let ck = CacheKey {
         token: token.clone(),
         path: uri
@@ -107,6 +108,11 @@ pub async fn reroute(
             .map_or_else(|| path.to_string(), |q| format!("{}?{}", path, q)),
     };
 
+    let cache_control =
+        headers.get(CACHE_CONTROL).and_then(|h| h.to_str().ok());
+
+    let no_cache =
+        target_route.no_cache || cache_control.is_some_and(|v| v == "no-cache");
     if !no_cache {
         //can maybe combine both cache methods into one fn
 
