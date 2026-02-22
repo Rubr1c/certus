@@ -77,6 +77,8 @@ pub struct RouteConfig {
     pub max_connections: usize,
     #[serde(default)]
     pub token_weight: f64,
+    #[serde(default)]
+    pub no_cache: bool,
 }
 
 /// Config struct that holds all rate limiting options
@@ -175,6 +177,7 @@ impl Default for RouteConfig {
             http_version: HttpVersion::HTTP1,
             max_connections: 100,
             token_weight: 0.0,
+            no_cache: false,
         }
     }
 }

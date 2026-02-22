@@ -97,6 +97,9 @@ pub async fn reroute(
         })
         .map(|s| s.to_string());
 
+    let method = req.method().clone();
+
+    let no_cache = target_route.no_cache;
     let ck = CacheKey {
         token: token.clone(),
         path: uri
@@ -104,18 +107,18 @@ pub async fn reroute(
             .map_or_else(|| path.to_string(), |q| format!("{}?{}", path, q)),
     };
 
-    let method = req.method().clone();
+    if !no_cache {
+        //can maybe combine both cache methods into one fn
 
-    //can maybe combine both cache methods into one fn
+        match static_cache::try_find(&state.static_cache, path).await {
+            Some(res) => return res,
+            _ => {}
+        }
 
-    match static_cache::try_find(&state.static_cache, path).await {
-        Some(res) => return res,
-        _ => {}
-    }
-
-    match dyn_cache::try_find(&state.cache, path, &ck, &method).await {
-        Some(res) => return res,
-        _ => {}
+        match dyn_cache::try_find(&state.cache, path, &ck, &method).await {
+            Some(res) => return res,
+            _ => {}
+        }
     }
 
     let server = load_balance::p2c_pick(
@@ -148,6 +151,9 @@ pub async fn reroute(
 
     match res {
         Ok(response) => {
+            if no_cache {
+                return response.into_response();
+            }
             return dyn_cache::try_save(response, &method, &state.cache, ck)
                 .await;
         }

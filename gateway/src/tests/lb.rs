@@ -37,6 +37,7 @@ fn p2c_returns_correct_server() {
         is_static: false,
         http_version: HttpVersion::HTTP1,
         token_weight: 1.0,
+        no_cache: false,
     };
 
     let target = p2c_pick(&routes, &config, &addrs[2]);
@@ -62,6 +63,7 @@ fn p2c_with_one_server() {
         is_static: false,
         http_version: HttpVersion::HTTP1,
         token_weight: 1.0,
+        no_cache: false,
     };
 
     let target = p2c_pick(&routes, &config, &addrs[1]);
@@ -82,6 +84,7 @@ fn p2c_default_server() {
         is_static: false,
         http_version: HttpVersion::HTTP1,
         token_weight: 1.0,
+        no_cache: false,
     };
 
     let target = p2c_pick(&routes, &config, &addrs[0]);
