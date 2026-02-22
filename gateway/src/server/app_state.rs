@@ -1,4 +1,4 @@
-use std::{collections::HashMap, net::IpAddr, sync::Arc};
+use std::{collections::HashMap, net::IpAddr, sync::Arc, time::Duration};
 
 use arc_swap::ArcSwap;
 use bb8_redis::RedisConnectionManager;
@@ -14,7 +14,10 @@ use crate::{
     server::{
         connection,
         middleware::{
-            cache::{DynCacheBackend, StaticCacheBackend, static_cache},
+            cache::{
+                CacheKey, CachedResponse, DynCacheBackend, StaticCacheBackend,
+                static_cache,
+            },
             rate_limit::TokenBucket,
             router,
         },
@@ -48,7 +51,27 @@ impl AppState {
             }),
             cache: match &config.cache.cache_type {
                 CacheType::InMemory => {
-                    DynCacheBackend::InMemory(Cache::new(config.cache.size))
+                    let mut cache =
+                        Cache::<CacheKey, CachedResponse>::builder();
+                    match config.cache.ttl {
+                        Some(secs) => {
+                            cache =
+                                cache.time_to_live(Duration::from_secs(secs));
+                        }
+                        _ => {}
+                    };
+
+                    match config.cache.tti {
+                        Some(secs) => {
+                            cache =
+                                cache.time_to_idle(Duration::from_secs(secs));
+                        }
+                        _ => {}
+                    }
+
+                    DynCacheBackend::InMemory(
+                        cache.max_capacity(config.cache.size).build(),
+                    )
                 }
                 CacheType::Redis { url } => {
                     DynCacheBackend::Redis(create_pool(url).await)

@@ -61,6 +61,8 @@ fn build_config(
         connection: ConnectionConfig { connect_timeout: 5 },
         cache: CacheConfig {
             size: 100,
+            ttl: None,
+            tti: None,
             cache_type: CacheType::default(),
             static_cache: StaticCacheConfig::default(),
         },

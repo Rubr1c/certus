@@ -120,6 +120,8 @@ pub struct CacheConfig {
     pub size: u64,
     #[serde(default, rename = "type")]
     pub cache_type: CacheType,
+    pub ttl: Option<u64>,
+    pub tti: Option<u64>,
     #[serde(default, rename = "static")]
     pub static_cache: StaticCacheConfig,
 }
@@ -187,6 +189,8 @@ impl Default for CacheConfig {
     fn default() -> Self {
         CacheConfig {
             size: 1000,
+            ttl: None,
+            tti: None,
             cache_type: CacheType::default(),
             static_cache: StaticCacheConfig::default(),
         }
