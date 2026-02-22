@@ -74,7 +74,8 @@ impl AppState {
                     )
                 }
                 CacheType::Redis { url } => {
-                    DynCacheBackend::Redis(create_pool(url).await)
+                    let pool = create_pool(url).await;
+                    DynCacheBackend::Redis { pool, ttl: config.cache.ttl }
                 }
             },
             static_cache: match &config.cache.cache_type {

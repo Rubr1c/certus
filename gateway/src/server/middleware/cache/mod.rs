@@ -63,14 +63,14 @@ impl StaticCacheBackend {
 /// to/from a JSON string, which works natively with the typed redis commands.
 pub enum DynCacheBackend {
     InMemory(Cache<CacheKey, CachedResponse>),
-    Redis(bb8::Pool<RedisConnectionManager>),
+    Redis { pool: bb8::Pool<RedisConnectionManager>, ttl: Option<u64> },
 }
 
 impl DynCacheBackend {
     pub async fn get(&self, key: &CacheKey) -> Option<CachedResponse> {
         match self {
             DynCacheBackend::InMemory(cache) => cache.get(key),
-            DynCacheBackend::Redis(pool) => {
+            DynCacheBackend::Redis { pool, .. } => {
                 let mut conn = pool.get().await.ok()?;
                 let redis_key = format!(
                     "cache:{}:{}",
@@ -89,7 +89,7 @@ impl DynCacheBackend {
     pub async fn set(&self, key: CacheKey, value: CachedResponse) {
         match self {
             DynCacheBackend::InMemory(cache) => cache.insert(key, value),
-            DynCacheBackend::Redis(pool) => {
+            DynCacheBackend::Redis { pool, ttl } => {
                 let Ok(mut conn) = pool.get().await else { return };
                 let redis_key = format!(
                     "cache:{}:{}",
@@ -101,7 +101,15 @@ impl DynCacheBackend {
                 ) else {
                     return;
                 };
-                let _: Result<(), _> = conn.set(&redis_key, json).await;
+                match ttl {
+                    Some(secs) => {
+                        let _: Result<(), _> =
+                            conn.set_ex(&redis_key, json, *secs).await;
+                    }
+                    None => {
+                        let _: Result<(), _> = conn.set(&redis_key, json).await;
+                    }
+                }
             }
         }
     }
