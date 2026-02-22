@@ -5,7 +5,7 @@ use axum::{
     extract::{ConnectInfo, Request, State},
     response::IntoResponse,
 };
-use hyper::header::CACHE_CONTROL;
+use hyper::{Method, header};
 use matchit::Router;
 use tracing::{Level, instrument};
 
@@ -109,44 +109,52 @@ pub async fn reroute(
     };
 
     // need to put this in a fn or something and these checks are prob expensive
-    let cache_control: Vec<&str> = headers
-        .get(CACHE_CONTROL)
-        .and_then(|h| h.to_str().ok())
-        .unwrap_or("")
-        .split(",")
-        .map(|s| s.trim())
-        .collect();
-
-    //header cache options
-    let h_no_cache = cache_control.contains(&"no-cache");
-    let h_no_store = cache_control.contains(&"no-store");
-    let h_private = cache_control.contains(&"private");
-    let mut h_max_age: Option<u64> = None;
-
-    for part in cache_control {
-        if part.starts_with("max-age=") {
-            h_max_age = part
-                .strip_prefix("max-age=")
-                .and_then(|v| v.parse::<u64>().ok());
-        }
-    }
 
     //config no-cache
     let c_no_cache = target_route.no_cache;
+    let cacheable_method = method == Method::GET;
 
-    let no_store = c_no_cache || h_no_store || h_private;
-    let no_cache = no_store || h_no_cache;
-    if !no_cache {
-        //can maybe combine both cache methods into one fn
+    //header cache options
+    let mut h_no_cache = false;
+    let mut h_no_store = false;
+    let mut h_private = false;
+    let mut h_max_age: Option<u64> = None;
 
-        match static_cache::try_find(&state.static_cache, path).await {
-            Some(res) => return res,
-            _ => {}
+    let mut no_store = false;
+
+    if !c_no_cache && cacheable_method {
+        if let Some(cc_header) =
+            headers.get(header::CACHE_CONTROL).and_then(|h| h.to_str().ok())
+        {
+            for part in cc_header.split(',') {
+                let part = part.trim();
+                match part {
+                    "no-cache" => h_no_cache = true,
+                    "no-store" => h_no_store = true,
+                    "private" => h_private = true,
+                    _ if part.starts_with("max-age=") => {
+                        h_max_age = part[8..].parse::<u64>().ok();
+                    }
+                    _ => {}
+                }
+            }
         }
+        no_store = c_no_cache || h_no_store || h_private || !cacheable_method;
+        let no_cache = no_store || h_no_cache;
 
-        match dyn_cache::try_find(&state.cache, path, &ck, &method).await {
-            Some(res) => return res,
-            _ => {}
+        if !no_cache {
+            //can maybe combine both cache methods into one fn
+            if let Some(res) =
+                static_cache::try_find(&state.static_cache, path).await
+            {
+                return res;
+            }
+
+            if let Some(res) =
+                dyn_cache::try_find(&state.cache, path, &ck).await
+            {
+                return res;
+            }
         }
     }
 

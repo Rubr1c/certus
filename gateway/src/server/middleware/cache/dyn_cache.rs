@@ -16,6 +16,7 @@ use crate::server::middleware::cache::{
 /// * `method` - http method used for request
 /// * `cache` - target cache to save in
 /// * `ck` - CacheKey for the request
+/// * `ttl` - optional ttl overide
 #[inline]
 pub async fn try_save(
     response: Response<Incoming>,
@@ -58,21 +59,16 @@ pub async fn try_save(
 /// * `state` - gateway app state
 /// * `path` - full path of the request
 /// * `ck` - CacheKey for the request
-/// * `method` - http method used for request
 #[inline]
 pub async fn try_find(
     cache: &DynCacheBackend,
     path: &str,
     ck: &CacheKey,
-    method: &Method,
 ) -> Option<Response<Body>> {
     match cache.get(ck).await {
         Some(res) => {
-            if method == Method::GET {
-                tracing::info!("Returning cached response to {}", path);
-                return Some(res.into_response());
-            }
-            None
+            tracing::info!("Returning cached response to {}", path);
+            return Some(res.into_response());
         }
         _ => {
             tracing::info!("Response not found in cache");
