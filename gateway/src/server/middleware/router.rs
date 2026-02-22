@@ -108,15 +108,34 @@ pub async fn reroute(
             .map_or_else(|| path.to_string(), |q| format!("{}?{}", path, q)),
     };
 
-    let cache_control =
-        headers.get(CACHE_CONTROL).and_then(|h| h.to_str().ok());
+    // need to put this in a fn or something and these checks are prob expensive
+    let cache_control: Vec<&str> = headers
+        .get(CACHE_CONTROL)
+        .and_then(|h| h.to_str().ok())
+        .unwrap_or("")
+        .split(",")
+        .map(|s| s.trim())
+        .collect();
 
-    //header no-cache
-    let h_no_cache = cache_control.is_some_and(|v| v == "no-cache");
+    //header cache options
+    let h_no_cache = cache_control.contains(&"no-cache");
+    let h_no_store = cache_control.contains(&"no-store");
+    let h_private = cache_control.contains(&"private");
+    let mut h_max_age: Option<u64> = None;
+
+    for part in cache_control {
+        if part.starts_with("max-age=") {
+            h_max_age = part
+                .strip_prefix("max-age=")
+                .and_then(|v| v.parse::<u64>().ok());
+        }
+    }
+
     //config no-cache
     let c_no_cache = target_route.no_cache;
 
-    let no_cache = c_no_cache || h_no_cache;
+    let no_store = c_no_cache || h_no_store || h_private;
+    let no_cache = no_store || h_no_cache;
     if !no_cache {
         //can maybe combine both cache methods into one fn
 
@@ -162,11 +181,17 @@ pub async fn reroute(
     match res {
         Ok(response) => {
             // dont try and save to cache only if config no cache set
-            if c_no_cache {
+            if no_store {
                 return response.into_response();
             }
-            return dyn_cache::try_save(response, &method, &state.cache, ck)
-                .await;
+            return dyn_cache::try_save(
+                response,
+                &method,
+                &state.cache,
+                ck,
+                h_max_age,
+            )
+            .await;
         }
         Err(e) => e.into_response(),
     }

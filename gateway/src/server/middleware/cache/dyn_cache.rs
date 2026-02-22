@@ -22,6 +22,7 @@ pub async fn try_save(
     method: &Method,
     cache: &DynCacheBackend,
     ck: CacheKey,
+    ttl: Option<u64>,
 ) -> Response<Body> {
     if method != Method::GET {
         return response.into_response();
@@ -42,7 +43,10 @@ pub async fn try_save(
     let response = cached.clone().into_response();
 
     tracing::info!("Saving to cache");
-    cache.set(ck, cached).await;
+    match ttl {
+        Some(secs) => cache.set_ex(ck, cached, &secs).await,
+        _ => cache.set(ck, cached).await,
+    }
 
     response
 }

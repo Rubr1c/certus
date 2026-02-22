@@ -113,7 +113,37 @@ impl DynCacheBackend {
             }
         }
     }
+
+    pub async fn set_ex(
+        &self,
+        key: CacheKey,
+        value: CachedResponse,
+        ttl: &u64,
+    ) {
+        match self {
+            DynCacheBackend::InMemory(cache) => cache.insert(key, value),
+            DynCacheBackend::Redis { pool, ttl: _ } => {
+                let Ok(mut conn) = pool.get().await else { return };
+                let redis_key = format!(
+                    "cache:{}:{}",
+                    key.path,
+                    key.token.as_deref().unwrap_or("")
+                );
+                let Ok(json) = serde_json::to_string(
+                    &SerializableCachedResponse::from(&value),
+                ) else {
+                    return;
+                };
+
+                let _: Result<(), _> =
+                    conn.set_ex(&redis_key, json, *ttl).await;
+            }
+        }
+    }
 }
+
+//TODO: If Authorization header is present it should not cache unless public
+//      in Cache-Control is also present.
 
 /// Composite key for dynamic cache entries.
 /// Different auth tokens get separate cache entries for the same path.
