@@ -111,8 +111,12 @@ pub async fn reroute(
     let cache_control =
         headers.get(CACHE_CONTROL).and_then(|h| h.to_str().ok());
 
-    let no_cache =
-        target_route.no_cache || cache_control.is_some_and(|v| v == "no-cache");
+    //header no-cache
+    let h_no_cache = cache_control.is_some_and(|v| v == "no-cache");
+    //config no-cache
+    let c_no_cache = target_route.no_cache;
+
+    let no_cache = c_no_cache || h_no_cache;
     if !no_cache {
         //can maybe combine both cache methods into one fn
 
@@ -157,7 +161,8 @@ pub async fn reroute(
 
     match res {
         Ok(response) => {
-            if no_cache {
+            // dont try and save to cache only if config no cache set
+            if c_no_cache {
                 return response.into_response();
             }
             return dyn_cache::try_save(response, &method, &state.cache, ck)
