@@ -18,7 +18,7 @@ use gateway::{
     config::{CmdArgs, cfg_utils::reload_config},
     server::{
         app_state::{self, AppState},
-        middleware::router::{build_tree, reroute},
+        middleware::router::reroute,
     },
 };
 

@@ -121,11 +121,8 @@ async fn reroute_forwards_to_upstream() {
     let addr = listener.local_addr().unwrap().to_string();
     tokio::spawn(mock_upstream_ok(listener));
 
-    let config = build_config(
-        &addr,
-        AuthConfig::default(),
-        RateLimitConfig { max_tokens: 100.0, refill_rate: 1.0 },
-    );
+    let config =
+        build_config(&addr, AuthConfig::default(), RateLimitConfig::default());
     let state = build_state_with_upstream(config, &addr).await;
 
     let res = call_reroute(state, "GET", "/api", None).await;
@@ -139,11 +136,8 @@ async fn reroute_returns_not_found_for_unknown_path() {
     let addr = listener.local_addr().unwrap().to_string();
     tokio::spawn(mock_upstream_ok(listener));
 
-    let config = build_config(
-        &addr,
-        AuthConfig::default(),
-        RateLimitConfig { max_tokens: 100.0, refill_rate: 1.0 },
-    );
+    let config =
+        build_config(&addr, AuthConfig::default(), RateLimitConfig::default());
     let state = build_state_with_upstream(config, &addr).await;
 
     let res = call_reroute(state, "GET", "/unknown", None).await;
@@ -160,7 +154,11 @@ async fn reroute_rate_limits() {
     let config = build_config(
         &addr,
         AuthConfig::default(),
-        RateLimitConfig { max_tokens: 1.0, refill_rate: 0.0 },
+        RateLimitConfig {
+            max_tokens: 1.0,
+            refill_rate: 0.0,
+            ..RateLimitConfig::default()
+        },
     );
     let state = build_state_with_upstream(config, &addr).await;
 
@@ -185,11 +183,7 @@ async fn reroute_rejects_unauthorized() {
         prefix: "Bearer".to_string(),
     };
 
-    let config = build_config(
-        &addr,
-        auth,
-        RateLimitConfig { max_tokens: 100.0, refill_rate: 1.0 },
-    );
+    let config = build_config(&addr, auth, RateLimitConfig::default());
     let state = build_state_with_upstream(config, &addr).await;
 
     let res = call_reroute(state, "GET", "/api", None).await;
@@ -222,11 +216,8 @@ async fn reroute_caches_get_response() {
         }
     });
 
-    let config = build_config(
-        &addr,
-        AuthConfig::default(),
-        RateLimitConfig { max_tokens: 100.0, refill_rate: 1.0 },
-    );
+    let config =
+        build_config(&addr, AuthConfig::default(), RateLimitConfig::default());
     let state = build_state_with_upstream(config, &addr).await;
 
     let first = call_reroute(state.clone(), "GET", "/api", None).await;

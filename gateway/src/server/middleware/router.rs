@@ -9,13 +9,17 @@ use hyper::{Method, header};
 use matchit::Router;
 use tracing::{Level, instrument};
 
-use crate::server::{
-    app_state::AppState,
-    error::GatewayError,
-    middleware::{
-        auth,
-        cache::{CacheKey, dyn_cache, static_cache},
-        handler, load_balance, rate_limit,
+use crate::{
+    config::RateLimitKey,
+    server::{
+        app_state::AppState,
+        error::GatewayError,
+        middleware::{
+            auth,
+            cache::{CacheKey, dyn_cache, static_cache},
+            handler, load_balance,
+            rate_limit::{self, TokenBucketKey},
+        },
     },
 };
 
@@ -82,12 +86,6 @@ pub async fn reroute(
     let span = tracing::span!(Level::INFO, "route");
     let _span_guard = span.enter();
 
-    match rate_limit::run(&target_route, addr.ip(), &config, &state.user_tokens)
-    {
-        Ok(_) => {}
-        Err(err) => return err.into_response(),
-    }
-
     let headers = req.headers();
 
     let token = headers
@@ -98,6 +96,24 @@ pub async fn reroute(
             s.strip_prefix(prefix.as_str())?.strip_prefix(' ')
         })
         .map(|s| s.to_string());
+
+    let token_bucket_key = match config.rate_limit.key {
+        RateLimitKey::Ip => TokenBucketKey::Ip(addr.ip()),
+        RateLimitKey::Token => match &token {
+            Some(token) => TokenBucketKey::Token(token.clone()),
+            _ => TokenBucketKey::Ip(addr.ip()),
+        },
+    };
+
+    match rate_limit::run(
+        &target_route,
+        token_bucket_key,
+        &config,
+        &state.user_tokens,
+    ) {
+        Ok(_) => {}
+        Err(err) => return err.into_response(),
+    }
 
     let method = req.method().clone();
     let ck = CacheKey {

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, net::IpAddr, sync::Arc, time::Duration};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 
 use arc_swap::ArcSwap;
 use bb8_redis::RedisConnectionManager;
@@ -18,7 +18,7 @@ use crate::{
                 CacheKey, CachedResponse, DynCacheBackend, StaticCacheBackend,
                 static_cache,
             },
-            rate_limit::TokenBucket,
+            rate_limit::{TokenBucket, TokenBucketKey},
             router,
         },
         upstream::UpstreamServer,
@@ -38,7 +38,7 @@ pub struct AppState {
     pub config: ArcSwap<Config>,
     pub cache: DynCacheBackend,
     pub static_cache: StaticCacheBackend,
-    pub user_tokens: DashMap<IpAddr, TokenBucket>,
+    pub user_tokens: DashMap<TokenBucketKey, TokenBucket>,
     pub db_conn: Arc<Mutex<Connection>>,
 }
 

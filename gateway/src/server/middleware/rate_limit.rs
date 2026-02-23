@@ -19,6 +19,12 @@ impl TokenBucket {
     }
 }
 
+#[derive(Hash, PartialEq, Eq)]
+pub enum TokenBucketKey {
+    Ip(IpAddr),
+    Token(String),
+}
+
 /// Runs rate limiting by getting the bucket associated to the ip
 /// then fills the bucket based on time passed based on last refill
 /// finally checks if user is rate limited for the target route and
@@ -38,15 +44,15 @@ impl TokenBucket {
 #[inline]
 pub fn run(
     target_route: &RouteConfig,
-    ip: IpAddr,
+    key: TokenBucketKey,
     config: &Config,
-    user_tokens: &DashMap<IpAddr, TokenBucket>,
+    user_tokens: &DashMap<TokenBucketKey, TokenBucket>,
 ) -> Result<(), GatewayError> {
     let max_tokens = config.rate_limit.max_tokens;
     let refill_rate = config.rate_limit.refill_rate;
 
     let mut bucket_entry =
-        user_tokens.entry(ip).or_insert(TokenBucket::new(max_tokens));
+        user_tokens.entry(key).or_insert(TokenBucket::new(max_tokens));
 
     let now = Instant::now();
     let duration = now.duration_since(bucket_entry.last_refill).as_secs_f64();

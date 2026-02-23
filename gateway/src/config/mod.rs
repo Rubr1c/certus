@@ -81,12 +81,23 @@ pub struct RouteConfig {
     pub no_cache: bool,
 }
 
+#[derive(Debug, Default, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum RateLimitKey {
+    #[default]
+    Ip,
+    Token,
+}
+
 /// Config struct that holds all rate limiting options
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RateLimitConfig {
+    #[serde(default = "default_max_tokens")]
     pub max_tokens: f64,
     #[serde(default = "default_refill_rate")]
     pub refill_rate: f64,
+    #[serde(default)]
+    pub key: RateLimitKey,
 }
 
 /// Config struct that holds all connection options
@@ -184,7 +195,11 @@ impl Default for RouteConfig {
 
 impl Default for RateLimitConfig {
     fn default() -> Self {
-        RateLimitConfig { max_tokens: 100.0, refill_rate: 1.0 }
+        RateLimitConfig {
+            max_tokens: default_max_tokens(),
+            refill_rate: default_refill_rate(),
+            key: RateLimitKey::default(),
+        }
     }
 }
 
@@ -231,6 +246,10 @@ fn default_server_addr() -> String {
 
 fn default_max_connections() -> usize {
     100
+}
+
+fn default_max_tokens() -> f64 {
+    100.0
 }
 
 fn default_refill_rate() -> f64 {
