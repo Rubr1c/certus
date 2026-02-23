@@ -142,9 +142,6 @@ impl DynCacheBackend {
     }
 }
 
-//TODO: If Authorization header is present it should not cache unless public
-//      in Cache-Control is also present.
-
 /// Composite key for dynamic cache entries.
 /// Different auth tokens get separate cache entries for the same path.
 #[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize)]

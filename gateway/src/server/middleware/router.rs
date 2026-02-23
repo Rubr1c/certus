@@ -100,14 +100,12 @@ pub async fn reroute(
         .map(|s| s.to_string());
 
     let method = req.method().clone();
-
     let ck = CacheKey {
         token: token.clone(),
         path: uri
             .query()
             .map_or_else(|| path.to_string(), |q| format!("{}?{}", path, q)),
     };
-
     // need to put this in a fn or something and these checks are prob expensive
 
     //config no-cache
@@ -118,7 +116,9 @@ pub async fn reroute(
     let mut h_no_cache = false;
     let mut h_no_store = false;
     let mut h_private = false;
+    let mut h_public = false;
     let mut h_max_age: Option<u64> = None;
+    let mut h_s_max_age: Option<u64> = None;
 
     let mut no_store = false;
 
@@ -132,14 +132,27 @@ pub async fn reroute(
                     "no-cache" => h_no_cache = true,
                     "no-store" => h_no_store = true,
                     "private" => h_private = true,
+                    "public" => h_public = true,
                     _ if part.starts_with("max-age=") => {
                         h_max_age = part[8..].parse::<u64>().ok();
+                    }
+                    _ if part.starts_with("s-maxage") => {
+                        h_s_max_age = part[9..].parse::<u64>().ok();
                     }
                     _ => {}
                 }
             }
+
+            if h_s_max_age.is_some() {
+                h_max_age = h_s_max_age;
+            }
         }
-        no_store = c_no_cache || h_no_store || h_private || !cacheable_method;
+
+        no_store = c_no_cache
+            || h_no_store
+            || h_private
+            || !cacheable_method
+            || (token.is_some() && !h_public);
         let no_cache = no_store || h_no_cache;
 
         if !no_cache {
