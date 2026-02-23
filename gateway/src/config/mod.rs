@@ -98,6 +98,8 @@ pub struct RateLimitConfig {
     pub refill_rate: f64,
     #[serde(default)]
     pub key: RateLimitKey,
+    #[serde(default, rename = "type")]
+    pub rl_type: StorageType,
 }
 
 /// Config struct that holds all connection options
@@ -106,10 +108,10 @@ pub struct ConnectionConfig {
     pub connect_timeout: u64,
 }
 
-/// Enum for all cache types available
+/// Enum for all storage types available
 #[derive(Debug, Default, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
-pub enum CacheType {
+pub enum StorageType {
     #[default]
     #[serde(rename = "in_memory")]
     InMemory,
@@ -121,7 +123,7 @@ pub enum CacheType {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct StaticCacheConfig {
     #[serde(default, rename = "type")]
-    pub cache_type: CacheType,
+    pub cache_type: StorageType,
 }
 
 //THIS IS SO BAD PLEASE CHANGE
@@ -132,7 +134,7 @@ pub struct CacheConfig {
     #[serde(default = "default_cache_size")]
     pub size: u64,
     #[serde(default, rename = "type")]
-    pub cache_type: CacheType,
+    pub cache_type: StorageType,
     pub ttl: Option<u64>,
     pub tti: Option<u64>,
     #[serde(default, rename = "static")]
@@ -199,6 +201,7 @@ impl Default for RateLimitConfig {
             max_tokens: default_max_tokens(),
             refill_rate: default_refill_rate(),
             key: RateLimitKey::default(),
+            rl_type: StorageType::default(),
         }
     }
 }
@@ -209,7 +212,7 @@ impl Default for CacheConfig {
             size: 1000,
             ttl: None,
             tti: None,
-            cache_type: CacheType::default(),
+            cache_type: StorageType::default(),
             static_cache: StaticCacheConfig::default(),
         }
     }
@@ -217,7 +220,7 @@ impl Default for CacheConfig {
 
 impl Default for StaticCacheConfig {
     fn default() -> Self {
-        StaticCacheConfig { cache_type: CacheType::default() }
+        StaticCacheConfig { cache_type: StorageType::default() }
     }
 }
 

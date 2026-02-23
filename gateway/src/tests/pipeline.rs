@@ -11,8 +11,8 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 
 use crate::config::{
-    AuthConfig, AuthType, CacheConfig, CacheType, Config, ConnectionConfig,
-    RateLimitConfig, RouteConfig, ServerConfig, StaticCacheConfig,
+    AuthConfig, AuthType, CacheConfig, Config, ConnectionConfig,
+    RateLimitConfig, RouteConfig, ServerConfig, StaticCacheConfig, StorageType,
 };
 use crate::server::app_state::{AppState, RoutingTable};
 use crate::server::upstream::UpstreamServer;
@@ -63,7 +63,7 @@ fn build_config(
             size: 100,
             ttl: None,
             tti: None,
-            cache_type: CacheType::default(),
+            cache_type: StorageType::default(),
             static_cache: StaticCacheConfig::default(),
         },
         tls: None,

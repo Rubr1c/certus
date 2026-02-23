@@ -110,7 +110,9 @@ pub async fn reroute(
         token_bucket_key,
         &config,
         &state.user_tokens,
-    ) {
+    )
+    .await
+    {
         Ok(_) => {}
         Err(err) => return err.into_response(),
     }

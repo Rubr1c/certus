@@ -9,7 +9,7 @@ use parking_lot::Mutex;
 use rusqlite::Connection;
 
 use crate::{
-    config::{CacheType, CmdArgs, Config},
+    config::{CmdArgs, Config, StorageType},
     db::db_utils,
     server::{
         connection,
@@ -18,7 +18,7 @@ use crate::{
                 CacheKey, CachedResponse, DynCacheBackend, StaticCacheBackend,
                 static_cache,
             },
-            rate_limit::{TokenBucket, TokenBucketKey},
+            rate_limit::DynRateLimitBackend,
             router,
         },
         upstream::UpstreamServer,
@@ -38,7 +38,7 @@ pub struct AppState {
     pub config: ArcSwap<Config>,
     pub cache: DynCacheBackend,
     pub static_cache: StaticCacheBackend,
-    pub user_tokens: DashMap<TokenBucketKey, TokenBucket>,
+    pub user_tokens: DynRateLimitBackend,
     pub db_conn: Arc<Mutex<Connection>>,
 }
 
@@ -50,7 +50,7 @@ impl AppState {
                 routes: HashMap::new(),
             }),
             cache: match &config.cache.cache_type {
-                CacheType::InMemory => {
+                StorageType::InMemory => {
                     let mut cache =
                         Cache::<CacheKey, CachedResponse>::builder();
                     match config.cache.ttl {
@@ -73,21 +73,28 @@ impl AppState {
                         cache.max_capacity(config.cache.size).build(),
                     )
                 }
-                CacheType::Redis { url } => {
+                StorageType::Redis { url } => {
                     let pool = create_pool(url).await;
                     DynCacheBackend::Redis { pool, ttl: config.cache.ttl }
                 }
             },
             static_cache: match &config.cache.cache_type {
-                CacheType::InMemory => {
+                StorageType::InMemory => {
                     StaticCacheBackend::InMemory(DashMap::new())
                 }
-                CacheType::Redis { url } => {
+                StorageType::Redis { url } => {
                     StaticCacheBackend::Redis(create_pool(url).await)
                 }
             },
+            user_tokens: match &config.rate_limit.rl_type {
+                StorageType::InMemory => {
+                    DynRateLimitBackend::InMemory(DashMap::new())
+                }
+                StorageType::Redis { url } => {
+                    DynRateLimitBackend::Redis(create_pool(url).await)
+                }
+            },
             config: ArcSwap::from_pointee(config),
-            user_tokens: DashMap::new(),
             db_conn: conn,
         }
     }
