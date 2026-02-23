@@ -112,6 +112,7 @@ pub async fn reroute(
     let c_no_cache = target_route.no_cache;
     let cacheable_method = method == Method::GET;
 
+    //TODO: stale-while-revalidate, stale-if-error
     //header cache options
     let mut h_no_cache = false;
     let mut h_no_store = false;

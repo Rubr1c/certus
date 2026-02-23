@@ -29,6 +29,10 @@ pub async fn try_save(
         return response.into_response();
     }
 
+    if !response.status().is_success() {
+        return response.into_response();
+    }
+
     let (parts, body) = response.into_parts();
     let body =
         //TODO: set limit
