@@ -1,11 +1,17 @@
-use std::{net::SocketAddr, sync::Arc};
+use std::{
+    net::{IpAddr, SocketAddr},
+    sync::Arc,
+};
 
 use axum::{
     body::Body,
     extract::{ConnectInfo, Request, State},
     response::IntoResponse,
 };
-use hyper::{Method, header};
+use hyper::{
+    Method,
+    header::{self, FORWARDED},
+};
 use matchit::Router;
 use tracing::{Level, instrument};
 
@@ -87,6 +93,11 @@ pub async fn reroute(
     let _span_guard = span.enter();
 
     let headers = req.headers();
+    let ip = headers
+        .get(FORWARDED)
+        .and_then(|h| h.to_str().ok())
+        .map(|s| s.parse::<IpAddr>().unwrap_or(addr.ip()))
+        .unwrap_or(addr.ip());
 
     let token = headers
         .get("Authorization")
@@ -98,10 +109,10 @@ pub async fn reroute(
         .map(|s| s.to_string());
 
     let token_bucket_key = match config.rate_limit.key {
-        RateLimitKey::Ip => TokenBucketKey::Ip(addr.ip()),
+        RateLimitKey::Ip => TokenBucketKey::Ip(ip),
         RateLimitKey::Token => match &token {
             Some(token) => TokenBucketKey::Token(token.clone()),
-            _ => TokenBucketKey::Ip(addr.ip()),
+            _ => TokenBucketKey::Ip(ip),
         },
     };
 
