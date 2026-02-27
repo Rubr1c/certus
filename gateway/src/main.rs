@@ -1,6 +1,10 @@
 use std::{net::SocketAddr, sync::Arc, time::Duration};
 
-use axum::{Router, http::HeaderValue, routing::any};
+use axum::{
+    Router,
+    http::HeaderValue,
+    routing::{any, post},
+};
 use axum_server::tls_rustls::RustlsConfig;
 use clap::Parser;
 use parking_lot::Mutex;
@@ -19,7 +23,7 @@ use gateway::{
     logging::log_util::{LogChannelLayer, LogEntryDTO},
     server::{
         app_state::{self, AppState},
-        middleware::router,
+        middleware::{load_balance, router},
     },
 };
 
@@ -107,8 +111,10 @@ async fn main() {
     tracing::info!("Certus Gateway Running on port {}", port);
     println!("Config watcher started. Press Ctrl+C to exit.");
 
-    let mut app =
-        Router::new().route("/{*any}", any(router::reroute)).with_state(state);
+    let mut app = Router::new()
+        .route("/_certus/idle", post(load_balance::set_idle))
+        .route("/{*any}", any(router::reroute))
+        .with_state(state);
 
     let origins = config.server.origins.clone();
 

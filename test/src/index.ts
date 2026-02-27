@@ -19,6 +19,9 @@ const { values } = parseArgs({
     https2: {
       type: "string",
     },
+    jiq: {
+      type: "string",
+    },
     log: {
       type: "boolean",
     }
@@ -31,22 +34,53 @@ const http1Ports = values.http1?.split(",").map(port => parseInt(port));
 const http2Ports = values.http2?.split(",").map(port => parseInt(port));
 const https1Ports = values.https1?.split(",").map(port => parseInt(port));
 const https2Ports = values.https2?.split(",").map(port => parseInt(port));
+const jiqPorts = new Set(values.jiq?.split(",").map(port => parseInt(port)));
 
 const hostname = '127.0.0.1';
+const GATEWAY_URL = 'https://127.0.0.1:8080/_certus/idle';
+const JIQ_WORK_MS = 2000;
 
 const certsDir = path.resolve(import.meta.dir, '..', 'certs');
 const tlsKey = fs.readFileSync(path.join(certsDir, 'key.pem'));
 const tlsCert = fs.readFileSync(path.join(certsDir, 'cert.pem'));
 
+async function announceIdle(serverAddr: string) {
+  try {
+    await fetch(GATEWAY_URL, {
+      method: 'POST',
+      body: serverAddr,
+      tls: { rejectUnauthorized: false },
+    } as RequestInit);
+    if (values.log) {
+      console.log(`[jiq] ${serverAddr} announced idle`);
+    }
+  } catch (err) {
+    if (values.log) {
+      console.log(`[jiq] ${serverAddr} failed to announce idle: ${err}`);
+    }
+  }
+}
+
 function createServer(port: number) {
   const socketAddr = `${hostname}:${port}`;
-  console.log(`[http1] Running server on ${socketAddr}`)
+  const isJiq = jiqPorts.has(port);
+  console.log(`[http1${isJiq ? '+jiq' : ''}] Running server on ${socketAddr}`)
+
+  if (isJiq) {
+    setTimeout(() => announceIdle(socketAddr), 1000);
+  }
+
   return Bun.serve({
     port,
     hostname,
-    fetch(req) {
+    async fetch(req) {
       if (values.log) {
         console.log(`[INFO] bun::server::http1 headers=${JSON.stringify(Object.fromEntries(req.headers))}`)
+      }
+
+      if (isJiq) {
+        await Bun.sleep(JIQ_WORK_MS);
+        announceIdle(socketAddr);
       }
 
       return new Response(`${req.url} => ${socketAddr}`, {

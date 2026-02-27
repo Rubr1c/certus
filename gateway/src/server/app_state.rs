@@ -2,6 +2,7 @@ use std::{collections::HashMap, sync::Arc, time::Duration};
 
 use arc_swap::ArcSwap;
 use bb8_redis::RedisConnectionManager;
+use crossbeam::queue::SegQueue;
 use dashmap::DashMap;
 use matchit::Router;
 use moka::sync::Cache;
@@ -40,6 +41,7 @@ pub struct AppState {
     pub static_cache: StaticCacheBackend,
     pub user_tokens: DynRateLimitBackend,
     pub db_conn: Arc<Mutex<Connection>>,
+    pub idle_queue: DashMap<String, SegQueue<Arc<UpstreamServer>>>,
 }
 
 impl AppState {
@@ -97,6 +99,7 @@ impl AppState {
                     DynRateLimitBackend::Redis(create_pool(url).await)
                 }
             },
+            idle_queue: DashMap::new(),
             config: ArcSwap::from_pointee(config),
             db_conn: conn,
         }
@@ -146,6 +149,19 @@ pub async fn init_server_state(state: Arc<AppState>, args: Arc<CmdArgs>) {
             } else {
                 tracing::error!(server = ?server, "Health not ok for server")
             }
+        }
+    }
+
+    state.idle_queue.clear();
+    for (route, route_config) in config.routes.iter() {
+        let queue = SegQueue::new();
+        for server in &route_config.endpoints {
+            if let Some(upstream) = new_routes_map.get(server) {
+                queue.push(upstream.clone());
+            }
+        }
+        if !queue.is_empty() {
+            state.idle_queue.insert(route.clone(), queue);
         }
     }
 

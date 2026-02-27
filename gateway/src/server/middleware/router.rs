@@ -87,8 +87,10 @@ pub async fn reroute(
         }
     };
 
-    let target_route =
-        config.routes.get(matched_route_key).expect("route should exist");
+    let target_route = config
+        .routes
+        .get_key_value(matched_route_key)
+        .expect("route should exist");
 
     let span = tracing::span!(Level::INFO, "route");
     let _span_guard = span.enter();
@@ -122,7 +124,7 @@ pub async fn reroute(
     };
 
     match rate_limit::run(
-        &target_route,
+        &target_route.1,
         token_bucket_key,
         &config,
         &state.user_tokens,
@@ -143,7 +145,7 @@ pub async fn reroute(
     // need to put this in a fn or something and these checks are prob expensive
 
     //config no-cache
-    let c_no_cache = target_route.no_cache;
+    let c_no_cache = target_route.1.no_cache;
     let cacheable_method = method == Method::GET;
 
     //TODO: stale-while-revalidate, stale-if-error
@@ -206,11 +208,13 @@ pub async fn reroute(
         }
     }
 
-    let server = load_balance::p2c_pick(
+    let server = load_balance::run(
         &routing_table.routes,
-        &target_route,
+        (&target_route.0, &target_route.1),
         &config.default_server,
+        &state.idle_queue,
     );
+
     let upstream = routing_table
         .routes
         .get(server)
@@ -221,13 +225,13 @@ pub async fn reroute(
         req.headers_mut(),
         token.as_deref(),
         &config,
-        target_route.needs_auth,
+        target_route.1.needs_auth,
     ) {
         Ok(_) => {}
         Err(e) => return e.into_response(),
     }
 
-    if matches!(target_route.http_version, HttpVersion::HTTP1) {
+    if matches!(target_route.1.http_version, HttpVersion::HTTP1) {
         let pq =
             req.uri().path_and_query().map(|pq| pq.as_str()).unwrap_or("/");
         *req.uri_mut() = pq.parse().expect("valid path_and_query");
