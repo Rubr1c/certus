@@ -3,11 +3,16 @@ use std::{sync::Arc, sync::atomic::Ordering, time::Duration};
 use axum::body::Body;
 use hyper::{Method, Request, client::conn, header};
 use hyper_util::rt::{TokioExecutor, TokioIo};
-use rustls::ClientConfig;
+use rustls::{
+    ClientConfig, SignatureScheme,
+    client::danger::{
+        HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier,
+    },
+    crypto::CryptoProvider,
+};
 use tokio::net::TcpStream;
 use tokio_rustls::TlsConnector;
 use tracing::instrument;
-use webpki_roots::TLS_SERVER_ROOTS;
 
 use crate::server::{
     error::GatewayError,
@@ -15,13 +20,59 @@ use crate::server::{
     upstream::{HttpVersion, PooledConnection, Protocol, UpstreamServer},
 };
 
-fn tls_connector() -> TlsConnector {
-    let root_store =
-        rustls::RootCertStore::from_iter(TLS_SERVER_ROOTS.iter().cloned());
+#[derive(Debug)]
+struct NoVerifier(Arc<CryptoProvider>);
 
-    let config = ClientConfig::builder()
-        .with_root_certificates(root_store)
+impl ServerCertVerifier for NoVerifier {
+    fn verify_server_cert(
+        &self,
+        _end_entity: &rustls::pki_types::CertificateDer<'_>,
+        _intermediates: &[rustls::pki_types::CertificateDer<'_>],
+        _server_name: &rustls::pki_types::ServerName<'_>,
+        _ocsp_response: &[u8],
+        _now: rustls::pki_types::UnixTime,
+    ) -> Result<ServerCertVerified, rustls::Error> {
+        Ok(ServerCertVerified::assertion())
+    }
+
+    fn verify_tls12_signature(
+        &self,
+        _message: &[u8],
+        _cert: &rustls::pki_types::CertificateDer<'_>,
+        _dss: &rustls::DigitallySignedStruct,
+    ) -> Result<HandshakeSignatureValid, rustls::Error> {
+        Ok(HandshakeSignatureValid::assertion())
+    }
+
+    fn verify_tls13_signature(
+        &self,
+        _message: &[u8],
+        _cert: &rustls::pki_types::CertificateDer<'_>,
+        _dss: &rustls::DigitallySignedStruct,
+    ) -> Result<HandshakeSignatureValid, rustls::Error> {
+        Ok(HandshakeSignatureValid::assertion())
+    }
+
+    fn supported_verify_schemes(&self) -> Vec<SignatureScheme> {
+        self.0.signature_verification_algorithms.supported_schemes()
+    }
+}
+
+fn tls_connector(http_version: HttpVersion) -> TlsConnector {
+    let provider =
+        CryptoProvider::get_default().cloned().unwrap_or_else(|| {
+            Arc::new(rustls::crypto::aws_lc_rs::default_provider())
+        });
+
+    let mut config = ClientConfig::builder()
+        .dangerous()
+        .with_custom_certificate_verifier(Arc::new(NoVerifier(provider)))
         .with_no_client_auth();
+
+    config.alpn_protocols = match http_version {
+        HttpVersion::HTTP2 => vec![b"h2".to_vec()],
+        HttpVersion::HTTP1 => vec![b"http/1.1".to_vec()],
+    };
 
     TlsConnector::from(Arc::new(config))
 }
@@ -55,7 +106,7 @@ pub async fn open_connection(
     let sender = match upstream.pool.http_version {
         HttpVersion::HTTP1 => match upstream.pool.protocol {
             Protocol::HTTPS => {
-                let connector = tls_connector();
+                let connector = tls_connector(HttpVersion::HTTP1);
                 let domain = rustls::pki_types::ServerName::try_from(
                     upstream.pool.hostname.as_str(),
                 )?
@@ -87,7 +138,7 @@ pub async fn open_connection(
             let exec = TokioExecutor::new();
             match upstream.pool.protocol {
                 Protocol::HTTPS => {
-                    let connector = tls_connector();
+                    let connector = tls_connector(HttpVersion::HTTP2);
                     let domain = rustls::pki_types::ServerName::try_from(
                         upstream.pool.hostname.as_str(),
                     )?

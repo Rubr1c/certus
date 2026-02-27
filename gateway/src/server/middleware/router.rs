@@ -10,7 +10,7 @@ use axum::{
 };
 use hyper::{
     Method,
-    header::{self, FORWARDED},
+    header::{self, FORWARDED, HOST},
 };
 use matchit::Router;
 use tracing::{Level, instrument};
@@ -26,6 +26,7 @@ use crate::{
             handler, load_balance,
             rate_limit::{self, TokenBucketKey},
         },
+        upstream::HttpVersion,
     },
 };
 
@@ -224,6 +225,23 @@ pub async fn reroute(
     ) {
         Ok(_) => {}
         Err(e) => return e.into_response(),
+    }
+
+    if matches!(target_route.http_version, HttpVersion::HTTP1) {
+        let pq =
+            req.uri().path_and_query().map(|pq| pq.as_str()).unwrap_or("/");
+        *req.uri_mut() = pq.parse().expect("valid path_and_query");
+
+        if !req.headers().contains_key(HOST) {
+            req.headers_mut().insert(
+                HOST,
+                upstream
+                    .pool
+                    .hostname
+                    .parse()
+                    .expect("upstream hostname is valid header value"),
+            );
+        }
     }
 
     let res = handler::handle_request(
