@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use parking_lot::Mutex;
 use rusqlite::Connection;
@@ -8,9 +8,15 @@ use crate::{
     metrics::RequestMetric,
 };
 
-pub fn connect_db() -> Result<Connection, rusqlite::Error> {
+pub fn connect_db() -> rusqlite::Result<Connection> {
     //TODO: Change path and name
-    Connection::open("dev.db")
+    let conn = Connection::open("dev.db")?;
+
+    conn.pragma_update(None, "journal_mode", "WAL")?;
+    conn.busy_timeout(Duration::from_millis(5000))?;
+    conn.pragma_update(None, "synchronous", "NORMAL")?;
+
+    Ok(conn)
 }
 
 /// Runs all queries to create tables and initalize db

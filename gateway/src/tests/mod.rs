@@ -2,6 +2,9 @@ use std::sync::Arc;
 
 use parking_lot::Mutex;
 use rusqlite::Connection;
+use tokio::sync::mpsc;
+
+use crate::metrics::MetricEvent;
 
 pub mod auth;
 pub mod cache;
@@ -24,4 +27,9 @@ fn create_addrs(count: i32) -> Vec<String> {
 
 fn test_db_conn() -> Arc<Mutex<Connection>> {
     Arc::new(Mutex::new(Connection::open_in_memory().unwrap()))
+}
+
+fn test_metrics_tx() -> mpsc::Sender<MetricEvent> {
+    let (tx, _rx) = mpsc::channel::<MetricEvent>(16);
+    tx
 }
