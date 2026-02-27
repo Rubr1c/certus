@@ -8,10 +8,12 @@ use matchit::Router;
 use moka::sync::Cache;
 use parking_lot::Mutex;
 use rusqlite::Connection;
+use tokio::sync::mpsc;
 
 use crate::{
     config::{CmdArgs, Config, StorageType},
     db::db_utils,
+    metrics::MetricEvent,
     server::{
         connection,
         middleware::{
@@ -42,10 +44,15 @@ pub struct AppState {
     pub user_tokens: DynRateLimitBackend,
     pub db_conn: Arc<Mutex<Connection>>,
     pub idle_queue: DashMap<String, SegQueue<Arc<UpstreamServer>>>,
+    pub metrics_tx: mpsc::Sender<MetricEvent>,
 }
 
 impl AppState {
-    pub async fn new(config: Config, conn: Arc<Mutex<Connection>>) -> Self {
+    pub async fn new(
+        config: Config,
+        conn: Arc<Mutex<Connection>>,
+        metrics_tx: mpsc::Sender<MetricEvent>,
+    ) -> Self {
         Self {
             routing_table: ArcSwap::from_pointee(RoutingTable {
                 router: Router::new(),
@@ -102,6 +109,7 @@ impl AppState {
             idle_queue: DashMap::new(),
             config: ArcSwap::from_pointee(config),
             db_conn: conn,
+            metrics_tx,
         }
     }
 }

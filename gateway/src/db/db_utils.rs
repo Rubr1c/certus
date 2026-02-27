@@ -5,6 +5,7 @@ use rusqlite::Connection;
 
 use crate::{
     config::Config, db::models::LogEntry, logging::log_util::LogEntryDTO,
+    metrics::RequestMetric,
 };
 
 pub fn connect_db() -> Result<Connection, rusqlite::Error> {
@@ -36,6 +37,13 @@ pub fn migrate(conn: &Connection) -> rusqlite::Result<()> {
             config_data TEXT NOT NULL,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );",
+        "CREATE TABLE IF NOT EXISTS request_metrics(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT NOT NULL,
+            route TEXT NOT NULL,
+            status_code INTEGER NOT NULL,
+            duration INTEGER NOT NULL
+        )",
     ];
 
     for query in querys {
@@ -197,6 +205,24 @@ pub fn get_config(conn: &Connection) -> rusqlite::Result<Config> {
             )
         })
     })
+}
+
+pub fn save_req_metric(
+    conn: &Connection,
+    metric: RequestMetric,
+) -> rusqlite::Result<()> {
+    conn.execute(
+        "INSERT INTO request_metrics (route, timestamp, status_code, duration) 
+                  VALUES (?1, ?2, ?3, ?4)",
+        rusqlite::params![
+            metric.route,
+            metric.timestamp.to_string(),
+            metric.status_code,
+            metric.duration_ms as i64
+        ],
+    )?;
+
+    Ok(())
 }
 
 // should prob move this into another mod

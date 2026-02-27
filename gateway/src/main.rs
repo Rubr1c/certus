@@ -21,6 +21,7 @@ use gateway::{
     },
     db::db_utils,
     logging::log_util::{LogChannelLayer, LogEntryDTO},
+    metrics::MetricEvent,
     server::{
         app_state::{self, AppState},
         middleware::{load_balance, router},
@@ -29,7 +30,8 @@ use gateway::{
 
 #[tokio::main]
 async fn main() {
-    let (tx, mut rx) = mpsc::channel::<LogEntryDTO>(1024);
+    let (log_tx, mut log_rx) = mpsc::channel::<LogEntryDTO>(1024);
+    let (metrics_tx, mut metrics_rx) = mpsc::channel::<MetricEvent>(1024);
 
     // maybe make custom writer for this to send to a channel too?
     // not sure that will make a different or not just a thought
@@ -38,7 +40,7 @@ async fn main() {
             .unwrap_or_else(|_| EnvFilter::new("info")),
     );
 
-    let db_layer = LogChannelLayer { tx };
+    let db_layer = LogChannelLayer { tx: log_tx };
 
     let _ = tracing_subscriber::registry()
         .with(console_layer)
@@ -69,7 +71,7 @@ async fn main() {
 
     let tls = config.tls.clone();
 
-    let state = Arc::new(AppState::new(config, conn.clone()).await);
+    let state = Arc::new(AppState::new(config, conn.clone(), metrics_tx).await);
 
     let conn_clone = conn.clone();
 
@@ -80,7 +82,7 @@ async fn main() {
 
         loop {
             tokio::select! {
-                Some(entry) = rx.recv() => {
+                Some(entry) = log_rx.recv() => {
                     batch.push(entry);
 
                     if batch.len() >= 100 {
@@ -93,6 +95,26 @@ async fn main() {
                         db_utils::flush_batch(&conn_clone, &mut batch).await;
                     }
                 }
+            }
+        }
+    });
+
+    let metrics_conn = conn.clone();
+    tokio::spawn(async move {
+        while let Some(event) = metrics_rx.recv().await {
+            match event {
+                MetricEvent::Request(metric) => {
+                    let conn = metrics_conn.clone();
+                    tokio::task::spawn_blocking(move || {
+                        let guard = conn.lock();
+                        if let Err(e) =
+                            db_utils::save_req_metric(&guard, metric)
+                        {
+                            tracing::error!(err = ?e, "Failed to save request metric");
+                        }
+                    });
+                }
+                MetricEvent::CacheHit(_) => {}
             }
         }
     });

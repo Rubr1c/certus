@@ -8,15 +8,18 @@ use axum::{
     extract::{ConnectInfo, Request, State},
     response::IntoResponse,
 };
+use chrono::Utc;
 use hyper::{
     Method,
     header::{self, FORWARDED, HOST},
 };
 use matchit::Router;
+use tokio::time::Instant;
 use tracing::{Level, instrument};
 
 use crate::{
     config::RateLimitKey,
+    metrics::{MetricEvent, RequestMetric},
     server::{
         app_state::AppState,
         error::GatewayError,
@@ -75,6 +78,8 @@ pub async fn reroute(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     mut req: Request<Body>,
 ) -> impl IntoResponse {
+    let start = Instant::now();
+
     let uri = req.uri();
     let path = uri.path();
     let config = state.config.load();
@@ -259,9 +264,19 @@ pub async fn reroute(
         Ok(response) => {
             // dont try and save to cache only if config no cache set
             if no_store {
+                let duration = start.elapsed().as_millis() as u64;
+                let event = MetricEvent::Request(RequestMetric {
+                    route: matched_route_key.clone(),
+                    status_code: response.status().as_u16(),
+                    duration_ms: duration,
+                    timestamp: Utc::now(),
+                });
+
+                let _ = state.metrics_tx.try_send(event);
+
                 return response.into_response();
             }
-            return dyn_cache::try_save(
+            let res = dyn_cache::try_save(
                 response,
                 &method,
                 &state.cache,
@@ -269,6 +284,18 @@ pub async fn reroute(
                 h_max_age,
             )
             .await;
+
+            let duration = start.elapsed().as_millis() as u64;
+            let event = MetricEvent::Request(RequestMetric {
+                route: matched_route_key.clone(),
+                status_code: res.status().as_u16(),
+                duration_ms: duration,
+                timestamp: Utc::now(),
+            });
+
+            let _ = state.metrics_tx.try_send(event);
+
+            res
         }
         Err(e) => e.into_response(),
     }
