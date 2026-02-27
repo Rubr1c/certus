@@ -87,6 +87,7 @@ pub enum RateLimitKey {
     #[default]
     Ip,
     Token,
+    Header(String),
 }
 
 /// Config struct that holds all rate limiting options

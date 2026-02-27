@@ -3,6 +3,7 @@ use std::{
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
+use axum::http::HeaderValue;
 use bb8_redis::RedisConnectionManager;
 use moka::sync::Cache;
 use redis::AsyncCommands;
@@ -61,12 +62,16 @@ impl From<SerializableTokenBucket> for TokenBucket {
 pub enum TokenBucketKey {
     Ip(IpAddr),
     Token(String),
+    Header(String, HeaderValue),
 }
 
 fn redis_key(key: &TokenBucketKey) -> String {
     match key {
         TokenBucketKey::Ip(ip) => format!("rate_limit:ip:{}", ip),
         TokenBucketKey::Token(token) => format!("rate_limit:token:{}", token),
+        TokenBucketKey::Header(header, value) => {
+            format!("rate_limit:header:{}:{}", header, value.to_str().unwrap())
+        }
     }
 }
 

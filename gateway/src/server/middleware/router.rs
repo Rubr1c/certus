@@ -108,10 +108,14 @@ pub async fn reroute(
         })
         .map(|s| s.to_string());
 
-    let token_bucket_key = match config.rate_limit.key {
+    let token_bucket_key = match &config.rate_limit.key {
         RateLimitKey::Ip => TokenBucketKey::Ip(ip),
         RateLimitKey::Token => match &token {
             Some(token) => TokenBucketKey::Token(token.clone()),
+            _ => TokenBucketKey::Ip(ip),
+        },
+        RateLimitKey::Header(header) => match headers.get(header.as_str()) {
+            Some(val) => TokenBucketKey::Header(header.clone(), val.clone()),
             _ => TokenBucketKey::Ip(ip),
         },
     };
