@@ -1,6 +1,6 @@
 use std::net::{IpAddr, Ipv4Addr};
 
-use dashmap::DashMap;
+use moka::sync::Cache;
 
 use crate::config::{Config, RouteConfig};
 use crate::server::middleware::rate_limit::{
@@ -11,7 +11,7 @@ use crate::server::middleware::rate_limit::{
 async fn allows_request_with_enough_tokens() {
     let config = Config::default();
     let route = RouteConfig::default();
-    let backend = DynRateLimitBackend::InMemory(DashMap::new());
+    let backend = DynRateLimitBackend::InMemory(Cache::new(100));
     let ip = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
 
     let res =
@@ -28,7 +28,7 @@ async fn rejects_when_tokens_exhausted() {
     config.rate_limit.refill_rate = 0.0;
 
     let route = RouteConfig { token_weight: 1.0, ..RouteConfig::default() };
-    let backend = DynRateLimitBackend::InMemory(DashMap::new());
+    let backend = DynRateLimitBackend::InMemory(Cache::new(100));
     let ip = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
 
     assert!(
@@ -55,7 +55,7 @@ async fn different_ips_get_separate_buckets() {
     config.rate_limit.refill_rate = 0.0;
 
     let route = RouteConfig { token_weight: 1.0, ..RouteConfig::default() };
-    let backend = DynRateLimitBackend::InMemory(DashMap::new());
+    let backend = DynRateLimitBackend::InMemory(Cache::new(100));
 
     let ip1 = IpAddr::V4(Ipv4Addr::new(10, 0, 0, 1));
     let ip2 = IpAddr::V4(Ipv4Addr::new(10, 0, 0, 2));
@@ -90,7 +90,7 @@ async fn high_weight_drains_faster() {
     config.rate_limit.refill_rate = 0.0;
 
     let route = RouteConfig { token_weight: 5.0, ..RouteConfig::default() };
-    let backend = DynRateLimitBackend::InMemory(DashMap::new());
+    let backend = DynRateLimitBackend::InMemory(Cache::new(100));
     let ip = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
 
     assert!(
@@ -117,7 +117,7 @@ async fn tokens_refill_after_time() {
     config.rate_limit.refill_rate = 10.0;
 
     let route = RouteConfig { token_weight: 1.0, ..RouteConfig::default() };
-    let backend = DynRateLimitBackend::InMemory(DashMap::new());
+    let backend = DynRateLimitBackend::InMemory(Cache::new(100));
     let ip = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
 
     assert!(

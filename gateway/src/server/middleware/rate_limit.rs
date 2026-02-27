@@ -4,7 +4,7 @@ use std::{
 };
 
 use bb8_redis::RedisConnectionManager;
-use dashmap::DashMap;
+use moka::sync::Cache;
 use redis::AsyncCommands;
 use serde::{Deserialize, Serialize};
 
@@ -71,16 +71,14 @@ fn redis_key(key: &TokenBucketKey) -> String {
 }
 
 pub enum DynRateLimitBackend {
-    InMemory(DashMap<TokenBucketKey, TokenBucket>),
+    InMemory(Cache<TokenBucketKey, TokenBucket>),
     Redis(bb8::Pool<RedisConnectionManager>),
 }
 
 impl DynRateLimitBackend {
     async fn get(&self, key: &TokenBucketKey) -> Option<TokenBucket> {
         match self {
-            DynRateLimitBackend::InMemory(map) => {
-                map.get(key).map(|v| v.clone())
-            }
+            DynRateLimitBackend::InMemory(map) => map.get(key),
             DynRateLimitBackend::Redis(pool) => {
                 let mut conn = pool.get().await.ok()?;
                 let json: Option<String> =
@@ -94,8 +92,8 @@ impl DynRateLimitBackend {
 
     async fn set(&self, key: TokenBucketKey, value: TokenBucket) {
         match self {
-            DynRateLimitBackend::InMemory(map) => {
-                map.insert(key, value);
+            DynRateLimitBackend::InMemory(cache) => {
+                cache.insert(key, value);
             }
             DynRateLimitBackend::Redis(pool) => {
                 let Ok(mut conn) = pool.get().await else { return };

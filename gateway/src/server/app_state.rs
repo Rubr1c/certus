@@ -87,9 +87,12 @@ impl AppState {
                 }
             },
             user_tokens: match &config.rate_limit.rl_type {
-                StorageType::InMemory => {
-                    DynRateLimitBackend::InMemory(DashMap::new())
-                }
+                StorageType::InMemory => DynRateLimitBackend::InMemory(
+                    Cache::builder()
+                        .time_to_idle(Duration::from_secs(3600))
+                        .max_capacity(100000)
+                        .build(),
+                ),
                 StorageType::Redis { url } => {
                     DynRateLimitBackend::Redis(create_pool(url).await)
                 }
