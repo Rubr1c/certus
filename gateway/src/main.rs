@@ -40,7 +40,8 @@ async fn main() {
             .unwrap_or_else(|_| EnvFilter::new("info")),
     );
 
-    let db_layer = LogChannelLayer { tx: log_tx };
+    let db_layer =
+        LogChannelLayer { tx: log_tx }.with_filter(EnvFilter::new("debug"));
 
     let _ = tracing_subscriber::registry()
         .with(console_layer)
