@@ -228,10 +228,10 @@ pub fn save_req_metric(
         "INSERT INTO request_metrics (route, timestamp, status_code, duration) 
                   VALUES (?1, ?2, ?3, ?4)",
         rusqlite::params![
-            metric.route,
+            metric.route.as_str(),
             metric.timestamp.to_string(),
             metric.status_code,
-            metric.duration_ms as i64
+            metric.duration_total_ms as i64
         ],
     )?;
 
@@ -251,10 +251,10 @@ pub fn save_req_metrics(
 
         for metric in metrics {
             query.execute(rusqlite::params![
-                metric.route,
+                metric.route.as_str(),
                 metric.timestamp.to_string(),
                 metric.status_code,
-                metric.duration_ms as i64
+                metric.duration_total_ms as i64
             ])?;
         }
     }

@@ -1,4 +1,4 @@
-use std::sync::atomic::AtomicUsize;
+use std::sync::{Arc, atomic::AtomicUsize};
 
 use axum::body::Body;
 use crossbeam::queue::SegQueue;
@@ -43,7 +43,7 @@ pub struct UpstreamServer {
 
 /// Holds info for the connection pool of a server
 pub struct ConnectionPool {
-    pub server_addr: String,
+    pub server_addr: Arc<String>,
     pub hostname: String,
     pub http_version: HttpVersion,
     pub protocol: Protocol,
@@ -95,7 +95,7 @@ impl UpstreamServer {
             active_connctions: AtomicUsize::new(0),
             health_state: HealthState::Alive,
             pool: ConnectionPool {
-                server_addr,
+                server_addr: Arc::new(server_addr),
                 hostname,
                 http_version,
                 protocol,

@@ -18,7 +18,7 @@ async fn build_tree_matches_configured_route() {
 
     let matched = tree.at("/api").unwrap();
 
-    assert_eq!(matched.value, "/api");
+    assert_eq!(matched.value.as_str(), "/api");
 }
 
 #[tokio::test]
@@ -33,7 +33,7 @@ async fn build_tree_matches_wildcard_subpath() {
 
     let matched = tree.at("/api/users/123").unwrap();
 
-    assert_eq!(matched.value, "/api");
+    assert_eq!(matched.value.as_str(), "/api");
 }
 
 #[tokio::test]
@@ -61,8 +61,8 @@ async fn build_tree_root_route() {
     );
     let tree = router::build_tree(state);
 
-    assert_eq!(tree.at("/").unwrap().value, "/");
-    assert_eq!(tree.at("/anything").unwrap().value, "/");
+    assert_eq!(tree.at("/").unwrap().value.as_str(), "/");
+    assert_eq!(tree.at("/anything").unwrap().value.as_str(), "/");
 }
 
 #[tokio::test]
@@ -76,6 +76,6 @@ async fn build_tree_multiple_routes() {
     );
     let tree = router::build_tree(state);
 
-    assert_eq!(tree.at("/api").unwrap().value, "/api");
-    assert_eq!(tree.at("/health").unwrap().value, "/health");
+    assert_eq!(tree.at("/api").unwrap().value.as_str(), "/api");
+    assert_eq!(tree.at("/health").unwrap().value.as_str(), "/health");
 }

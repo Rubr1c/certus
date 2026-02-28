@@ -39,14 +39,14 @@ use crate::{
 /// # Arguments
 ///
 /// * `state` - arc of the AppState used to get the routes
-pub fn build_tree(state: Arc<AppState>) -> Router<String> {
+pub fn build_tree(state: Arc<AppState>) -> Router<Arc<String>> {
     let config = state.config.load();
     let route_conf = &config.routes;
 
     let mut router = Router::new();
 
     for (route, _) in route_conf {
-        if let Err(e) = router.insert(route, route.clone()) {
+        if let Err(e) = router.insert(route, Arc::new(route.clone())) {
             tracing::error!("Failed to insert route '{}': {}", route, e);
         }
 
@@ -56,7 +56,7 @@ pub fn build_tree(state: Arc<AppState>) -> Router<String> {
             format!("{}/{{*catchall}}", route)
         };
 
-        if let Err(e) = router.insert(wildcard_route, route.clone()) {
+        if let Err(e) = router.insert(wildcard_route, Arc::new(route.clone())) {
             tracing::error!("Failed to insert route '{}': {}", route, e);
         }
     }
@@ -94,7 +94,7 @@ pub async fn reroute(
 
     let target_route = config
         .routes
-        .get_key_value(matched_route_key)
+        .get_key_value(matched_route_key.as_str())
         .expect("route should exist");
 
     let span = tracing::span!(Level::INFO, "route");
@@ -267,10 +267,16 @@ pub async fn reroute(
             if no_store {
                 let duration = start.elapsed().as_millis() as u64;
                 let event = MetricEvent::Request(RequestMetric {
-                    route: matched_route_key.clone(),
+                    route: Arc::clone(matched_route_key),
                     status_code: response.status().as_u16(),
-                    duration_ms: duration,
                     timestamp: Utc::now(),
+                    duration_total_ms: duration,
+                    duration_upstream_ms: duration,
+                    bytes_in: 0,
+                    bytes_out: 0,
+                    client_ip: ip,
+                    method: method.clone(),
+                    upstream_addr: Some(Arc::clone(&upstream.pool.server_addr)),
                 });
 
                 let _ = state.metrics_tx.try_send(event);
@@ -288,10 +294,16 @@ pub async fn reroute(
 
             let duration = start.elapsed().as_millis() as u64;
             let event = MetricEvent::Request(RequestMetric {
-                route: matched_route_key.clone(),
+                route: Arc::clone(matched_route_key),
                 status_code: res.status().as_u16(),
-                duration_ms: duration,
                 timestamp: Utc::now(),
+                duration_total_ms: duration,
+                duration_upstream_ms: duration,
+                bytes_in: 0,
+                bytes_out: 0,
+                client_ip: ip,
+                method: method.clone(),
+                upstream_addr: Some(Arc::clone(&upstream.pool.server_addr)),
             });
 
             let _ = state.metrics_tx.try_send(event);
