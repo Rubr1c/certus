@@ -77,8 +77,6 @@ fn tls_connector(http_version: HttpVersion) -> TlsConnector {
     TlsConnector::from(Arc::new(config))
 }
 
-//TODO: make sure atomic ordering correct
-
 /// Opens a connection to a tcp stream
 ///
 /// # Arguments
@@ -200,11 +198,11 @@ pub async fn borrow_connection(
 
         if alive {
             tracing::info!("Found idle connetion");
-            upstream.active_connctions.fetch_add(1, Ordering::Release);
+            upstream.active_connctions.fetch_add(1, Ordering::AcqRel);
             return Ok(sender);
         }
 
-        upstream.pool.total_connections.fetch_sub(1, Ordering::Release);
+        upstream.pool.total_connections.fetch_sub(1, Ordering::AcqRel);
         tracing::warn!("Discarded dead idle connection");
     }
 
@@ -220,8 +218,8 @@ pub async fn borrow_connection(
         .await
         .map_err(|e| GatewayError::ConnectionFailed(e.to_string()))?;
 
-    upstream.pool.total_connections.fetch_add(1, Ordering::Release);
-    upstream.active_connctions.fetch_add(1, Ordering::Release);
+    upstream.pool.total_connections.fetch_add(1, Ordering::AcqRel);
+    upstream.active_connctions.fetch_add(1, Ordering::AcqRel);
 
     Ok(sender)
 }
@@ -239,13 +237,13 @@ pub async fn release_connection(
     reusable: bool,
 ) {
     tracing::info!("Releasing connetion");
-    upstream.active_connctions.fetch_sub(1, Ordering::Release);
+    upstream.active_connctions.fetch_sub(1, Ordering::AcqRel);
 
     if reusable {
         upstream.pool.idle_connections.push(sender);
     } else {
         tracing::info!("Connetion not reusable");
-        upstream.pool.total_connections.fetch_sub(1, Ordering::Release);
+        upstream.pool.total_connections.fetch_sub(1, Ordering::AcqRel);
     }
 }
 
