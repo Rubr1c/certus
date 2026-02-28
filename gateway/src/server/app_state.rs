@@ -31,7 +31,7 @@ use crate::{
 /// Struct holding route related data that should be
 /// updated at the same time
 pub struct RoutingTable {
-    pub router: Router<Arc<String>>,
+    pub router: Router<Arc<str>>,
     pub routes: HashMap<String, Arc<UpstreamServer>>,
 }
 

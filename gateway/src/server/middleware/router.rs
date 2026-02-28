@@ -39,14 +39,14 @@ use crate::{
 /// # Arguments
 ///
 /// * `state` - arc of the AppState used to get the routes
-pub fn build_tree(state: Arc<AppState>) -> Router<Arc<String>> {
+pub fn build_tree(state: Arc<AppState>) -> Router<Arc<str>> {
     let config = state.config.load();
     let route_conf = &config.routes;
 
     let mut router = Router::new();
 
     for (route, _) in route_conf {
-        if let Err(e) = router.insert(route, Arc::new(route.clone())) {
+        if let Err(e) = router.insert(route, Arc::<str>::from(route.as_str())) {
             tracing::error!("Failed to insert route '{}': {}", route, e);
         }
 
@@ -56,7 +56,9 @@ pub fn build_tree(state: Arc<AppState>) -> Router<Arc<String>> {
             format!("{}/{{*catchall}}", route)
         };
 
-        if let Err(e) = router.insert(wildcard_route, Arc::new(route.clone())) {
+        if let Err(e) =
+            router.insert(wildcard_route, Arc::<str>::from(route.as_str()))
+        {
             tracing::error!("Failed to insert route '{}': {}", route, e);
         }
     }
@@ -94,7 +96,7 @@ pub async fn reroute(
 
     let target_route = config
         .routes
-        .get_key_value(matched_route_key.as_str())
+        .get_key_value(matched_route_key.as_ref())
         .expect("route should exist");
 
     let span = tracing::span!(Level::INFO, "route");

@@ -43,7 +43,7 @@ pub struct UpstreamServer {
 
 /// Holds info for the connection pool of a server
 pub struct ConnectionPool {
-    pub server_addr: Arc<String>,
+    pub server_addr: Arc<str>,
     pub hostname: String,
     pub http_version: HttpVersion,
     pub protocol: Protocol,
@@ -95,7 +95,7 @@ impl UpstreamServer {
             active_connctions: AtomicUsize::new(0),
             health_state: HealthState::Alive,
             pool: ConnectionPool {
-                server_addr: Arc::new(server_addr),
+                server_addr: Arc::<str>::from(server_addr),
                 hostname,
                 http_version,
                 protocol,

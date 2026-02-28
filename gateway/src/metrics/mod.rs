@@ -14,8 +14,8 @@ pub struct RequestMetric {
 
     pub method: Method,
 
-    pub route: Arc<String>,
-    pub upstream_addr: Option<Arc<String>>,
+    pub route: Arc<str>,
+    pub upstream_addr: Option<Arc<str>>,
 }
 
 pub enum CacheResult {
@@ -25,7 +25,7 @@ pub enum CacheResult {
 }
 
 pub struct CacheMetric {
-    pub route: Arc<String>,
+    pub route: Arc<str>,
     pub timestamp: DateTime<Utc>,
     pub result: CacheResult,
 }

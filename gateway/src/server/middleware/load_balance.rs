@@ -91,7 +91,7 @@ pub fn run<'a>(
     match idle_queue.get(target.0) {
         Some(q) => match q.pop() {
             Some(server) => routes
-                .get_key_value(server.pool.server_addr.as_str())
+                .get_key_value(server.pool.server_addr.as_ref())
                 .map(|(key, _)| key)
                 .unwrap_or_else(|| {
                     tracing::info!("Idle Queue is empty");

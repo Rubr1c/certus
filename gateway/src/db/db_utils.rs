@@ -245,7 +245,7 @@ pub fn save_req_metric(
             upstream_addr
         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
         rusqlite::params![
-            metric.route.as_str(),
+            metric.route.as_ref(),
             metric.timestamp.to_string(),
             metric.status_code,
             metric.duration_total_ms as i64,
@@ -254,7 +254,7 @@ pub fn save_req_metric(
             metric.bytes_out as i64,
             metric.client_ip.to_string(),
             metric.method.to_string(),
-            metric.upstream_addr.as_deref().map(|addr| addr.as_str())
+            metric.upstream_addr.as_deref()
         ],
     )?;
 
@@ -284,7 +284,7 @@ pub fn save_req_metrics(
 
         for metric in metrics {
             query.execute(rusqlite::params![
-                metric.route.as_str(),
+                metric.route.as_ref(),
                 metric.timestamp.to_string(),
                 metric.status_code,
                 metric.duration_total_ms as i64,
@@ -293,7 +293,7 @@ pub fn save_req_metrics(
                 metric.bytes_out as i64,
                 metric.client_ip.to_string(),
                 metric.method.to_string(),
-                metric.upstream_addr.as_deref().map(|addr| addr.as_str())
+                metric.upstream_addr.as_deref()
             ])?;
         }
     }
@@ -319,7 +319,7 @@ pub fn save_cache_metrics(
                 CacheResult::Bypass => "bypass",
             };
             query.execute(rusqlite::params![
-                metric.route.as_str(),
+                metric.route.as_ref(),
                 metric.timestamp.to_string(),
                 result,
             ])?;
