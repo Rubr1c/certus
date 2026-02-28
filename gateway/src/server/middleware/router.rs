@@ -19,7 +19,7 @@ use tracing::{Level, instrument};
 
 use crate::{
     config::RateLimitKey,
-    metrics::{MetricEvent, RequestMetric},
+    metrics::{CacheMetric, CacheResult, MetricEvent, RequestMetric},
     server::{
         app_state::AppState,
         error::GatewayError,
@@ -208,16 +208,46 @@ pub async fn reroute(
             if let Some(res) =
                 static_cache::try_find(&state.static_cache, path).await
             {
+                let metric = CacheMetric {
+                    route: Arc::clone(matched_route_key),
+                    timestamp: Utc::now(),
+                    result: CacheResult::Hit,
+                };
+                let _ = state.metrics_tx.try_send(MetricEvent::Cache(metric));
+
                 return res;
             }
 
-            if let Some(res) =
-                dyn_cache::try_find(&state.cache, path, &ck, &state.metrics_tx)
-                    .await
-            {
-                return res;
+            match dyn_cache::try_find(&state.cache, path, &ck).await {
+                Some(res) => {
+                    let metric = CacheMetric {
+                        route: Arc::clone(matched_route_key),
+                        timestamp: Utc::now(),
+                        result: CacheResult::Hit,
+                    };
+                    let _ =
+                        state.metrics_tx.try_send(MetricEvent::Cache(metric));
+
+                    return res;
+                }
+                _ => {
+                    let metric = CacheMetric {
+                        route: Arc::clone(matched_route_key),
+                        timestamp: Utc::now(),
+                        result: CacheResult::Miss,
+                    };
+                    let _ =
+                        state.metrics_tx.try_send(MetricEvent::Cache(metric));
+                }
             }
         }
+    } else {
+        let metric = CacheMetric {
+            route: Arc::clone(matched_route_key),
+            timestamp: Utc::now(),
+            result: CacheResult::Bypass,
+        };
+        let _ = state.metrics_tx.try_send(MetricEvent::Cache(metric));
     }
 
     let server = load_balance::run(

@@ -7,7 +7,7 @@ use crate::{
     config::Config,
     db::models::LogEntry,
     logging::log_util::LogEntryDTO,
-    metrics::{CacheHitMetric, MetricEvent, RequestMetric},
+    metrics::{CacheMetric, CacheResult, MetricEvent, RequestMetric},
 };
 
 pub fn connect_db() -> rusqlite::Result<Connection> {
@@ -58,10 +58,11 @@ pub fn migrate(conn: &Connection) -> rusqlite::Result<()> {
             method TEXT NOT NULL,
             upstream_addr TEXT
         )",
-        "CREATE TABLE IF NOT EXISTS cache_hit_metrics(
+        "CREATE TABLE IF NOT EXISTS cache_metrics(
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             timestamp TEXT NOT NULL,
-            route TEXT NOT NULL
+            route TEXT NOT NULL,
+            result TEXT NOT NULL
         )",
     ];
 
@@ -300,21 +301,27 @@ pub fn save_req_metrics(
     Ok(())
 }
 
-pub fn save_cache_hit_metrics(
+pub fn save_cache_metrics(
     conn: &mut Connection,
-    metrics: Vec<&CacheHitMetric>,
+    metrics: Vec<&CacheMetric>,
 ) -> rusqlite::Result<()> {
     let tx = conn.transaction()?;
     {
         let mut query = tx.prepare(
-            "INSERT INTO cache_hit_metrics (route, timestamp)
-                  VALUES (?1, ?2)",
+            "INSERT INTO cache_metrics (route, timestamp, result)
+                  VALUES (?1, ?2, ?3)",
         )?;
 
         for metric in metrics {
+            let result = match metric.result {
+                CacheResult::Hit => "hit",
+                CacheResult::Miss => "miss",
+                CacheResult::Bypass => "bypass",
+            };
             query.execute(rusqlite::params![
-                metric.route,
+                metric.route.as_str(),
                 metric.timestamp.to_string(),
+                result,
             ])?;
         }
     }
@@ -334,16 +341,16 @@ pub fn save_metrics(
         })
         .collect::<Vec<_>>();
 
-    let cache_hit_metrics = metrics
+    let cache_metrics = metrics
         .iter()
         .filter_map(|metric| match metric {
-            MetricEvent::CacheHit(m) => Some(m),
+            MetricEvent::Cache(m) => Some(m),
             _ => None,
         })
         .collect::<Vec<_>>();
 
     save_req_metrics(conn, req_metrics)?;
-    save_cache_hit_metrics(conn, cache_hit_metrics)?;
+    save_cache_metrics(conn, cache_metrics)?;
 
     Ok(())
 }

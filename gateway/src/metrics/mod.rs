@@ -18,12 +18,19 @@ pub struct RequestMetric {
     pub upstream_addr: Option<Arc<String>>,
 }
 
-pub struct CacheHitMetric {
-    pub route: String,
+pub enum CacheResult {
+    Hit,
+    Miss,
+    Bypass,
+}
+
+pub struct CacheMetric {
+    pub route: Arc<String>,
     pub timestamp: DateTime<Utc>,
+    pub result: CacheResult,
 }
 
 pub enum MetricEvent {
     Request(RequestMetric),
-    CacheHit(CacheHitMetric),
+    Cache(CacheMetric),
 }

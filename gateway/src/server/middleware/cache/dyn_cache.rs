@@ -2,13 +2,10 @@ use axum::{
     body::{Body, to_bytes},
     response::IntoResponse,
 };
-use chrono::Utc;
 use hyper::{Method, Response, body::Incoming};
-use tokio::sync::mpsc;
 
-use crate::{
-    metrics::{CacheHitMetric, MetricEvent},
-    server::middleware::cache::{CacheKey, CachedResponse, DynCacheBackend},
+use crate::server::middleware::cache::{
+    CacheKey, CachedResponse, DynCacheBackend,
 };
 
 /// Tries to save a response to a cache
@@ -71,18 +68,10 @@ pub async fn try_find(
     cache: &DynCacheBackend,
     path: &str,
     ck: &CacheKey,
-    tx: &mpsc::Sender<MetricEvent>,
 ) -> Option<Response<Body>> {
     match cache.get(ck).await {
         Some(res) => {
             tracing::info!("Returning cached response to {}", path);
-            //should prob not clone here
-            let metric = CacheHitMetric {
-                route: ck.path.clone(),
-                timestamp: Utc::now(),
-            };
-            let _ = tx.try_send(MetricEvent::CacheHit(metric));
-
             return Some(res.into_response());
         }
         _ => {
