@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     net::IpAddr,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
@@ -57,14 +58,30 @@ impl From<SerializableTokenBucket> for TokenBucket {
     }
 }
 
-#[derive(Hash, PartialEq, Eq)]
-pub enum TokenBucketKey {
+#[derive(Clone, Hash, PartialEq, Eq)]
+pub enum TokenBucketKey<'a> {
     Ip(IpAddr),
-    Token(String),
-    Header(String, HeaderValue),
+    Token(Cow<'a, str>),
+    Header(Cow<'a, str>, HeaderValue),
 }
 
-fn redis_key(key: &TokenBucketKey) -> String {
+type OwnedTokenBucketKey = TokenBucketKey<'static>;
+
+impl TokenBucketKey<'_> {
+    fn into_owned(self) -> OwnedTokenBucketKey {
+        match self {
+            TokenBucketKey::Ip(ip) => TokenBucketKey::Ip(ip),
+            TokenBucketKey::Token(token) => {
+                TokenBucketKey::Token(Cow::Owned(token.into_owned()))
+            }
+            TokenBucketKey::Header(header, value) => {
+                TokenBucketKey::Header(Cow::Owned(header.into_owned()), value)
+            }
+        }
+    }
+}
+
+fn redis_key(key: &TokenBucketKey<'_>) -> String {
     match key {
         TokenBucketKey::Ip(ip) => format!("rate_limit:ip:{}", ip),
         TokenBucketKey::Token(token) => format!("rate_limit:token:{}", token),
@@ -75,14 +92,16 @@ fn redis_key(key: &TokenBucketKey) -> String {
 }
 
 pub enum DynRateLimitBackend {
-    InMemory(Cache<TokenBucketKey, TokenBucket>),
+    InMemory(Cache<OwnedTokenBucketKey, TokenBucket>),
     Redis(bb8::Pool<RedisConnectionManager>),
 }
 
 impl DynRateLimitBackend {
-    async fn get(&self, key: &TokenBucketKey) -> Option<TokenBucket> {
+    async fn get(&self, key: &TokenBucketKey<'_>) -> Option<TokenBucket> {
         match self {
-            DynRateLimitBackend::InMemory(map) => map.get(key),
+            DynRateLimitBackend::InMemory(map) => {
+                map.get(&key.clone().into_owned())
+            }
             DynRateLimitBackend::Redis(pool) => {
                 let mut conn = pool.get().await.ok()?;
                 let redis_key = redis_key(key);
@@ -103,10 +122,10 @@ impl DynRateLimitBackend {
         }
     }
 
-    async fn set(&self, key: TokenBucketKey, value: TokenBucket) {
+    async fn set(&self, key: TokenBucketKey<'_>, value: TokenBucket) {
         match self {
             DynRateLimitBackend::InMemory(cache) => {
-                cache.insert(key, value);
+                cache.insert(key.into_owned(), value);
             }
             DynRateLimitBackend::Redis(pool) => {
                 let Ok(mut conn) = pool.get().await else { return };
@@ -136,7 +155,7 @@ impl DynRateLimitBackend {
 #[inline]
 pub async fn run(
     target_route: &RouteConfig,
-    key: TokenBucketKey,
+    key: TokenBucketKey<'_>,
     config: &Config,
     backend: &DynRateLimitBackend,
 ) -> Result<(), GatewayError> {

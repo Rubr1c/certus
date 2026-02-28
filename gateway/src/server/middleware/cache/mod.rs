@@ -1,6 +1,8 @@
 pub mod dyn_cache;
 pub mod static_cache;
 
+use std::borrow::Cow;
+
 use axum::{
     body::{Body, Bytes},
     response::IntoResponse,
@@ -53,14 +55,16 @@ impl StaticCacheBackend {
 /// `ToSingleRedisArg`). Instead we convert through `SerializableCachedResponse`
 /// to/from a JSON string, which works natively with the typed redis commands.
 pub enum DynCacheBackend {
-    InMemory(Cache<CacheKey, CachedResponse>),
+    InMemory(Cache<OwnedCacheKey, CachedResponse>),
     Redis { pool: bb8::Pool<RedisConnectionManager>, ttl: Option<u64> },
 }
 
 impl DynCacheBackend {
-    pub async fn get(&self, key: &CacheKey) -> Option<CachedResponse> {
+    pub async fn get(&self, key: &CacheKey<'_>) -> Option<CachedResponse> {
         match self {
-            DynCacheBackend::InMemory(cache) => cache.get(key),
+            DynCacheBackend::InMemory(cache) => {
+                cache.get(&key.clone().into_owned())
+            }
             DynCacheBackend::Redis { pool, .. } => {
                 let mut conn = pool.get().await.ok()?;
                 let redis_key = format!(
@@ -73,9 +77,11 @@ impl DynCacheBackend {
         }
     }
 
-    pub async fn set(&self, key: CacheKey, value: CachedResponse) {
+    pub async fn set(&self, key: CacheKey<'_>, value: CachedResponse) {
         match self {
-            DynCacheBackend::InMemory(cache) => cache.insert(key, value),
+            DynCacheBackend::InMemory(cache) => {
+                cache.insert(key.into_owned(), value)
+            }
             DynCacheBackend::Redis { pool, ttl } => {
                 let Ok(mut conn) = pool.get().await else { return };
                 let redis_key = format!(
@@ -105,12 +111,14 @@ impl DynCacheBackend {
 
     pub async fn set_ex(
         &self,
-        key: CacheKey,
+        key: CacheKey<'_>,
         value: CachedResponse,
         ttl: &u64,
     ) {
         match self {
-            DynCacheBackend::InMemory(cache) => cache.insert(key, value),
+            DynCacheBackend::InMemory(cache) => {
+                cache.insert(key.into_owned(), value)
+            }
             DynCacheBackend::Redis { pool, ttl: _ } => {
                 let Ok(mut conn) = pool.get().await else { return };
                 let redis_key = format!(
@@ -138,9 +146,20 @@ impl DynCacheBackend {
 /// Composite key for dynamic cache entries.
 /// Different auth tokens get separate cache entries for the same path.
 #[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize)]
-pub struct CacheKey {
-    pub token: Option<String>,
-    pub path: String,
+pub struct CacheKey<'a> {
+    pub token: Option<Cow<'a, str>>,
+    pub path: Cow<'a, str>,
+}
+
+pub type OwnedCacheKey = CacheKey<'static>;
+
+impl CacheKey<'_> {
+    pub fn into_owned(self) -> OwnedCacheKey {
+        CacheKey {
+            token: self.token.map(|t| Cow::Owned(t.into_owned())),
+            path: Cow::Owned(self.path.into_owned()),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

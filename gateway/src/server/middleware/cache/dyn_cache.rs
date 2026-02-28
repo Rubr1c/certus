@@ -22,7 +22,7 @@ pub async fn try_save(
     response: Response<Incoming>,
     method: &Method,
     cache: &DynCacheBackend,
-    ck: CacheKey,
+    ck: CacheKey<'_>,
     ttl: Option<u64>,
 ) -> Response<Body> {
     if method != Method::GET {
@@ -67,7 +67,7 @@ pub async fn try_save(
 pub async fn try_find(
     cache: &DynCacheBackend,
     path: &str,
-    ck: &CacheKey,
+    ck: &CacheKey<'_>,
 ) -> Option<Response<Body>> {
     match cache.get(ck).await {
         Some(res) => {

@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use axum::body::Bytes;
 use dashmap::DashMap;
 use hyper::{HeaderMap, StatusCode};
@@ -11,7 +13,7 @@ use crate::server::middleware::cache::{
 #[tokio::test]
 async fn dyn_cache_miss_on_empty() {
     let cache = DynCacheBackend::InMemory(Cache::new(100));
-    let ck = CacheKey { token: None, path: "/test".to_string() };
+    let ck = CacheKey { token: None, path: Cow::Borrowed("/test") };
 
     let res = dyn_cache::try_find(&cache, "/test", &ck).await;
 
@@ -21,14 +23,17 @@ async fn dyn_cache_miss_on_empty() {
 #[tokio::test]
 async fn dyn_cache_hit_on_get() {
     let inner = Cache::new(100);
-    let ck = CacheKey { token: None, path: "/test".to_string() };
+    let ck = CacheKey { token: None, path: Cow::Borrowed("/test") };
 
     let cached = CachedResponse {
         status: StatusCode::OK,
         headers: HeaderMap::new(),
         body: Bytes::from("cached"),
     };
-    inner.insert(CacheKey { token: None, path: "/test".to_string() }, cached);
+    inner.insert(
+        CacheKey { token: None, path: Cow::Owned("/test".to_string()) },
+        cached,
+    );
     let cache = DynCacheBackend::InMemory(inner);
 
     let res = dyn_cache::try_find(&cache, "/test", &ck).await;
@@ -48,16 +53,16 @@ async fn dyn_cache_different_tokens_are_different_keys() {
     };
     inner.insert(
         CacheKey {
-            token: Some("token_a".to_string()),
-            path: "/test".to_string(),
+            token: Some(Cow::Owned("token_a".to_string())),
+            path: Cow::Owned("/test".to_string()),
         },
         cached,
     );
     let cache = DynCacheBackend::InMemory(inner);
 
     let ck = CacheKey {
-        token: Some("token_b".to_string()),
-        path: "/test".to_string(),
+        token: Some(Cow::Borrowed("token_b")),
+        path: Cow::Borrowed("/test"),
     };
     let res = dyn_cache::try_find(&cache, "/test", &ck).await;
 

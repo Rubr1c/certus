@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     net::{IpAddr, SocketAddr},
     sync::Arc,
 };
@@ -82,12 +83,12 @@ pub async fn reroute(
 ) -> impl IntoResponse {
     let start = Instant::now();
 
-    let uri = req.uri();
-    let path = uri.path();
+    let path = req.uri().path().to_string();
+    let query = req.uri().query().map(str::to_owned);
     let config = state.config.load();
     let routing_table = state.routing_table.load();
 
-    let matched_route_key = match routing_table.router.at(&path) {
+    let matched_route_key = match routing_table.router.at(path.as_str()) {
         Ok(match_result) => match_result.value,
         Err(_) => {
             return GatewayError::NotFound.into_response();
@@ -116,7 +117,7 @@ pub async fn reroute(
             let prefix = &config.auth.prefix;
             s.strip_prefix(prefix.as_str())?.strip_prefix(' ')
         })
-        .map(|s| s.to_string());
+        .map(str::to_owned);
 
     let bytes_in = headers
         .get(CONTENT_LENGTH)
@@ -127,11 +128,14 @@ pub async fn reroute(
     let token_bucket_key = match &config.rate_limit.key {
         RateLimitKey::Ip => TokenBucketKey::Ip(ip),
         RateLimitKey::Token => match &token {
-            Some(token) => TokenBucketKey::Token(token.clone()),
+            Some(token) => TokenBucketKey::Token(Cow::Borrowed(token.as_str())),
             _ => TokenBucketKey::Ip(ip),
         },
         RateLimitKey::Header(header) => match headers.get(header.as_str()) {
-            Some(val) => TokenBucketKey::Header(header.clone(), val.clone()),
+            Some(val) => TokenBucketKey::Header(
+                Cow::Borrowed(header.as_str()),
+                val.clone(),
+            ),
             _ => TokenBucketKey::Ip(ip),
         },
     };
@@ -150,10 +154,11 @@ pub async fn reroute(
 
     let method = req.method().clone();
     let ck = CacheKey {
-        token: token.clone(),
-        path: uri
-            .query()
-            .map_or_else(|| path.to_string(), |q| format!("{}?{}", path, q)),
+        token: token.as_deref().map(Cow::Borrowed),
+        path: query.as_ref().map_or_else(
+            || Cow::Borrowed(path.as_str()),
+            |q| Cow::Owned(format!("{}?{}", path, q)),
+        ),
     };
     // need to put this in a fn or something and these checks are prob expensive
 
@@ -208,7 +213,7 @@ pub async fn reroute(
         if !no_cache {
             //can maybe combine both cache methods into one fn
             if let Some(res) =
-                static_cache::try_find(&state.static_cache, path).await
+                static_cache::try_find(&state.static_cache, path.as_str()).await
             {
                 let metric = CacheMetric {
                     route: Arc::clone(matched_route_key),
@@ -220,7 +225,7 @@ pub async fn reroute(
                 return res;
             }
 
-            match dyn_cache::try_find(&state.cache, path, &ck).await {
+            match dyn_cache::try_find(&state.cache, path.as_str(), &ck).await {
                 Some(res) => {
                     let metric = CacheMetric {
                         route: Arc::clone(matched_route_key),

@@ -18,8 +18,8 @@ use crate::{
         connection,
         middleware::{
             cache::{
-                CacheKey, CachedResponse, DynCacheBackend, StaticCacheBackend,
-                static_cache,
+                CachedResponse, DynCacheBackend, OwnedCacheKey,
+                StaticCacheBackend, static_cache,
             },
             rate_limit::DynRateLimitBackend,
             router,
@@ -61,7 +61,7 @@ impl AppState {
             cache: match &config.cache.cache_type {
                 StorageType::InMemory => {
                     let mut cache =
-                        Cache::<CacheKey, CachedResponse>::builder();
+                        Cache::<OwnedCacheKey, CachedResponse>::builder();
                     match config.cache.ttl {
                         Some(secs) => {
                             cache =
