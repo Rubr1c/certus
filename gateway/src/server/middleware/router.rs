@@ -206,7 +206,8 @@ pub async fn reroute(
             }
 
             if let Some(res) =
-                dyn_cache::try_find(&state.cache, path, &ck).await
+                dyn_cache::try_find(&state.cache, path, &ck, &state.metrics_tx)
+                    .await
             {
                 return res;
             }

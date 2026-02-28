@@ -3,6 +3,7 @@ use dashmap::DashMap;
 use hyper::{HeaderMap, StatusCode};
 use moka::sync::Cache;
 
+use super::test_metrics_tx;
 use crate::server::middleware::cache::{
     CacheKey, CachedResponse, DynCacheBackend, StaticCacheBackend, dyn_cache,
     static_cache,
@@ -12,8 +13,9 @@ use crate::server::middleware::cache::{
 async fn dyn_cache_miss_on_empty() {
     let cache = DynCacheBackend::InMemory(Cache::new(100));
     let ck = CacheKey { token: None, path: "/test".to_string() };
+    let metrics_tx = test_metrics_tx();
 
-    let res = dyn_cache::try_find(&cache, "/test", &ck).await;
+    let res = dyn_cache::try_find(&cache, "/test", &ck, &metrics_tx).await;
 
     assert!(res.is_none());
 }
@@ -22,6 +24,7 @@ async fn dyn_cache_miss_on_empty() {
 async fn dyn_cache_hit_on_get() {
     let inner = Cache::new(100);
     let ck = CacheKey { token: None, path: "/test".to_string() };
+    let metrics_tx = test_metrics_tx();
 
     let cached = CachedResponse {
         status: StatusCode::OK,
@@ -31,7 +34,7 @@ async fn dyn_cache_hit_on_get() {
     inner.insert(CacheKey { token: None, path: "/test".to_string() }, cached);
     let cache = DynCacheBackend::InMemory(inner);
 
-    let res = dyn_cache::try_find(&cache, "/test", &ck).await;
+    let res = dyn_cache::try_find(&cache, "/test", &ck, &metrics_tx).await;
 
     assert!(res.is_some());
     assert_eq!(res.unwrap().status(), StatusCode::OK);
@@ -40,6 +43,7 @@ async fn dyn_cache_hit_on_get() {
 #[tokio::test]
 async fn dyn_cache_different_tokens_are_different_keys() {
     let inner = Cache::new(100);
+    let metrics_tx = test_metrics_tx();
 
     let cached = CachedResponse {
         status: StatusCode::OK,
@@ -59,7 +63,7 @@ async fn dyn_cache_different_tokens_are_different_keys() {
         token: Some("token_b".to_string()),
         path: "/test".to_string(),
     };
-    let res = dyn_cache::try_find(&cache, "/test", &ck).await;
+    let res = dyn_cache::try_find(&cache, "/test", &ck, &metrics_tx).await;
 
     assert!(res.is_none());
 }
