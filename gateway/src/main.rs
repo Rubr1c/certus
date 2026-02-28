@@ -56,26 +56,22 @@ async fn main() {
         .map(|s| s.as_str())
         .unwrap_or("certus.config.yaml");
 
-    let conn = match db_utils::connect_db() {
-        Ok(c) => c,
-        Err(_) => panic!("Failed to connect to db"),
-    };
+    let log_conn = db_utils::connect_db().expect("log db");
+    let metrics_conn = db_utils::connect_db().expect("metrics db");
 
-    match db_utils::migrate(&conn) {
-        Ok(_) => (),
-        Err(_) => eprintln!("Error migrating db"),
-    }
+    db_utils::migrate(&log_conn).expect("migrate");
 
-    let conn = Arc::new(Mutex::new(conn));
+    let log_conn = Arc::new(Mutex::new(log_conn));
+    let metrics_conn = Arc::new(Mutex::new(metrics_conn));
 
     let config = reload_config(config_path).await.unwrap();
 
     let tls = config.tls.clone();
 
-    let state = Arc::new(AppState::new(config, conn.clone(), metrics_tx).await);
+    let state =
+        Arc::new(AppState::new(config, metrics_conn.clone(), metrics_tx).await);
 
-    let conn_clone = conn.clone();
-
+    let log_conn_clone = log_conn.clone();
     tokio::spawn(async move {
         let mut batch: Vec<LogEntryDTO> = Vec::with_capacity(100);
 
@@ -87,20 +83,20 @@ async fn main() {
                     batch.push(entry);
 
                     if batch.len() >= 100 {
-                        db_utils::flush_log_batch(&conn_clone, &mut batch).await;
+                        db_utils::flush_log_batch(&log_conn_clone, &mut batch).await;
                     }
                 }
 
                 _ = interval.tick() => {
                     if !batch.is_empty() {
-                        db_utils::flush_log_batch(&conn_clone, &mut batch).await;
+                        db_utils::flush_log_batch(&log_conn_clone, &mut batch).await;
                     }
                 }
             }
         }
     });
 
-    let metrics_conn = conn.clone();
+    let metrics_conn_clone = metrics_conn.clone();
     tokio::spawn(async move {
         let mut batch: Vec<MetricEvent> = Vec::with_capacity(100);
 
@@ -112,12 +108,12 @@ async fn main() {
                    batch.push(metric);
 
                    if batch.len() >= 100 {
-                        db_utils::flush_metric_batch(&metrics_conn, &mut batch).await;
+                        db_utils::flush_metric_batch(&metrics_conn_clone, &mut batch).await;
                    }
                 },
                _ = interval.tick() => {
                    if !batch.is_empty() {
-                        db_utils::flush_metric_batch(&metrics_conn, &mut batch).await;
+                        db_utils::flush_metric_batch(&metrics_conn_clone, &mut batch).await;
                    }
                 }
             }
