@@ -50,7 +50,13 @@ pub fn migrate(conn: &Connection) -> rusqlite::Result<()> {
             timestamp TEXT NOT NULL,
             route TEXT NOT NULL,
             status_code INTEGER NOT NULL,
-            duration INTEGER NOT NULL
+            duration_total_ms INTEGER NOT NULL,
+            duration_upstream_ms INTEGER NOT NULL,
+            bytes_in INTEGER NOT NULL,
+            bytes_out INTEGER NOT NULL,
+            client_ip TEXT NOT NULL,
+            method TEXT NOT NULL,
+            upstream_addr TEXT
         )",
         "CREATE TABLE IF NOT EXISTS cache_hit_metrics(
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -225,13 +231,29 @@ pub fn save_req_metric(
     metric: RequestMetric,
 ) -> rusqlite::Result<()> {
     conn.execute(
-        "INSERT INTO request_metrics (route, timestamp, status_code, duration) 
-                  VALUES (?1, ?2, ?3, ?4)",
+        "INSERT INTO request_metrics (
+            route,
+            timestamp,
+            status_code,
+            duration_total_ms,
+            duration_upstream_ms,
+            bytes_in,
+            bytes_out,
+            client_ip,
+            method,
+            upstream_addr
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
         rusqlite::params![
             metric.route.as_str(),
             metric.timestamp.to_string(),
             metric.status_code,
-            metric.duration_total_ms as i64
+            metric.duration_total_ms as i64,
+            metric.duration_upstream_ms as i64,
+            metric.bytes_in as i64,
+            metric.bytes_out as i64,
+            metric.client_ip.to_string(),
+            metric.method.to_string(),
+            metric.upstream_addr.as_deref().map(|addr| addr.as_str())
         ],
     )?;
 
@@ -245,8 +267,18 @@ pub fn save_req_metrics(
     let tx = conn.transaction()?;
     {
         let mut query = tx.prepare(
-           "INSERT INTO request_metrics (route, timestamp, status_code, duration) 
-                  VALUES (?1, ?2, ?3, ?4)",
+            "INSERT INTO request_metrics (
+                route,
+                timestamp,
+                status_code,
+                duration_total_ms,
+                duration_upstream_ms,
+                bytes_in,
+                bytes_out,
+                client_ip,
+                method,
+                upstream_addr
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
         )?;
 
         for metric in metrics {
@@ -254,7 +286,13 @@ pub fn save_req_metrics(
                 metric.route.as_str(),
                 metric.timestamp.to_string(),
                 metric.status_code,
-                metric.duration_total_ms as i64
+                metric.duration_total_ms as i64,
+                metric.duration_upstream_ms as i64,
+                metric.bytes_in as i64,
+                metric.bytes_out as i64,
+                metric.client_ip.to_string(),
+                metric.method.to_string(),
+                metric.upstream_addr.as_deref().map(|addr| addr.as_str())
             ])?;
         }
     }

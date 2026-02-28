@@ -11,7 +11,7 @@ use axum::{
 use chrono::Utc;
 use hyper::{
     Method,
-    header::{self, FORWARDED, HOST},
+    header::{self, CONTENT_LENGTH, FORWARDED, HOST},
 };
 use matchit::Router;
 use tokio::time::Instant;
@@ -115,6 +115,12 @@ pub async fn reroute(
             s.strip_prefix(prefix.as_str())?.strip_prefix(' ')
         })
         .map(|s| s.to_string());
+
+    let bytes_in = headers
+        .get(CONTENT_LENGTH)
+        .and_then(|h| h.to_str().ok())
+        .and_then(|s| s.parse::<u64>().ok())
+        .unwrap_or(0);
 
     let token_bucket_key = match &config.rate_limit.key {
         RateLimitKey::Ip => TokenBucketKey::Ip(ip),
@@ -254,6 +260,8 @@ pub async fn reroute(
         }
     }
 
+    let upstream_start = std::time::Instant::now();
+
     let res = handler::handle_request(
         &upstream,
         req,
@@ -261,9 +269,18 @@ pub async fn reroute(
     )
     .await;
 
+    let duration_upstream_ms = upstream_start.elapsed().as_millis() as u64;
+
     match res {
         Ok(response) => {
             // dont try and save to cache only if config no cache set
+
+            let bytes_out = response
+                .headers()
+                .get(CONTENT_LENGTH)
+                .and_then(|h| h.to_str().ok())
+                .and_then(|s| s.parse::<u64>().ok())
+                .unwrap_or(0);
             if no_store {
                 let duration = start.elapsed().as_millis() as u64;
                 let event = MetricEvent::Request(RequestMetric {
@@ -271,9 +288,9 @@ pub async fn reroute(
                     status_code: response.status().as_u16(),
                     timestamp: Utc::now(),
                     duration_total_ms: duration,
-                    duration_upstream_ms: duration,
-                    bytes_in: 0,
-                    bytes_out: 0,
+                    duration_upstream_ms,
+                    bytes_in,
+                    bytes_out,
                     client_ip: ip,
                     method: method.clone(),
                     upstream_addr: Some(Arc::clone(&upstream.pool.server_addr)),
@@ -298,9 +315,9 @@ pub async fn reroute(
                 status_code: res.status().as_u16(),
                 timestamp: Utc::now(),
                 duration_total_ms: duration,
-                duration_upstream_ms: duration,
-                bytes_in: 0,
-                bytes_out: 0,
+                duration_upstream_ms,
+                bytes_in,
+                bytes_out,
                 client_ip: ip,
                 method: method.clone(),
                 upstream_addr: Some(Arc::clone(&upstream.pool.server_addr)),
