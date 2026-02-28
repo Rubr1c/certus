@@ -86,13 +86,13 @@ async fn main() {
                     batch.push(entry);
 
                     if batch.len() >= 100 {
-                        db_utils::flush_batch(&conn_clone, &mut batch).await;
+                        db_utils::flush_log_batch(&conn_clone, &mut batch).await;
                     }
                 }
 
                 _ = interval.tick() => {
                     if !batch.is_empty() {
-                        db_utils::flush_batch(&conn_clone, &mut batch).await;
+                        db_utils::flush_log_batch(&conn_clone, &mut batch).await;
                     }
                 }
             }
@@ -101,20 +101,24 @@ async fn main() {
 
     let metrics_conn = conn.clone();
     tokio::spawn(async move {
-        while let Some(event) = metrics_rx.recv().await {
-            match event {
-                MetricEvent::Request(metric) => {
-                    let conn = metrics_conn.clone();
-                    tokio::task::spawn_blocking(move || {
-                        let guard = conn.lock();
-                        if let Err(e) =
-                            db_utils::save_req_metric(&guard, metric)
-                        {
-                            tracing::error!(err = ?e, "Failed to save request metric");
-                        }
-                    });
+        let mut batch: Vec<MetricEvent> = Vec::with_capacity(100);
+
+        let mut interval = time::interval(Duration::from_secs(1));
+
+        loop {
+            tokio::select! {
+                Some(metric) = metrics_rx.recv() => {
+                   batch.push(metric);
+
+                   if batch.len() >= 100 {
+                        db_utils::flush_metric_batch(&metrics_conn, &mut batch).await;
+                   }
+                },
+               _ = interval.tick() => {
+                   if !batch.is_empty() {
+                        db_utils::flush_metric_batch(&metrics_conn, &mut batch).await;
+                   }
                 }
-                MetricEvent::CacheHit(_) => {}
             }
         }
     });

@@ -4,8 +4,10 @@ use parking_lot::Mutex;
 use rusqlite::Connection;
 
 use crate::{
-    config::Config, db::models::LogEntry, logging::log_util::LogEntryDTO,
-    metrics::RequestMetric,
+    config::Config,
+    db::models::LogEntry,
+    logging::log_util::LogEntryDTO,
+    metrics::{MetricEvent, RequestMetric},
 };
 
 pub fn connect_db() -> rusqlite::Result<Connection> {
@@ -231,6 +233,47 @@ pub fn save_req_metric(
     Ok(())
 }
 
+pub fn save_req_metrics(
+    conn: &mut Connection,
+    metrics: Vec<&RequestMetric>,
+) -> rusqlite::Result<()> {
+    let tx = conn.transaction()?;
+    {
+        let mut query = tx.prepare(
+           "INSERT INTO request_metrics (route, timestamp, status_code, duration) 
+                  VALUES (?1, ?2, ?3, ?4)",
+        )?;
+
+        for metric in metrics {
+            query.execute(rusqlite::params![
+                metric.route,
+                metric.timestamp.to_string(),
+                metric.status_code,
+                metric.duration_ms as i64
+            ])?;
+        }
+    }
+    tx.commit()?;
+    Ok(())
+}
+
+pub fn save_metrics(
+    conn: &mut Connection,
+    metrics: Vec<MetricEvent>,
+) -> rusqlite::Result<()> {
+    let req_metrics = metrics
+        .iter()
+        .filter_map(|metric| match metric {
+            MetricEvent::Request(req) => Some(req),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+
+    save_req_metrics(conn, req_metrics)?;
+
+    Ok(())
+}
+
 // should prob move this into another mod
 
 /// Saves a batch of logs concurrently
@@ -239,7 +282,7 @@ pub fn save_req_metric(
 ///
 /// * `conn` - arc mutex connection of a sqlite database
 /// * `batch` - mutable vector of logs to save
-pub async fn flush_batch(
+pub async fn flush_log_batch(
     conn: &Arc<Mutex<Connection>>,
     batch: &mut Vec<LogEntryDTO>,
 ) {
@@ -250,6 +293,22 @@ pub async fn flush_batch(
         let mut conn_guard = conn_clone.lock();
 
         if let Err(e) = save_logs(&mut conn_guard, logs) {
+            tracing::error!(err = ?e, "Failed to batch save logs");
+        }
+    });
+}
+
+pub async fn flush_metric_batch(
+    conn: &Arc<Mutex<Connection>>,
+    batch: &mut Vec<MetricEvent>,
+) {
+    let metrics = std::mem::replace(batch, Vec::with_capacity(100));
+    let conn_clone = Arc::clone(conn);
+
+    tokio::task::spawn_blocking(move || {
+        let mut conn_guard = conn_clone.lock();
+
+        if let Err(e) = save_metrics(&mut conn_guard, metrics) {
             tracing::error!(err = ?e, "Failed to batch save logs");
         }
     });
