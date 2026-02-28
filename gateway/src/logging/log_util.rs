@@ -37,6 +37,7 @@ impl Visit for LogVisitor {
 pub struct LogEntryDTO {
     pub timestamp: String,
     pub level: String,
+    pub target: String,
     pub message: String,
     pub fields: HashMap<String, String>,
 }
@@ -61,14 +62,20 @@ where
     ) {
         let timestamp = chrono::Utc::now().to_rfc3339();
         let level = event.metadata().level().to_string();
+        let target = event.metadata().target().to_string();
 
         let mut visitor = LogVisitor::default();
         event.record(&mut visitor);
 
         let message = visitor.fields.remove("message").unwrap_or_default();
 
-        let entry =
-            LogEntryDTO { timestamp, level, message, fields: visitor.fields };
+        let entry = LogEntryDTO {
+            timestamp,
+            level,
+            target,
+            message,
+            fields: visitor.fields,
+        };
 
         let _ = self.tx.try_send(entry);
     }

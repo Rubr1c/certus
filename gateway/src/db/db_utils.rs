@@ -37,6 +37,7 @@ pub fn migrate(conn: &Connection) -> rusqlite::Result<()> {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             timestamp TEXT NOT NULL,
             level TEXT NOT NULL,
+            target TEXT NOT NULL,
             message TEXT NOT NULL,
             fields TEXT NOT NULL
         );",
@@ -69,6 +70,7 @@ pub fn migrate(conn: &Connection) -> rusqlite::Result<()> {
     for query in querys {
         conn.execute(query, ())?;
     }
+
     Ok(())
 }
 
@@ -89,9 +91,15 @@ pub fn save_log(conn: &Connection, entry: LogEntryDTO) -> rusqlite::Result<()> {
         .unwrap_or_else(|_| "{}".to_string());
 
     conn.execute(
-        "INSERT INTO logs (timestamp, level, message, fields) 
-                  VALUES (?1, ?2, ?3, ?4)",
-        [entry.timestamp, entry.level, entry.message, fields_json],
+        "INSERT INTO logs (timestamp, level, target, message, fields) 
+                  VALUES (?1, ?2, ?3, ?4, ?5)",
+        [
+            entry.timestamp,
+            entry.level,
+            entry.target,
+            entry.message,
+            fields_json,
+        ],
     )?;
 
     Ok(())
@@ -118,8 +126,8 @@ pub fn save_logs(
     let tx = conn.transaction()?;
     {
         let mut query = tx.prepare(
-            "INSERT INTO logs (timestamp, level, message, fields)
-         VALUES (?1, ?2, ?3, ?4)",
+            "INSERT INTO logs (timestamp, level, target, message, fields)
+         VALUES (?1, ?2, ?3, ?4, ?5)",
         )?;
 
         for entry in entries {
@@ -129,6 +137,7 @@ pub fn save_logs(
             query.execute([
                 entry.timestamp,
                 entry.level,
+                entry.target,
                 entry.message,
                 fields_json,
             ])?;
@@ -151,16 +160,18 @@ pub fn save_logs(
 /// * Failed to get element
 /// * Failed to map query
 pub fn get_logs(conn: &Connection) -> rusqlite::Result<Vec<LogEntry>> {
-    let mut stmt =
-        conn.prepare("SELECT id, timestamp, level, message, fields FROM logs")?;
+    let mut stmt = conn.prepare(
+        "SELECT id, timestamp, level, target, message, fields FROM logs",
+    )?;
 
     let logs = stmt.query_map([], |row| {
         Ok(LogEntry {
             id: row.get(0)?,
             timestamp: row.get(1)?,
             level: row.get(2)?,
-            message: row.get(3)?,
-            fields: row.get(4)?,
+            target: row.get(3)?,
+            message: row.get(4)?,
+            fields: row.get(5)?,
         })
     })?;
     let mut log_vec: Vec<LogEntry> = Vec::new();

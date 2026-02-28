@@ -8,6 +8,7 @@ pub struct LogEntry {
     pub id: i64,
     pub timestamp: String,
     pub level: String,
+    pub target: String,
     pub message: String,
     pub fields: String,
 }
