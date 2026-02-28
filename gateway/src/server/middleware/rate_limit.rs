@@ -6,7 +6,6 @@ use std::{
 use axum::http::HeaderValue;
 use bb8_redis::RedisConnectionManager;
 use moka::sync::Cache;
-use redis::AsyncCommands;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -86,11 +85,20 @@ impl DynRateLimitBackend {
             DynRateLimitBackend::InMemory(map) => map.get(key),
             DynRateLimitBackend::Redis(pool) => {
                 let mut conn = pool.get().await.ok()?;
-                let json: Option<String> =
-                    conn.get(&redis_key(key)).await.ok()?;
-                let s: SerializableTokenBucket =
-                    serde_json::from_str(&json?).ok()?;
-                Some(s.into())
+                let redis_key = redis_key(key);
+                let (tokens, last_refill_epoch_ms): (Option<f64>, Option<u64>) =
+                    redis::cmd("HMGET")
+                        .arg(&redis_key)
+                        .arg("tokens")
+                        .arg("last_refill_epoch_ms")
+                        .query_async(&mut *conn)
+                        .await
+                        .ok()?;
+                let serializable = SerializableTokenBucket {
+                    tokens: tokens?,
+                    last_refill_epoch_ms: last_refill_epoch_ms?,
+                };
+                Some(serializable.into())
             }
         }
     }
@@ -102,12 +110,16 @@ impl DynRateLimitBackend {
             }
             DynRateLimitBackend::Redis(pool) => {
                 let Ok(mut conn) = pool.get().await else { return };
-                let Ok(json) = serde_json::to_string(
-                    &SerializableTokenBucket::from(&value),
-                ) else {
-                    return;
-                };
-                let _: Result<(), _> = conn.set(&redis_key(&key), json).await;
+                let serializable = SerializableTokenBucket::from(&value);
+                let redis_key = redis_key(&key);
+                let _: Result<(), _> = redis::cmd("HSET")
+                    .arg(&redis_key)
+                    .arg("tokens")
+                    .arg(serializable.tokens)
+                    .arg("last_refill_epoch_ms")
+                    .arg(serializable.last_refill_epoch_ms)
+                    .query_async(&mut *conn)
+                    .await;
             }
         }
     }

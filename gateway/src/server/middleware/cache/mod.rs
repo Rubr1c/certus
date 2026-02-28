@@ -9,7 +9,6 @@ use bb8_redis::RedisConnectionManager;
 use dashmap::DashMap;
 use hyper::{HeaderMap, Response, StatusCode, header::HeaderName};
 use moka::sync::Cache;
-use redis::AsyncTypedCommands;
 use serde::{Deserialize, Serialize};
 
 /// Cache backend for static routes (keyed by path string).
@@ -27,11 +26,7 @@ impl StaticCacheBackend {
             }
             StaticCacheBackend::Redis(pool) => {
                 let mut conn = pool.get().await.ok()?;
-                let json: Option<String> = conn.get(&key).await.ok()?;
-                let json = json?;
-                let s: SerializableCachedResponse =
-                    serde_json::from_str(&json).ok()?;
-                Some(s.into())
+                read_cached_response_hash(&mut conn, key).await
             }
         }
     }
@@ -43,12 +38,8 @@ impl StaticCacheBackend {
             }
             StaticCacheBackend::Redis(pool) => {
                 let Ok(mut conn) = pool.get().await else { return };
-                let Ok(json) = serde_json::to_string(
-                    &SerializableCachedResponse::from(&value),
-                ) else {
-                    return;
-                };
-                let _: Result<(), _> = conn.set(&key, json).await;
+                let _ =
+                    write_cached_response_hash(&mut conn, &key, &value).await;
             }
         }
     }
@@ -77,11 +68,7 @@ impl DynCacheBackend {
                     key.path,
                     key.token.as_deref().unwrap_or("")
                 );
-                let json: Option<String> = conn.get(&redis_key).await.ok()?;
-                let json = json?;
-                let s: SerializableCachedResponse =
-                    serde_json::from_str(&json).ok()?;
-                Some(s.into())
+                read_cached_response_hash(&mut conn, &redis_key).await
             }
         }
     }
@@ -96,19 +83,21 @@ impl DynCacheBackend {
                     key.path,
                     key.token.as_deref().unwrap_or("")
                 );
-                let Ok(json) = serde_json::to_string(
-                    &SerializableCachedResponse::from(&value),
-                ) else {
+                if write_cached_response_hash(&mut conn, &redis_key, &value)
+                    .await
+                    .is_err()
+                {
                     return;
-                };
+                }
                 match ttl {
                     Some(secs) => {
-                        let _: Result<(), _> =
-                            conn.set_ex(&redis_key, json, *secs).await;
+                        let _: Result<(), _> = redis::cmd("EXPIRE")
+                            .arg(&redis_key)
+                            .arg(*secs)
+                            .query_async(&mut *conn)
+                            .await;
                     }
-                    None => {
-                        let _: Result<(), _> = conn.set(&redis_key, json).await;
-                    }
+                    None => {}
                 }
             }
         }
@@ -129,14 +118,18 @@ impl DynCacheBackend {
                     key.path,
                     key.token.as_deref().unwrap_or("")
                 );
-                let Ok(json) = serde_json::to_string(
-                    &SerializableCachedResponse::from(&value),
-                ) else {
+                if write_cached_response_hash(&mut conn, &redis_key, &value)
+                    .await
+                    .is_err()
+                {
                     return;
-                };
+                }
 
-                let _: Result<(), _> =
-                    conn.set_ex(&redis_key, json, *ttl).await;
+                let _: Result<(), _> = redis::cmd("EXPIRE")
+                    .arg(&redis_key)
+                    .arg(*ttl)
+                    .query_async(&mut *conn)
+                    .await;
             }
         }
     }
@@ -157,53 +150,83 @@ pub struct CachedResponse {
     pub body: Bytes,
 }
 
-/// Serde-friendly intermediate representation of CachedResponse.
-/// CachedResponse itself uses hyper types (StatusCode, HeaderMap, Bytes)
-/// which don't implement Serialize/Deserialize, so we convert through this
-/// struct for Redis JSON storage.
 #[derive(Serialize, Deserialize)]
-struct SerializableCachedResponse {
-    status: u16,
-    headers: Vec<(String, String)>,
-    body: Vec<u8>,
+struct SerializableHeaders(Vec<(String, String)>);
+
+fn headers_to_json(headers: &HeaderMap) -> Option<String> {
+    let data = SerializableHeaders(
+        headers
+            .iter()
+            .map(|(k, v)| {
+                (k.as_str().to_string(), v.to_str().unwrap_or("").to_string())
+            })
+            .collect(),
+    );
+    serde_json::to_string(&data).ok()
 }
 
-impl From<&CachedResponse> for SerializableCachedResponse {
-    fn from(r: &CachedResponse) -> Self {
-        Self {
-            status: r.status.as_u16(),
-            headers: r
-                .headers
-                .iter()
-                .map(|(k, v)| {
-                    (
-                        k.as_str().to_string(),
-                        v.to_str().unwrap_or("").to_string(),
-                    )
-                })
-                .collect(),
-            body: r.body.to_vec(),
+fn headers_from_json(json: &str) -> HeaderMap {
+    let mut headers = HeaderMap::new();
+    let Ok(data) = serde_json::from_str::<SerializableHeaders>(json) else {
+        return headers;
+    };
+    for (k, v) in data.0 {
+        if let (Ok(name), Ok(val)) =
+            (k.parse::<HeaderName>(), v.parse::<hyper::header::HeaderValue>())
+        {
+            headers.insert(name, val);
         }
     }
+    headers
 }
 
-impl From<SerializableCachedResponse> for CachedResponse {
-    fn from(s: SerializableCachedResponse) -> Self {
-        let mut headers = HeaderMap::new();
-        for (k, v) in s.headers {
-            if let (Ok(name), Ok(val)) = (
-                k.parse::<HeaderName>(),
-                v.parse::<hyper::header::HeaderValue>(),
-            ) {
-                headers.insert(name, val);
-            }
-        }
-        Self {
-            status: StatusCode::from_u16(s.status).unwrap_or(StatusCode::OK),
-            headers,
-            body: Bytes::from(s.body),
-        }
-    }
+async fn write_cached_response_hash(
+    conn: &mut bb8::PooledConnection<'_, RedisConnectionManager>,
+    redis_key: &str,
+    value: &CachedResponse,
+) -> Result<(), ()> {
+    let Some(headers_json) = headers_to_json(&value.headers) else {
+        return Err(());
+    };
+    redis::cmd("HSET")
+        .arg(redis_key)
+        .arg("status")
+        .arg(value.status.as_u16())
+        .arg("headers")
+        .arg(headers_json)
+        .arg("body")
+        .arg(value.body.as_ref())
+        .query_async(&mut **conn)
+        .await
+        .map_err(|_| ())
+}
+
+async fn read_cached_response_hash(
+    conn: &mut bb8::PooledConnection<'_, RedisConnectionManager>,
+    redis_key: &str,
+) -> Option<CachedResponse> {
+    let (status, headers, body): (
+        Option<u16>,
+        Option<String>,
+        Option<Vec<u8>>,
+    ) = redis::cmd("HMGET")
+        .arg(redis_key)
+        .arg("status")
+        .arg("headers")
+        .arg("body")
+        .query_async(&mut **conn)
+        .await
+        .ok()?;
+
+    let status = status?;
+    let headers = headers?;
+    let body = body?;
+
+    Some(CachedResponse {
+        status: StatusCode::from_u16(status).ok()?,
+        headers: headers_from_json(&headers),
+        body: Bytes::from(body),
+    })
 }
 
 impl IntoResponse for CachedResponse {
