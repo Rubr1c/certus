@@ -192,11 +192,22 @@ pub async fn borrow_connection(
     timeout: u64,
 ) -> Result<PooledConnection, GatewayError> {
     tracing::info!("Checking for idle connetions");
-    if let Some(sender) = upstream.pool.idle_connections.pop() {
-        tracing::info!("Found idle connetion");
-        upstream.active_connctions.fetch_add(1, Ordering::Release);
-        return Ok(sender);
+    while let Some(sender) = upstream.pool.idle_connections.pop() {
+        let alive = match &sender {
+            PooledConnection::Http1(s) => s.is_ready(),
+            PooledConnection::Http2(s) => s.is_ready(),
+        };
+
+        if alive {
+            tracing::info!("Found idle connetion");
+            upstream.active_connctions.fetch_add(1, Ordering::Release);
+            return Ok(sender);
+        }
+
+        upstream.pool.total_connections.fetch_sub(1, Ordering::Release);
+        tracing::warn!("Discarded dead idle connection");
     }
+
     tracing::info!("No idle connetions found");
 
     let total = upstream.pool.total_connections.load(Ordering::Acquire);
