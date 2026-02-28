@@ -168,7 +168,7 @@ pub async fn reroute(
     let mut h_max_age: Option<u64> = None;
     let mut h_s_max_age: Option<u64> = None;
 
-    let mut no_store = false;
+    let mut no_store = c_no_cache || !cacheable_method;
 
     if !c_no_cache && cacheable_method {
         if let Some(cc_header) =
