@@ -67,7 +67,11 @@ pub fn migrate(conn: &Connection) -> rusqlite::Result<()> {
         )",
         "CREATE TABLE IF NOT EXISTS req_res_schemas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            route TEXT NOT NULL,
+            full_path TEXT NOT NULL,
+            method TEXT NOT NULL,
+            query_params TEXT,
+            status_code INTEGER NOT NULL,
+            has_auth INTEGER NOT NULL DEFAULT 0,
             req_headers TEXT NOT NULL,
             res_headers TEXT NOT NULL
         )",
@@ -378,13 +382,17 @@ pub fn save_req_res_schemas(
     let tx = conn.transaction()?;
     {
         let mut query = tx.prepare(
-            "INSERT INTO req_res_schemas (route, req_headers, res_headers)
-             VALUES (?1, ?2, ?3)",
+            "INSERT INTO req_res_schemas (full_path, method, query_params, status_code, has_auth, req_headers, res_headers)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
         )?;
 
         for schema in req_res_schemas {
-            query.execute([
-                schema.route,
+            query.execute(rusqlite::params![
+                schema.full_path,
+                schema.method,
+                schema.query_params,
+                schema.status_code,
+                schema.has_auth,
                 schema.req_headers,
                 schema.res_headers,
             ])?;

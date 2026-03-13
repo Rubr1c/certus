@@ -84,12 +84,12 @@ pub async fn reroute(
 ) -> impl IntoResponse {
     let start = Instant::now();
 
-    let path = req.uri().path().to_string();
-    let query = req.uri().query().map(str::to_owned);
+    let path: Arc<str> = req.uri().path().into();
+    let query: Option<Arc<str>> = req.uri().query().map(Arc::from);
     let config = state.config.load();
     let routing_table = state.routing_table.load();
 
-    let matched_route_key = match routing_table.router.at(path.as_str()) {
+    let matched_route_key = match routing_table.router.at(&path) {
         Ok(match_result) => match_result.value,
         Err(_) => {
             return GatewayError::NotFound.into_response();
@@ -157,7 +157,7 @@ pub async fn reroute(
     let ck = CacheKey {
         token: token.as_deref().map(Cow::Borrowed),
         path: query.as_ref().map_or_else(
-            || Cow::Borrowed(path.as_str()),
+            || Cow::Borrowed(&*path),
             |q| Cow::Owned(format!("{}?{}", path, q)),
         ),
     };
@@ -214,7 +214,7 @@ pub async fn reroute(
         if !no_cache {
             //can maybe combine both cache methods into one fn
             if let Some(res) =
-                static_cache::try_find(&state.static_cache, path.as_str()).await
+                static_cache::try_find(&state.static_cache, &path).await
             {
                 let metric = CacheMetric {
                     route: Arc::clone(matched_route_key),
@@ -226,7 +226,7 @@ pub async fn reroute(
                 return res;
             }
 
-            match dyn_cache::try_find(&state.cache, path.as_str(), &ck).await {
+            match dyn_cache::try_find(&state.cache, &path, &ck).await {
                 Some(res) => {
                     let metric = CacheMetric {
                         route: Arc::clone(matched_route_key),
@@ -316,7 +316,10 @@ pub async fn reroute(
             // dont try and save to cache only if config no cache set
 
             let _ = state.schema_tx.try_send(ReqResSchemaDTO {
-                route: Arc::clone(matched_route_key),
+                full_path: Arc::clone(&path),
+                method: method.clone(),
+                query_params: query.as_ref().map(Arc::clone),
+                status_code: response.status(),
                 req_headers,
                 res_headers: response.headers().clone(),
             });
