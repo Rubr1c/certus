@@ -4,6 +4,7 @@ use parking_lot::Mutex;
 use rusqlite::Connection;
 use tokio::sync::mpsc;
 
+use crate::db::models::ReqResSchemaDTO;
 use crate::metrics::MetricEvent;
 
 pub mod auth;
@@ -31,5 +32,10 @@ fn test_db_conn() -> Arc<Mutex<Connection>> {
 
 fn test_metrics_tx() -> mpsc::Sender<MetricEvent> {
     let (tx, _rx) = mpsc::channel::<MetricEvent>(16);
+    tx
+}
+
+fn test_schema_tx() -> mpsc::Sender<ReqResSchemaDTO> {
+    let (tx, _rx) = mpsc::channel::<ReqResSchemaDTO>(16);
     tx
 }

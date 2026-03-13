@@ -12,7 +12,7 @@ use tokio::sync::mpsc;
 
 use crate::{
     config::{CmdArgs, Config, StorageType},
-    db::db_utils,
+    db::{db_utils, models::ReqResSchemaDTO},
     metrics::MetricEvent,
     server::{
         connection,
@@ -45,6 +45,7 @@ pub struct AppState {
     pub db_conn: Arc<Mutex<Connection>>,
     pub idle_queue: DashMap<String, SegQueue<Arc<UpstreamServer>>>,
     pub metrics_tx: mpsc::Sender<MetricEvent>,
+    pub schema_tx: mpsc::Sender<ReqResSchemaDTO>,
 }
 
 impl AppState {
@@ -52,6 +53,7 @@ impl AppState {
         config: Config,
         conn: Arc<Mutex<Connection>>,
         metrics_tx: mpsc::Sender<MetricEvent>,
+        schema_tx: mpsc::Sender<ReqResSchemaDTO>,
     ) -> Self {
         Self {
             routing_table: ArcSwap::from_pointee(RoutingTable {
@@ -110,6 +112,7 @@ impl AppState {
             config: ArcSwap::from_pointee(config),
             db_conn: conn,
             metrics_tx,
+            schema_tx,
         }
     }
 }

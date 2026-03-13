@@ -20,6 +20,7 @@ use tracing::{Level, instrument};
 
 use crate::{
     config::RateLimitKey,
+    db::models::ReqResSchemaDTO,
     metrics::{CacheMetric, CacheResult, MetricEvent, RequestMetric},
     server::{
         app_state::AppState,
@@ -297,6 +298,8 @@ pub async fn reroute(
         }
     }
 
+    let req_headers = req.headers().clone();
+
     let upstream_start = std::time::Instant::now();
 
     let res = handler::handle_request(
@@ -311,6 +314,12 @@ pub async fn reroute(
     match res {
         Ok(response) => {
             // dont try and save to cache only if config no cache set
+
+            let _ = state.schema_tx.try_send(ReqResSchemaDTO {
+                route: Arc::clone(matched_route_key),
+                req_headers,
+                res_headers: response.headers().clone(),
+            });
 
             let bytes_out = response
                 .headers()

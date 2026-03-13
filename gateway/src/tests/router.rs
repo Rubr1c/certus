@@ -4,7 +4,7 @@ use crate::config::{Config, RouteConfig};
 use crate::server::app_state::AppState;
 use crate::server::middleware::router;
 
-use super::{test_db_conn, test_metrics_tx};
+use super::{test_db_conn, test_metrics_tx, test_schema_tx};
 
 #[tokio::test]
 async fn build_tree_matches_configured_route() {
@@ -12,7 +12,13 @@ async fn build_tree_matches_configured_route() {
     config.routes.insert("/api".to_string(), RouteConfig::default());
 
     let state = Arc::new(
-        AppState::new(config, test_db_conn(), test_metrics_tx()).await,
+        AppState::new(
+            config,
+            test_db_conn(),
+            test_metrics_tx(),
+            test_schema_tx(),
+        )
+        .await,
     );
     let tree = router::build_tree(state);
 
@@ -27,7 +33,13 @@ async fn build_tree_matches_wildcard_subpath() {
     config.routes.insert("/api".to_string(), RouteConfig::default());
 
     let state = Arc::new(
-        AppState::new(config, test_db_conn(), test_metrics_tx()).await,
+        AppState::new(
+            config,
+            test_db_conn(),
+            test_metrics_tx(),
+            test_schema_tx(),
+        )
+        .await,
     );
     let tree = router::build_tree(state);
 
@@ -42,7 +54,13 @@ async fn build_tree_no_match_returns_err() {
     config.routes.insert("/api".to_string(), RouteConfig::default());
 
     let state = Arc::new(
-        AppState::new(config, test_db_conn(), test_metrics_tx()).await,
+        AppState::new(
+            config,
+            test_db_conn(),
+            test_metrics_tx(),
+            test_schema_tx(),
+        )
+        .await,
     );
     let tree = router::build_tree(state);
 
@@ -57,7 +75,13 @@ async fn build_tree_root_route() {
     config.routes.insert("/".to_string(), RouteConfig::default());
 
     let state = Arc::new(
-        AppState::new(config, test_db_conn(), test_metrics_tx()).await,
+        AppState::new(
+            config,
+            test_db_conn(),
+            test_metrics_tx(),
+            test_schema_tx(),
+        )
+        .await,
     );
     let tree = router::build_tree(state);
 
@@ -72,7 +96,13 @@ async fn build_tree_multiple_routes() {
     config.routes.insert("/health".to_string(), RouteConfig::default());
 
     let state = Arc::new(
-        AppState::new(config, test_db_conn(), test_metrics_tx()).await,
+        AppState::new(
+            config,
+            test_db_conn(),
+            test_metrics_tx(),
+            test_schema_tx(),
+        )
+        .await,
     );
     let tree = router::build_tree(state);
 

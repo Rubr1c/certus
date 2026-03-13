@@ -19,7 +19,7 @@ use gateway::{
         CmdArgs,
         cfg_utils::{reload_config, watch_config},
     },
-    db::db_utils,
+    db::{db_utils, models::ReqResSchemaDTO},
     logging::log_util::{LogChannelLayer, LogEntryDTO},
     metrics::MetricEvent,
     server::{
@@ -32,6 +32,7 @@ use gateway::{
 async fn main() {
     let (log_tx, mut log_rx) = mpsc::channel::<LogEntryDTO>(1024);
     let (metrics_tx, mut metrics_rx) = mpsc::channel::<MetricEvent>(1024);
+    let (schema_tx, mut schema_rx) = mpsc::channel::<ReqResSchemaDTO>(1024);
 
     // maybe make custom writer for this to send to a channel too?
     // not sure that will make a different or not just a thought
@@ -58,18 +59,22 @@ async fn main() {
 
     let log_conn = db_utils::connect_db().expect("log db");
     let metrics_conn = db_utils::connect_db().expect("metrics db");
+    let schema_conn = db_utils::connect_db().expect("schema db");
 
     db_utils::migrate(&log_conn).expect("migrate");
 
     let log_conn = Arc::new(Mutex::new(log_conn));
     let metrics_conn = Arc::new(Mutex::new(metrics_conn));
+    let schema_conn = Arc::new(Mutex::new(schema_conn));
 
     let config = reload_config(config_path).await.unwrap();
 
     let tls = config.tls.clone();
 
-    let state =
-        Arc::new(AppState::new(config, metrics_conn.clone(), metrics_tx).await);
+    let state = Arc::new(
+        AppState::new(config, metrics_conn.clone(), metrics_tx, schema_tx)
+            .await,
+    );
 
     let log_conn_clone = log_conn.clone();
     tokio::spawn(async move {
@@ -83,13 +88,13 @@ async fn main() {
                     batch.push(entry);
 
                     if batch.len() >= 100 {
-                        db_utils::flush_log_batch(&log_conn_clone, &mut batch).await;
+                        db_utils::flush_log_batch(&log_conn_clone, &mut batch);
                     }
                 }
 
                 _ = interval.tick() => {
                     if !batch.is_empty() {
-                        db_utils::flush_log_batch(&log_conn_clone, &mut batch).await;
+                        db_utils::flush_log_batch(&log_conn_clone, &mut batch);
                     }
                 }
             }
@@ -108,13 +113,36 @@ async fn main() {
                    batch.push(metric);
 
                    if batch.len() >= 100 {
-                        db_utils::flush_metric_batch(&metrics_conn_clone, &mut batch).await;
+                        db_utils::flush_metric_batch(&metrics_conn_clone, &mut batch);
                    }
                 },
                _ = interval.tick() => {
                    if !batch.is_empty() {
-                        db_utils::flush_metric_batch(&metrics_conn_clone, &mut batch).await;
+                        db_utils::flush_metric_batch(&metrics_conn_clone, &mut batch);
                    }
+                }
+            }
+        }
+    });
+
+    tokio::spawn(async move {
+        let mut batch: Vec<ReqResSchemaDTO> = Vec::with_capacity(100);
+
+        let mut interval = time::interval(Duration::from_secs(1));
+
+        loop {
+            tokio::select! {
+                Some(schema) = schema_rx.recv() => {
+                    batch.push(schema);
+
+                    if batch.len() >= 100 {
+                        db_utils::flush_req_res_schema_batch(&schema_conn, &mut batch);
+                    }
+                },
+                _ = interval.tick() => {
+                    if !batch.is_empty() {
+                        db_utils::flush_req_res_schema_batch(&schema_conn, &mut batch);
+                    }
                 }
             }
         }

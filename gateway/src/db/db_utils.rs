@@ -5,7 +5,7 @@ use rusqlite::Connection;
 
 use crate::{
     config::Config,
-    db::models::LogEntry,
+    db::models::{LogEntry, ReqResSchema, ReqResSchemaDTO},
     logging::log_util::LogEntryDTO,
     metrics::{CacheMetric, CacheResult, MetricEvent, RequestMetric},
 };
@@ -46,7 +46,7 @@ pub fn migrate(conn: &Connection) -> rusqlite::Result<()> {
             config_data TEXT NOT NULL,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );",
-        "CREATE TABLE IF NOT EXISTS request_metrics(
+        "CREATE TABLE IF NOT EXISTS request_metrics (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             timestamp TEXT NOT NULL,
             route TEXT NOT NULL,
@@ -59,11 +59,17 @@ pub fn migrate(conn: &Connection) -> rusqlite::Result<()> {
             method TEXT NOT NULL,
             upstream_addr TEXT
         )",
-        "CREATE TABLE IF NOT EXISTS cache_metrics(
+        "CREATE TABLE IF NOT EXISTS cache_metrics (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             timestamp TEXT NOT NULL,
             route TEXT NOT NULL,
             result TEXT NOT NULL
+        )",
+        "CREATE TABLE IF NOT EXISTS req_res_schemas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            route TEXT NOT NULL,
+            req_headers TEXT NOT NULL,
+            res_headers TEXT NOT NULL
         )",
     ];
 
@@ -85,7 +91,6 @@ pub fn migrate(conn: &Connection) -> rusqlite::Result<()> {
 ///
 /// Returns an error if:
 /// * Failed to execute query
-///
 pub fn save_log(conn: &Connection, entry: LogEntryDTO) -> rusqlite::Result<()> {
     let fields_json = serde_json::to_string(&entry.fields)
         .unwrap_or_else(|_| "{}".to_string());
@@ -366,6 +371,29 @@ pub fn save_metrics(
     Ok(())
 }
 
+pub fn save_req_res_schemas(
+    conn: &mut Connection,
+    req_res_schemas: Vec<ReqResSchema>,
+) -> rusqlite::Result<()> {
+    let tx = conn.transaction()?;
+    {
+        let mut query = tx.prepare(
+            "INSERT INTO req_res_schemas (route, req_headers, res_headers)
+             VALUES (?1, ?2, ?3)",
+        )?;
+
+        for schema in req_res_schemas {
+            query.execute([
+                schema.route,
+                schema.req_headers,
+                schema.res_headers,
+            ])?;
+        }
+    }
+    tx.commit()?;
+    Ok(())
+}
+
 // should prob move this into another mod
 
 /// Saves a batch of logs concurrently
@@ -374,7 +402,7 @@ pub fn save_metrics(
 ///
 /// * `conn` - arc mutex connection of a sqlite database
 /// * `batch` - mutable vector of logs to save
-pub async fn flush_log_batch(
+pub fn flush_log_batch(
     conn: &Arc<Mutex<Connection>>,
     batch: &mut Vec<LogEntryDTO>,
 ) {
@@ -390,7 +418,7 @@ pub async fn flush_log_batch(
     });
 }
 
-pub async fn flush_metric_batch(
+pub fn flush_metric_batch(
     conn: &Arc<Mutex<Connection>>,
     batch: &mut Vec<MetricEvent>,
 ) {
@@ -401,7 +429,24 @@ pub async fn flush_metric_batch(
         let mut conn_guard = conn_clone.lock();
 
         if let Err(e) = save_metrics(&mut conn_guard, metrics) {
-            tracing::error!(err = ?e, "Failed to batch save logs");
+            tracing::error!(err = ?e, "Failed to batch save metrics");
+        }
+    });
+}
+
+pub fn flush_req_res_schema_batch(
+    conn: &Arc<Mutex<Connection>>,
+    batch: &mut Vec<ReqResSchemaDTO>,
+) {
+    let schemas = std::mem::replace(batch, Vec::with_capacity(100));
+    let conn_clone = Arc::clone(conn);
+
+    tokio::task::spawn_blocking(move || {
+        let schemas = schemas.into_iter().map(|dto| dto.into_s()).collect();
+        let mut conn_guard = conn_clone.lock();
+
+        if let Err(e) = save_req_res_schemas(&mut conn_guard, schemas) {
+            tracing::error!(err = ?e, "Failed to batch save schemas");
         }
     });
 }
