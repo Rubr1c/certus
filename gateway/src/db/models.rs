@@ -30,6 +30,7 @@ pub struct ReqResSchemaDTO {
     pub res_headers: HeaderMap,
 }
 
+#[derive(Serialize)]
 pub struct ReqResSchema {
     pub full_path: String,
     pub method: String,

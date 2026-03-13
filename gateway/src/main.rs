@@ -3,7 +3,7 @@ use std::{net::SocketAddr, sync::Arc, time::Duration};
 use axum::{
     Router,
     http::HeaderValue,
-    routing::{any, post},
+    routing::{any, get, post},
 };
 use axum_server::tls_rustls::RustlsConfig;
 use clap::Parser;
@@ -19,6 +19,7 @@ use gateway::{
         CmdArgs,
         cfg_utils::{reload_config, watch_config},
     },
+    controller::schema_controllers,
     db::{db_utils, models::ReqResSchemaDTO},
     logging::log_util::{LogChannelLayer, LogEntryDTO},
     metrics::MetricEvent,
@@ -164,6 +165,7 @@ async fn main() {
 
     let mut app = Router::new()
         .route("/_certus/idle", post(load_balance::set_idle))
+        .route("/_certus/schemas", get(schema_controllers::get_schemas))
         .route("/{*any}", any(router::reroute))
         .with_state(state);
 

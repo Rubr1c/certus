@@ -402,6 +402,35 @@ pub fn save_req_res_schemas(
     Ok(())
 }
 
+pub fn get_req_res_schemas(
+    conn: &Connection,
+    page: u32,
+    page_size: u32,
+) -> rusqlite::Result<Vec<ReqResSchema>> {
+    let offset = page * page_size;
+
+    let mut stmt = conn.prepare(
+        "SELECT full_path, method, query_params, status_code, has_auth, req_headers, res_headers
+         FROM req_res_schemas
+         ORDER BY id DESC
+         LIMIT ?1 OFFSET ?2",
+    )?;
+
+    let rows = stmt.query_map(rusqlite::params![page_size, offset], |row| {
+        Ok(ReqResSchema {
+            full_path: row.get(0)?,
+            method: row.get(1)?,
+            query_params: row.get(2)?,
+            status_code: row.get(3)?,
+            has_auth: row.get(4)?,
+            req_headers: row.get(5)?,
+            res_headers: row.get(6)?,
+        })
+    })?;
+
+    rows.collect()
+}
+
 // should prob move this into another mod
 
 /// Saves a batch of logs concurrently

@@ -1,4 +1,5 @@
 pub mod config;
+pub mod controller;
 pub mod db;
 pub mod logging;
 pub mod metrics;
