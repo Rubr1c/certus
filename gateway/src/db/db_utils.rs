@@ -78,6 +78,7 @@ pub fn migrate(conn: &Connection) -> rusqlite::Result<()> {
             req_headers TEXT NOT NULL,
             res_headers TEXT NOT NULL
         )",
+        "CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON logs (timestamp)",
         "CREATE INDEX IF NOT EXISTS idx_request_metrics_timestamp ON request_metrics (timestamp)",
         "CREATE INDEX IF NOT EXISTS idx_cache_metrics_timestamp ON cache_metrics (timestamp)",
     ];
@@ -567,6 +568,76 @@ pub fn get_cache_metrics(
             timestamp: row.get(0)?,
             route: row.get(1)?,
             result: row.get(2)?,
+        })
+    })?;
+
+    rows.collect()
+}
+
+pub fn get_log_entries(
+    conn: &Connection,
+    from: Option<&str>,
+    to: Option<&str>,
+    level: Option<&str>,
+    target: Option<&str>,
+    search: Option<&str>,
+    page: u32,
+    page_size: u32,
+) -> rusqlite::Result<Vec<LogEntry>> {
+    let mut sql = String::from(
+        "SELECT id, timestamp, level, target, message, fields FROM logs",
+    );
+
+    let mut conditions: Vec<String> = Vec::new();
+    let mut params: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
+
+    if let Some(v) = from {
+        conditions.push(format!("timestamp >= ?{}", params.len() + 1));
+        params.push(Box::new(v.to_string()));
+    }
+    if let Some(v) = to {
+        conditions.push(format!("timestamp <= ?{}", params.len() + 1));
+        params.push(Box::new(v.to_string()));
+    }
+    if let Some(v) = level {
+        conditions.push(format!("level = ?{}", params.len() + 1));
+        params.push(Box::new(v.to_string()));
+    }
+    if let Some(v) = target {
+        conditions.push(format!("target = ?{}", params.len() + 1));
+        params.push(Box::new(v.to_string()));
+    }
+    if let Some(v) = search {
+        conditions.push(format!("message LIKE ?{}", params.len() + 1));
+        params.push(Box::new(format!("%{}%", v)));
+    }
+
+    if !conditions.is_empty() {
+        sql.push_str(" WHERE ");
+        sql.push_str(&conditions.join(" AND "));
+    }
+
+    let offset = page * page_size;
+    sql.push_str(&format!(
+        " ORDER BY timestamp DESC LIMIT ?{} OFFSET ?{}",
+        params.len() + 1,
+        params.len() + 2
+    ));
+    params.push(Box::new(page_size));
+    params.push(Box::new(offset));
+
+    let param_refs: Vec<&dyn rusqlite::types::ToSql> =
+        params.iter().map(|p| p.as_ref()).collect();
+
+    let mut stmt = conn.prepare(&sql)?;
+    let rows = stmt.query_map(param_refs.as_slice(), |row| {
+        Ok(LogEntry {
+            id: row.get(0)?,
+            timestamp: row.get(1)?,
+            level: row.get(2)?,
+            target: row.get(3)?,
+            message: row.get(4)?,
+            fields: row.get(5)?,
         })
     })?;
 

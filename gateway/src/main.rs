@@ -63,6 +63,7 @@ async fn main() {
     let mut certus_routes = Router::new()
         .route("/idle", post(load_balance::set_idle))
         .route("/schemas", get(schema_controller::get_schemas))
+        .route("/logs", get(log_controller::get_logs))
         .route(
             "/metrics/requests",
             get(metrics_controller::get_request_metrics),
