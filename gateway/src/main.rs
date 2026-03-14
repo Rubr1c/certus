@@ -19,7 +19,7 @@ use gateway::{
         CmdArgs,
         cfg_utils::{reload_config, watch_config},
     },
-    controller::schema_controllers,
+    controller::{metrics_controller, schema_controller},
     db::{db_utils, models::ReqResSchemaDTO},
     logging::log_util::{LogChannelLayer, LogEntryDTO},
     metrics::MetricEvent,
@@ -163,9 +163,17 @@ async fn main() {
     tracing::info!("Certus Gateway Running on port {}", port);
     println!("Config watcher started. Press Ctrl+C to exit.");
 
+    let certus_routes = Router::new()
+        .route("/idle", post(load_balance::set_idle))
+        .route("/schemas", get(schema_controller::get_schemas))
+        .route(
+            "/metrics/requests",
+            get(metrics_controller::get_request_metrics),
+        )
+        .route("/metrics/cache", get(metrics_controller::get_cache_metrics));
+
     let mut app = Router::new()
-        .route("/_certus/idle", post(load_balance::set_idle))
-        .route("/_certus/schemas", get(schema_controllers::get_schemas))
+        .nest("/_certus", certus_routes)
         .route("/{*any}", any(router::reroute))
         .with_state(state);
 

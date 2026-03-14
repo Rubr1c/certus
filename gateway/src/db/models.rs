@@ -41,6 +41,27 @@ pub struct ReqResSchema {
     pub res_headers: String,
 }
 
+#[derive(Serialize)]
+pub struct RequestMetricRow {
+    pub timestamp: String,
+    pub route: String,
+    pub status_code: u16,
+    pub duration_total_ms: i64,
+    pub duration_upstream_ms: i64,
+    pub bytes_in: i64,
+    pub bytes_out: i64,
+    pub client_ip: String,
+    pub method: String,
+    pub upstream_addr: Option<String>,
+}
+
+#[derive(Serialize)]
+pub struct CacheMetricRow {
+    pub timestamp: String,
+    pub route: String,
+    pub result: String,
+}
+
 impl ReqResSchemaDTO {
     pub fn into_s(self) -> ReqResSchema {
         const ALLOW: &[header::HeaderName] = &[

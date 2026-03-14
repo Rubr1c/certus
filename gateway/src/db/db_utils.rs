@@ -5,7 +5,10 @@ use rusqlite::Connection;
 
 use crate::{
     config::Config,
-    db::models::{LogEntry, ReqResSchema, ReqResSchemaDTO},
+    db::models::{
+        CacheMetricRow, LogEntry, ReqResSchema, ReqResSchemaDTO,
+        RequestMetricRow,
+    },
     logging::log_util::LogEntryDTO,
     metrics::{CacheMetric, CacheResult, MetricEvent, RequestMetric},
 };
@@ -75,6 +78,8 @@ pub fn migrate(conn: &Connection) -> rusqlite::Result<()> {
             req_headers TEXT NOT NULL,
             res_headers TEXT NOT NULL
         )",
+        "CREATE INDEX IF NOT EXISTS idx_request_metrics_timestamp ON request_metrics (timestamp)",
+        "CREATE INDEX IF NOT EXISTS idx_cache_metrics_timestamp ON cache_metrics (timestamp)",
     ];
 
     for query in querys {
@@ -425,6 +430,143 @@ pub fn get_req_res_schemas(
             has_auth: row.get(4)?,
             req_headers: row.get(5)?,
             res_headers: row.get(6)?,
+        })
+    })?;
+
+    rows.collect()
+}
+
+pub fn get_request_metrics(
+    conn: &Connection,
+    from: Option<&str>,
+    to: Option<&str>,
+    route: Option<&str>,
+    status: Option<u16>,
+    ip: Option<&str>,
+    method: Option<&str>,
+    page: u32,
+    page_size: u32,
+) -> rusqlite::Result<Vec<RequestMetricRow>> {
+    let mut sql = String::from(
+        "SELECT timestamp, route, status_code, duration_total_ms, duration_upstream_ms,
+                bytes_in, bytes_out, client_ip, method, upstream_addr
+         FROM request_metrics",
+    );
+
+    let mut conditions: Vec<String> = Vec::new();
+    let mut params: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
+
+    if let Some(v) = from {
+        conditions.push(format!("timestamp >= ?{}", params.len() + 1));
+        params.push(Box::new(v.to_string()));
+    }
+    if let Some(v) = to {
+        conditions.push(format!("timestamp <= ?{}", params.len() + 1));
+        params.push(Box::new(v.to_string()));
+    }
+    if let Some(v) = route {
+        conditions.push(format!("route = ?{}", params.len() + 1));
+        params.push(Box::new(v.to_string()));
+    }
+    if let Some(v) = status {
+        conditions.push(format!("status_code = ?{}", params.len() + 1));
+        params.push(Box::new(v));
+    }
+    if let Some(v) = ip {
+        conditions.push(format!("client_ip = ?{}", params.len() + 1));
+        params.push(Box::new(v.to_string()));
+    }
+    if let Some(v) = method {
+        conditions.push(format!("method = ?{}", params.len() + 1));
+        params.push(Box::new(v.to_string()));
+    }
+
+    if !conditions.is_empty() {
+        sql.push_str(" WHERE ");
+        sql.push_str(&conditions.join(" AND "));
+    }
+
+    let offset = page * page_size;
+    sql.push_str(&format!(
+        " ORDER BY timestamp DESC LIMIT ?{} OFFSET ?{}",
+        params.len() + 1,
+        params.len() + 2
+    ));
+    params.push(Box::new(page_size));
+    params.push(Box::new(offset));
+
+    let param_refs: Vec<&dyn rusqlite::types::ToSql> =
+        params.iter().map(|p| p.as_ref()).collect();
+
+    let mut stmt = conn.prepare(&sql)?;
+    let rows = stmt.query_map(param_refs.as_slice(), |row| {
+        Ok(RequestMetricRow {
+            timestamp: row.get(0)?,
+            route: row.get(1)?,
+            status_code: row.get(2)?,
+            duration_total_ms: row.get(3)?,
+            duration_upstream_ms: row.get(4)?,
+            bytes_in: row.get(5)?,
+            bytes_out: row.get(6)?,
+            client_ip: row.get(7)?,
+            method: row.get(8)?,
+            upstream_addr: row.get(9)?,
+        })
+    })?;
+
+    rows.collect()
+}
+
+pub fn get_cache_metrics(
+    conn: &Connection,
+    from: Option<&str>,
+    to: Option<&str>,
+    route: Option<&str>,
+    page: u32,
+    page_size: u32,
+) -> rusqlite::Result<Vec<CacheMetricRow>> {
+    let mut sql =
+        String::from("SELECT timestamp, route, result FROM cache_metrics");
+
+    let mut conditions: Vec<String> = Vec::new();
+    let mut params: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
+
+    if let Some(v) = from {
+        conditions.push(format!("timestamp >= ?{}", params.len() + 1));
+        params.push(Box::new(v.to_string()));
+    }
+    if let Some(v) = to {
+        conditions.push(format!("timestamp <= ?{}", params.len() + 1));
+        params.push(Box::new(v.to_string()));
+    }
+    if let Some(v) = route {
+        conditions.push(format!("route = ?{}", params.len() + 1));
+        params.push(Box::new(v.to_string()));
+    }
+
+    if !conditions.is_empty() {
+        sql.push_str(" WHERE ");
+        sql.push_str(&conditions.join(" AND "));
+    }
+
+    let offset = page * page_size;
+    sql.push_str(&format!(
+        " ORDER BY timestamp DESC LIMIT ?{} OFFSET ?{}",
+        params.len() + 1,
+        params.len() + 2
+    ));
+    params.push(Box::new(page_size));
+    params.push(Box::new(offset));
+
+    let param_refs: Vec<&dyn rusqlite::types::ToSql> =
+        params.iter().map(|p| p.as_ref()).collect();
+
+    let mut stmt = conn.prepare(&sql)?;
+    let rows = stmt.query_map(param_refs.as_slice(), |row| {
+        Ok(CacheMetricRow {
+            timestamp: row.get(0)?,
+            route: row.get(1)?,
+            result: row.get(2)?,
         })
     })?;
 

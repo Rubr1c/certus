@@ -1,26 +1,14 @@
 use std::sync::Arc;
 
+use crate::{
+    controller::Pagination, db::db_utils, server::app_state::AppState,
+};
 use axum::{
     Json,
     extract::{Query, State},
     http::StatusCode,
     response::IntoResponse,
 };
-use serde::Deserialize;
-
-use crate::{db::db_utils, server::app_state::AppState};
-
-fn default_per_page() -> u32 {
-    20
-}
-
-#[derive(Deserialize)]
-pub struct Pagination {
-    #[serde(default)]
-    pub page: u32,
-    #[serde(default = "default_per_page")]
-    pub per_page: u32,
-}
 
 pub async fn get_schemas(
     State(state): State<Arc<AppState>>,
