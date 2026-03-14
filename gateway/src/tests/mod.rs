@@ -2,9 +2,10 @@ use std::sync::Arc;
 
 use parking_lot::Mutex;
 use rusqlite::Connection;
-use tokio::sync::mpsc;
+use tokio::sync::{broadcast, mpsc};
 
 use crate::db::models::ReqResSchemaDTO;
+use crate::logging::log_util::LogEntryDTO;
 use crate::metrics::MetricEvent;
 
 pub mod auth;
@@ -37,5 +38,10 @@ fn test_metrics_tx() -> mpsc::Sender<MetricEvent> {
 
 fn test_schema_tx() -> mpsc::Sender<ReqResSchemaDTO> {
     let (tx, _rx) = mpsc::channel::<ReqResSchemaDTO>(16);
+    tx
+}
+
+fn test_log_tx() -> broadcast::Sender<LogEntryDTO> {
+    let (tx, _rx) = broadcast::channel::<LogEntryDTO>(16);
     tx
 }

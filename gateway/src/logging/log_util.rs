@@ -1,3 +1,4 @@
+use serde::Serialize;
 use std::collections::HashMap;
 use tokio::sync::mpsc;
 use tracing::{Subscriber, field::Visit};
@@ -34,6 +35,7 @@ impl Visit for LogVisitor {
 
 /// Log entry data transfer object; all fields required
 /// to add a new entry to the database
+#[derive(Clone, Serialize)]
 pub struct LogEntryDTO {
     pub timestamp: String,
     pub level: String,

@@ -8,11 +8,12 @@ use matchit::Router;
 use moka::sync::Cache;
 use parking_lot::Mutex;
 use rusqlite::Connection;
-use tokio::sync::mpsc;
+use tokio::sync::{broadcast, mpsc};
 
 use crate::{
     config::{CmdArgs, Config, StorageType},
     db::{db_utils, models::ReqResSchemaDTO},
+    logging::log_util::LogEntryDTO,
     metrics::MetricEvent,
     server::{
         connection,
@@ -46,6 +47,7 @@ pub struct AppState {
     pub idle_queue: DashMap<String, SegQueue<Arc<UpstreamServer>>>,
     pub metrics_tx: mpsc::Sender<MetricEvent>,
     pub schema_tx: mpsc::Sender<ReqResSchemaDTO>,
+    pub log_tx: broadcast::Sender<LogEntryDTO>,
 }
 
 impl AppState {
@@ -54,6 +56,7 @@ impl AppState {
         conn: Arc<Mutex<Connection>>,
         metrics_tx: mpsc::Sender<MetricEvent>,
         schema_tx: mpsc::Sender<ReqResSchemaDTO>,
+        log_tx: broadcast::Sender<LogEntryDTO>,
     ) -> Self {
         Self {
             routing_table: ArcSwap::from_pointee(RoutingTable {
@@ -113,6 +116,7 @@ impl AppState {
             db_conn: conn,
             metrics_tx,
             schema_tx,
+            log_tx,
         }
     }
 }

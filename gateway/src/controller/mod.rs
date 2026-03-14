@@ -1,5 +1,6 @@
 use serde::Deserialize;
 
+pub mod log_controller;
 pub mod metrics_controller;
 pub mod schema_controller;
 

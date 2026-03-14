@@ -17,7 +17,7 @@ use crate::config::{
 use crate::server::app_state::{AppState, RoutingTable};
 use crate::server::upstream::UpstreamServer;
 
-use super::{test_db_conn, test_metrics_tx, test_schema_tx};
+use super::{test_db_conn, test_log_tx, test_metrics_tx, test_schema_tx};
 
 async fn mock_upstream_ok(listener: TcpListener) {
     loop {
@@ -80,6 +80,7 @@ async fn build_state_with_upstream(
             test_db_conn(),
             test_metrics_tx(),
             test_schema_tx(),
+            test_log_tx(),
         )
         .await,
     );

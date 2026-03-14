@@ -8,7 +8,10 @@ use axum::{
 use axum_server::tls_rustls::RustlsConfig;
 use clap::Parser;
 use parking_lot::Mutex;
-use tokio::{sync::mpsc, time};
+use tokio::{
+    sync::{broadcast, mpsc},
+    time,
+};
 use tower_http::cors::{self, CorsLayer};
 use tracing_subscriber::{
     EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt,
@@ -19,7 +22,7 @@ use gateway::{
         CmdArgs,
         cfg_utils::{reload_config, watch_config},
     },
-    controller::{metrics_controller, schema_controller},
+    controller::{log_controller, metrics_controller, schema_controller},
     db::{db_utils, models::ReqResSchemaDTO},
     logging::log_util::{LogChannelLayer, LogEntryDTO},
     metrics::MetricEvent,
@@ -34,6 +37,8 @@ async fn main() {
     let (log_tx, mut log_rx) = mpsc::channel::<LogEntryDTO>(1024);
     let (metrics_tx, mut metrics_rx) = mpsc::channel::<MetricEvent>(1024);
     let (schema_tx, mut schema_rx) = mpsc::channel::<ReqResSchemaDTO>(1024);
+
+    let (log_broadcast_tx, _rx) = broadcast::channel::<LogEntryDTO>(1024);
 
     // maybe make custom writer for this to send to a channel too?
     // not sure that will make a different or not just a thought
@@ -73,8 +78,14 @@ async fn main() {
     let tls = config.tls.clone();
 
     let state = Arc::new(
-        AppState::new(config, metrics_conn.clone(), metrics_tx, schema_tx)
-            .await,
+        AppState::new(
+            config,
+            metrics_conn.clone(),
+            metrics_tx,
+            schema_tx,
+            log_broadcast_tx.clone(),
+        )
+        .await,
     );
 
     let log_conn_clone = log_conn.clone();
@@ -86,7 +97,8 @@ async fn main() {
         loop {
             tokio::select! {
                 Some(entry) = log_rx.recv() => {
-                    batch.push(entry);
+                    batch.push(entry.clone());
+                    let _ = log_broadcast_tx.send(entry);
 
                     if batch.len() >= 100 {
                         db_utils::flush_log_batch(&log_conn_clone, &mut batch);
@@ -170,7 +182,8 @@ async fn main() {
             "/metrics/requests",
             get(metrics_controller::get_request_metrics),
         )
-        .route("/metrics/cache", get(metrics_controller::get_cache_metrics));
+        .route("/metrics/cache", get(metrics_controller::get_cache_metrics))
+        .route("/ws/logs", any(log_controller::log_ws_handler));
 
     let mut app = Router::new()
         .nest("/_certus", certus_routes)
