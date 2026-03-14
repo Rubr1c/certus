@@ -47,7 +47,7 @@ pub struct AppState {
     pub idle_queue: DashMap<String, SegQueue<Arc<UpstreamServer>>>,
     pub metrics_tx: mpsc::Sender<MetricEvent>,
     pub schema_tx: mpsc::Sender<ReqResSchemaDTO>,
-    pub log_tx: broadcast::Sender<LogEntryDTO>,
+    pub log_tx: Option<broadcast::Sender<LogEntryDTO>>,
 }
 
 impl AppState {
@@ -56,7 +56,7 @@ impl AppState {
         conn: Arc<Mutex<Connection>>,
         metrics_tx: mpsc::Sender<MetricEvent>,
         schema_tx: mpsc::Sender<ReqResSchemaDTO>,
-        log_tx: broadcast::Sender<LogEntryDTO>,
+        log_tx: Option<broadcast::Sender<LogEntryDTO>>,
     ) -> Self {
         Self {
             routing_table: ArcSwap::from_pointee(RoutingTable {

@@ -41,7 +41,6 @@ fn test_schema_tx() -> mpsc::Sender<ReqResSchemaDTO> {
     tx
 }
 
-fn test_log_tx() -> broadcast::Sender<LogEntryDTO> {
-    let (tx, _rx) = broadcast::channel::<LogEntryDTO>(16);
-    tx
+fn test_log_tx() -> Option<broadcast::Sender<LogEntryDTO>> {
+    None
 }

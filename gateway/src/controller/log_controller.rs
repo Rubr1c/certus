@@ -15,7 +15,13 @@ pub async fn log_ws_handler(
     ws: WebSocketUpgrade,
     State(state): State<Arc<AppState>>,
 ) -> Response {
-    ws.on_upgrade(move |socket| handle_log_socket(socket, state.log_tx.clone()))
+    ws.on_upgrade(move |socket| {
+        handle_log_socket(
+            socket,
+            // has to exist to have reached here
+            state.log_tx.as_ref().unwrap().clone(),
+        )
+    })
 }
 
 pub async fn handle_log_socket(

@@ -3,7 +3,7 @@ pub mod error;
 
 use std::collections::HashMap;
 
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use serde::{Deserialize, Serialize};
 
 use crate::server::upstream::HttpVersion;
@@ -14,15 +14,31 @@ use crate::server::upstream::HttpVersion;
 //      make the config be able to be read from db instead of
 //      yaml if no file is found
 
-/// Command line argument parser with all the commands
-/// available in certus
+// the CmdArgs should prob be somewhere else.
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+pub enum WebSocketType {
+    Logs,
+    //TODO
+    ReqMetrics,
+    CacheMetrics,
+}
+
+/// Certus
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 pub struct CmdArgs {
-    #[arg(short, long)]
-    pub config: Option<String>,
+    /// YAML config path for certus
+    #[arg(short, long, default_value_t = String::from("certus.config.yaml"))]
+    pub config: String,
+
+    /// Save config to sqlite db
     #[arg(long)]
     pub save: bool,
+
+    /// Specifiy what web socket server to expose for real time updates
+    #[arg(long, value_enum, value_delimiter = ',')]
+    pub ws: Vec<WebSocketType>,
 }
 
 /// Config struct for all configurable server options

@@ -19,7 +19,7 @@ use tracing_subscriber::{
 
 use gateway::{
     config::{
-        CmdArgs,
+        CmdArgs, WebSocketType,
         cfg_utils::{reload_config, watch_config},
     },
     controller::{log_controller, metrics_controller, schema_controller},
@@ -38,7 +38,7 @@ async fn main() {
     let (metrics_tx, mut metrics_rx) = mpsc::channel::<MetricEvent>(1024);
     let (schema_tx, mut schema_rx) = mpsc::channel::<ReqResSchemaDTO>(1024);
 
-    let (log_broadcast_tx, _rx) = broadcast::channel::<LogEntryDTO>(1024);
+    let mut log_broadcast_tx: Option<broadcast::Sender<LogEntryDTO>> = None;
 
     // maybe make custom writer for this to send to a channel too?
     // not sure that will make a different or not just a thought
@@ -55,13 +55,26 @@ async fn main() {
         .with(db_layer)
         .try_init();
 
-    let args = Arc::new(CmdArgs::try_parse().unwrap());
+    let args = Arc::new(CmdArgs::parse());
 
-    let config_path = args
-        .config
-        .as_ref()
-        .map(|s| s.as_str())
-        .unwrap_or("certus.config.yaml");
+    let config_path = args.config.as_str();
+
+    let args_clone = args.clone();
+    let mut certus_routes = Router::new()
+        .route("/idle", post(load_balance::set_idle))
+        .route("/schemas", get(schema_controller::get_schemas))
+        .route(
+            "/metrics/requests",
+            get(metrics_controller::get_request_metrics),
+        )
+        .route("/metrics/cache", get(metrics_controller::get_cache_metrics));
+
+    if args_clone.ws.contains(&WebSocketType::Logs) {
+        certus_routes = certus_routes
+            .route("/ws/logs", any(log_controller::log_ws_handler));
+        log_broadcast_tx = Some(broadcast::channel::<LogEntryDTO>(1024).0);
+        tracing::debug!("Running log ws server");
+    }
 
     let log_conn = db_utils::connect_db().expect("log db");
     let metrics_conn = db_utils::connect_db().expect("metrics db");
@@ -98,7 +111,9 @@ async fn main() {
             tokio::select! {
                 Some(entry) = log_rx.recv() => {
                     batch.push(entry.clone());
-                    let _ = log_broadcast_tx.send(entry);
+                    if let Some(tx) = &log_broadcast_tx {
+                        let _ = tx.send(entry);
+                    }
 
                     if batch.len() >= 100 {
                         db_utils::flush_log_batch(&log_conn_clone, &mut batch);
@@ -174,16 +189,6 @@ async fn main() {
 
     tracing::info!("Certus Gateway Running on port {}", port);
     println!("Config watcher started. Press Ctrl+C to exit.");
-
-    let certus_routes = Router::new()
-        .route("/idle", post(load_balance::set_idle))
-        .route("/schemas", get(schema_controller::get_schemas))
-        .route(
-            "/metrics/requests",
-            get(metrics_controller::get_request_metrics),
-        )
-        .route("/metrics/cache", get(metrics_controller::get_cache_metrics))
-        .route("/ws/logs", any(log_controller::log_ws_handler));
 
     let mut app = Router::new()
         .nest("/_certus", certus_routes)
