@@ -48,6 +48,7 @@ pub struct AppState {
     pub metrics_tx: mpsc::Sender<MetricEvent>,
     pub schema_tx: mpsc::Sender<ReqResSchemaDTO>,
     pub log_tx: Option<broadcast::Sender<LogEntryDTO>>,
+    pub metrics_broadcast_tx: Option<broadcast::Sender<MetricEvent>>,
     pub args: Arc<CmdArgs>,
 }
 
@@ -58,6 +59,7 @@ impl AppState {
         metrics_tx: mpsc::Sender<MetricEvent>,
         schema_tx: mpsc::Sender<ReqResSchemaDTO>,
         log_tx: Option<broadcast::Sender<LogEntryDTO>>,
+        metrics_broadcast_tx: Option<broadcast::Sender<MetricEvent>>,
         args: Arc<CmdArgs>,
     ) -> Self {
         Self {
@@ -119,6 +121,7 @@ impl AppState {
             metrics_tx,
             schema_tx,
             log_tx,
+            metrics_broadcast_tx,
             args,
         }
     }

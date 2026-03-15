@@ -83,6 +83,7 @@ async fn build_state_with_upstream(
             test_metrics_tx(),
             test_schema_tx(),
             test_log_tx(),
+            None,
             test_args(),
         )
         .await,

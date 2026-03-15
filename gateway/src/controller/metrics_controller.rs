@@ -2,14 +2,19 @@ use std::{net::IpAddr, sync::Arc};
 
 use axum::{
     Json,
-    extract::{Query, State},
+    extract::{
+        Query, State, WebSocketUpgrade,
+        ws::{Message, WebSocket},
+    },
     http::StatusCode,
-    response::IntoResponse,
+    response::{IntoResponse, Response},
 };
 use serde::Deserialize;
+use tokio::sync::broadcast;
 
 use crate::{
-    controller::Pagination, db::db_utils, server::app_state::AppState,
+    controller::Pagination, db::db_utils, metrics::MetricEvent,
+    server::app_state::AppState,
 };
 
 #[derive(Deserialize)]
@@ -95,6 +100,50 @@ pub async fn get_cache_metrics(
         Err(e) => {
             tracing::error!(err = ?e, "Cache metrics query task panicked");
             StatusCode::INTERNAL_SERVER_ERROR.into_response()
+        }
+    }
+}
+
+pub async fn metrics_ws_handler(
+    ws: WebSocketUpgrade,
+    State(state): State<Arc<AppState>>,
+) -> Response {
+    ws.on_upgrade(move |socket| {
+        handle_metrics_socket(
+            socket,
+            state.metrics_broadcast_tx.as_ref().unwrap().clone(),
+        )
+    })
+}
+
+pub async fn handle_metrics_socket(
+    mut socket: WebSocket,
+    metrics_tx: broadcast::Sender<MetricEvent>,
+) {
+    let mut metrics_rx = metrics_tx.subscribe();
+
+    loop {
+        match metrics_rx.recv().await {
+            Ok(metric) => match serde_json::to_string(&metric) {
+                Ok(json_string) => {
+                    if socket
+                        .send(Message::Text(json_string.into()))
+                        .await
+                        .is_err()
+                    {
+                        break;
+                    }
+                }
+                Err(e) => {
+                    tracing::error!("Failed to serialize metric: {}", e);
+                }
+            },
+            Err(broadcast::error::RecvError::Lagged(skipped)) => {
+                tracing::error!("Warning: Client missed {} metrics", skipped);
+            }
+            Err(broadcast::error::RecvError::Closed) => {
+                break;
+            }
         }
     }
 }

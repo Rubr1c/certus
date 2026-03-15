@@ -48,6 +48,7 @@ async fn main() {
     let (schema_tx, mut schema_rx) = mpsc::channel::<ReqResSchemaDTO>(1024);
 
     let mut log_broadcast_tx: Option<broadcast::Sender<LogEntryDTO>> = None;
+    let mut metrics_broadcast_tx: Option<broadcast::Sender<MetricEvent>> = None;
 
     // maybe make custom writer for this to send to a channel too?
     // not sure that will make a different or not just a thought
@@ -77,14 +78,11 @@ async fn main() {
             get(metrics_controller::get_request_metrics),
         )
         .route("/metrics/cache", get(metrics_controller::get_cache_metrics))
-        .route("/api/routes", get(route_controller::get_routes))
-        .route("/api/upstreams/health", get(route_controller::get_all_health))
+        .route("/routes", get(route_controller::get_routes))
+        .route("/upstreams/health", get(route_controller::get_all_health))
+        .route("/upstreams/{addr}/health", get(route_controller::get_health))
         .route(
-            "/api/upstreams/{addr}/health",
-            get(route_controller::get_health),
-        )
-        .route(
-            "/api/config",
+            "/config",
             get(config_controller::get_config)
                 .put(config_controller::update_config),
         );
@@ -94,6 +92,13 @@ async fn main() {
             .route("/ws/logs", any(log_controller::log_ws_handler));
         log_broadcast_tx = Some(broadcast::channel::<LogEntryDTO>(1024).0);
         tracing::debug!("Running log ws server");
+    }
+
+    if args.ws.contains(&WebSocketType::Metrics) {
+        certus_routes = certus_routes
+            .route("/ws/metrics", any(metrics_controller::metrics_ws_handler));
+        metrics_broadcast_tx = Some(broadcast::channel::<MetricEvent>(1024).0);
+        tracing::debug!("Running metrics ws server");
     }
 
     let log_conn = db_utils::connect_db().expect("log db");
@@ -117,6 +122,7 @@ async fn main() {
             metrics_tx,
             schema_tx,
             log_broadcast_tx.clone(),
+            metrics_broadcast_tx.clone(),
             args.clone(),
         )
         .await,
@@ -161,6 +167,9 @@ async fn main() {
         loop {
             tokio::select! {
                 Some(metric) = metrics_rx.recv() => {
+                   if let Some(tx) = &metrics_broadcast_tx {
+                       let _ = tx.send(metric.clone());
+                   }
                    batch.push(metric);
 
                    if batch.len() >= 100 {
@@ -278,7 +287,7 @@ async fn main() {
     println!("Config watcher started. Press Ctrl+C to exit.");
 
     let mut app = Router::new()
-        .nest("/_certus", certus_routes)
+        .nest("/_certus/api/v1", certus_routes)
         .route("/{*any}", any(router::reroute))
         .with_state(state);
 

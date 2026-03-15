@@ -15,7 +15,9 @@ use tokio::{net::TcpListener, runtime::Runtime};
 use tower::ServiceExt;
 
 use gateway::{
-    config::{CmdArgs, cfg_utils::reload_config},
+    config::cfg_utils::reload_config,
+    db::models::ReqResSchemaDTO,
+    metrics::MetricEvent,
     server::{
         app_state::{self, AppState},
         middleware::router::reroute,
@@ -29,9 +31,18 @@ fn create_runtime() -> Runtime {
 async fn setup_state() -> Arc<AppState> {
     let config = reload_config("../examples/certus.config.yaml").await.unwrap();
     let conn = Arc::new(Mutex::new(Connection::open_in_memory().unwrap()));
-    let state = Arc::new(AppState::new(config, conn).await);
-    let args = Arc::new(CmdArgs { config: None, save: false });
-    app_state::init_server_state(state.clone(), args).await;
+    let (metrics_tx, _) = tokio::sync::mpsc::channel::<MetricEvent>(16);
+    let (schema_tx, _) = tokio::sync::mpsc::channel::<ReqResSchemaDTO>(16);
+    let args = Arc::new(gateway::config::CmdArgs {
+        config: String::new(),
+        save: false,
+        ws: Vec::new(),
+    });
+    let state = Arc::new(
+        AppState::new(config, conn, metrics_tx, schema_tx, None, None, args)
+            .await,
+    );
+    app_state::init_server_state(state.clone()).await;
     state
 }
 

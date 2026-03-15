@@ -19,9 +19,7 @@ use crate::server::upstream::HttpVersion;
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub enum WebSocketType {
     Logs,
-    //TODO
-    ReqMetrics,
-    CacheMetrics,
+    Metrics,
 }
 
 /// Certus
