@@ -21,7 +21,9 @@ use tracing::{Level, instrument};
 use crate::{
     config::RateLimitKey,
     db::models::ReqResSchemaDTO,
-    metrics::{CacheMetric, CacheResult, MetricEvent, RequestMetric},
+    metrics::{
+        CacheMetric, CacheResult, EarlyExit, MetricEvent, RequestMetric,
+    },
     server::{
         app_state::AppState,
         error::GatewayError,
@@ -150,7 +152,25 @@ pub async fn reroute(
     .await
     {
         Ok(_) => {}
-        Err(err) => return err.into_response(),
+        Err(err) => {
+            let duration = start.elapsed().as_millis() as u64;
+            let _ = state.metrics_tx.try_send(MetricEvent::Request(
+                RequestMetric {
+                    route: Arc::clone(matched_route_key),
+                    status_code: 429,
+                    timestamp: Utc::now(),
+                    duration_total_ms: duration,
+                    duration_upstream_ms: 0,
+                    bytes_in,
+                    bytes_out: 0,
+                    client_ip: ip,
+                    method: req.method().clone(),
+                    upstream_addr: None,
+                    early_exit: Some(EarlyExit::RateLimited),
+                },
+            ));
+            return err.into_response();
+        }
     }
 
     let method = req.method().clone();
@@ -278,7 +298,25 @@ pub async fn reroute(
         target_route.1.needs_auth,
     ) {
         Ok(_) => {}
-        Err(e) => return e.into_response(),
+        Err(e) => {
+            let duration = start.elapsed().as_millis() as u64;
+            let _ = state.metrics_tx.try_send(MetricEvent::Request(
+                RequestMetric {
+                    route: Arc::clone(matched_route_key),
+                    status_code: 401,
+                    timestamp: Utc::now(),
+                    duration_total_ms: duration,
+                    duration_upstream_ms: 0,
+                    bytes_in,
+                    bytes_out: 0,
+                    client_ip: ip,
+                    method: method.clone(),
+                    upstream_addr: None,
+                    early_exit: Some(EarlyExit::Unauthorized),
+                },
+            ));
+            return e.into_response();
+        }
     }
 
     if matches!(target_route.1.http_version, HttpVersion::HTTP1) {
@@ -343,6 +381,7 @@ pub async fn reroute(
                     client_ip: ip,
                     method: method.clone(),
                     upstream_addr: Some(Arc::clone(&upstream.pool.server_addr)),
+                    early_exit: None,
                 });
 
                 let _ = state.metrics_tx.try_send(event);
@@ -370,12 +409,36 @@ pub async fn reroute(
                 client_ip: ip,
                 method: method.clone(),
                 upstream_addr: Some(Arc::clone(&upstream.pool.server_addr)),
+                early_exit: None,
             });
 
             let _ = state.metrics_tx.try_send(event);
 
             res
         }
-        Err(e) => e.into_response(),
+        Err(e) => {
+            let status_code = match &e {
+                GatewayError::Overloaded => 503,
+                GatewayError::ConnectionFailed(_) => 502,
+                _ => 500,
+            };
+            let duration = start.elapsed().as_millis() as u64;
+            let _ = state.metrics_tx.try_send(MetricEvent::Request(
+                RequestMetric {
+                    route: Arc::clone(matched_route_key),
+                    status_code,
+                    timestamp: Utc::now(),
+                    duration_total_ms: duration,
+                    duration_upstream_ms,
+                    bytes_in,
+                    bytes_out: 0,
+                    client_ip: ip,
+                    method,
+                    upstream_addr: Some(Arc::clone(&upstream.pool.server_addr)),
+                    early_exit: Some(EarlyExit::UpstreamError),
+                },
+            ));
+            e.into_response()
+        }
     }
 }

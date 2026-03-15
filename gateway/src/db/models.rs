@@ -53,6 +53,7 @@ pub struct RequestMetricRow {
     pub client_ip: String,
     pub method: String,
     pub upstream_addr: Option<String>,
+    pub early_exit: Option<String>,
 }
 
 #[derive(Serialize)]

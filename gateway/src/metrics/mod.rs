@@ -12,6 +12,23 @@ fn serialize_method<S: Serializer>(
 }
 
 #[derive(Clone, Serialize)]
+pub enum EarlyExit {
+    RateLimited,
+    Unauthorized,
+    UpstreamError,
+}
+
+impl EarlyExit {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            EarlyExit::RateLimited => "RateLimited",
+            EarlyExit::Unauthorized => "Unauthorized",
+            EarlyExit::UpstreamError => "UpstreamError",
+        }
+    }
+}
+
+#[derive(Clone, Serialize)]
 pub struct RequestMetric {
     pub timestamp: DateTime<Utc>,
     pub status_code: u16,
@@ -26,6 +43,7 @@ pub struct RequestMetric {
 
     pub route: Arc<str>,
     pub upstream_addr: Option<Arc<str>>,
+    pub early_exit: Option<EarlyExit>,
 }
 
 #[derive(Clone, Serialize)]

@@ -60,7 +60,8 @@ pub fn migrate(conn: &Connection) -> rusqlite::Result<()> {
             bytes_out INTEGER NOT NULL,
             client_ip TEXT NOT NULL,
             method TEXT NOT NULL,
-            upstream_addr TEXT
+            upstream_addr TEXT,
+            early_exit TEXT
         )",
         "CREATE TABLE IF NOT EXISTS cache_metrics (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -268,8 +269,9 @@ pub fn save_req_metric(
             bytes_out,
             client_ip,
             method,
-            upstream_addr
-        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+            upstream_addr,
+            early_exit
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
         rusqlite::params![
             metric.route.as_ref(),
             metric.timestamp.to_string(),
@@ -280,7 +282,8 @@ pub fn save_req_metric(
             metric.bytes_out as i64,
             metric.client_ip.to_string(),
             metric.method.to_string(),
-            metric.upstream_addr.as_deref()
+            metric.upstream_addr.as_deref(),
+            metric.early_exit.as_ref().map(|e| e.as_str())
         ],
     )?;
 
@@ -304,8 +307,9 @@ pub fn save_req_metrics(
                 bytes_out,
                 client_ip,
                 method,
-                upstream_addr
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+                upstream_addr,
+                early_exit
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
         )?;
 
         for metric in metrics {
@@ -319,7 +323,8 @@ pub fn save_req_metrics(
                 metric.bytes_out as i64,
                 metric.client_ip.to_string(),
                 metric.method.to_string(),
-                metric.upstream_addr.as_deref()
+                metric.upstream_addr.as_deref(),
+                metric.early_exit.as_ref().map(|e| e.as_str())
             ])?;
         }
     }
@@ -450,7 +455,7 @@ pub fn get_request_metrics(
 ) -> rusqlite::Result<Vec<RequestMetricRow>> {
     let mut sql = String::from(
         "SELECT timestamp, route, status_code, duration_total_ms, duration_upstream_ms,
-                bytes_in, bytes_out, client_ip, method, upstream_addr
+                bytes_in, bytes_out, client_ip, method, upstream_addr, early_exit
          FROM request_metrics",
     );
 
@@ -512,6 +517,7 @@ pub fn get_request_metrics(
             client_ip: row.get(7)?,
             method: row.get(8)?,
             upstream_addr: row.get(9)?,
+            early_exit: row.get(10)?,
         })
     })?;
 
