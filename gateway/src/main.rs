@@ -32,6 +32,7 @@ use gateway::{
     metrics::MetricEvent,
     server::{
         app_state::{self, AppState, RoutingTable},
+        connection,
         middleware::{load_balance, router},
         upstream::HealthState,
     },
@@ -106,6 +107,8 @@ async fn main() {
         )
         .await,
     );
+
+    // move all these tasks somewhere else
 
     let log_conn_clone = log_conn.clone();
     tokio::spawn(async move {
@@ -185,6 +188,7 @@ async fn main() {
     let state_clone = state.clone();
     tokio::spawn(async move {
         loop {
+            //TODO: make configable
             tokio::time::sleep(Duration::from_secs(5)).await;
 
             let table = state_clone.routing_table.load();
@@ -227,6 +231,20 @@ async fn main() {
                             queue.push(upstream);
                         }
                     }
+                }
+            }
+        }
+    });
+
+    let state_clone = state.clone();
+    tokio::spawn(async move {
+        loop {
+            tokio::time::sleep(Duration::from_secs(60)).await;
+
+            let table = state_clone.routing_table.load();
+            for (addr, upstream) in &table.routes {
+                if !connection::health_ok(upstream).await {
+                    tracing::warn!(server = %addr, "Health check failed");
                 }
             }
         }
