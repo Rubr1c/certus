@@ -1,4 +1,7 @@
-use std::sync::{Arc, atomic::AtomicUsize};
+use std::sync::{
+    Arc,
+    atomic::{AtomicU8, AtomicUsize},
+};
 
 use axum::body::Body;
 use crossbeam::queue::SegQueue;
@@ -6,9 +9,10 @@ use hyper::client::conn;
 use serde::{Deserialize, Serialize};
 
 /// Enum representing if server is healthy or not
+#[repr(u8)]
 pub enum HealthState {
-    Alive,
-    Dead,
+    Alive = 0,
+    Dead = 1,
 }
 
 /// Enum for all available protocols
@@ -37,7 +41,7 @@ pub enum PooledConnection {
 /// Main server state holding all connection info
 pub struct UpstreamServer {
     pub active_connctions: AtomicUsize,
-    pub health_state: HealthState,
+    pub health_state: AtomicU8,
     pub pool: ConnectionPool,
 }
 
@@ -93,7 +97,7 @@ impl UpstreamServer {
 
         UpstreamServer {
             active_connctions: AtomicUsize::new(0),
-            health_state: HealthState::Alive,
+            health_state: AtomicU8::new(HealthState::Alive as u8),
             pool: ConnectionPool {
                 server_addr: Arc::<str>::from(server_addr),
                 hostname,

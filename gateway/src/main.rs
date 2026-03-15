@@ -1,4 +1,8 @@
-use std::{net::SocketAddr, sync::Arc, time::Duration};
+use std::{
+    net::SocketAddr,
+    sync::{Arc, atomic::Ordering},
+    time::Duration,
+};
 
 use axum::{
     Router,
@@ -27,8 +31,9 @@ use gateway::{
     logging::log_util::{LogChannelLayer, LogEntryDTO},
     metrics::MetricEvent,
     server::{
-        app_state::{self, AppState},
+        app_state::{self, AppState, RoutingTable},
         middleware::{load_balance, router},
+        upstream::HealthState,
     },
 };
 
@@ -171,6 +176,56 @@ async fn main() {
                 _ = interval.tick() => {
                     if !batch.is_empty() {
                         db_utils::flush_req_res_schema_batch(&schema_conn, &mut batch);
+                    }
+                }
+            }
+        }
+    });
+
+    let state_clone = state.clone();
+    tokio::spawn(async move {
+        loop {
+            tokio::time::sleep(Duration::from_secs(5)).await;
+
+            let table = state_clone.routing_table.load();
+            let dead_addrs: Vec<String> = table
+                .routes
+                .iter()
+                .filter(|(_, upstream)| {
+                    upstream.health_state.load(Ordering::Acquire)
+                        == HealthState::Dead as u8
+                })
+                .map(|(addr, _)| addr.clone())
+                .collect();
+
+            if dead_addrs.is_empty() {
+                continue;
+            }
+
+            for addr in &dead_addrs {
+                tracing::warn!(server = %addr, "Removing dead upstream");
+            }
+
+            let mut new_routes = table.routes.clone();
+            for addr in &dead_addrs {
+                new_routes.remove(addr);
+            }
+
+            let new_router = router::build_tree(state_clone.clone());
+            let new_table =
+                RoutingTable { router: new_router, routes: new_routes };
+            state_clone.routing_table.store(Arc::new(new_table));
+
+            for entry in state_clone.idle_queue.iter_mut() {
+                let queue = entry.value();
+                let len = queue.len();
+                for _ in 0..len {
+                    if let Some(upstream) = queue.pop() {
+                        if upstream.health_state.load(Ordering::Acquire)
+                            != HealthState::Dead as u8
+                        {
+                            queue.push(upstream);
+                        }
                     }
                 }
             }

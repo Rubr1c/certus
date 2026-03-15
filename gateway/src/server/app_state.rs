@@ -162,7 +162,7 @@ pub async fn init_server_state(state: Arc<AppState>, args: Arc<CmdArgs>) {
             if ok {
                 new_routes_map.insert(server.clone(), upstream);
             } else {
-                tracing::error!(server = ?server, "Health not ok for server")
+                tracing::warn!(server = ?server, "Health not ok for server")
             }
         }
     }

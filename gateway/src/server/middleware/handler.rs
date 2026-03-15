@@ -7,7 +7,7 @@ use tracing::instrument;
 use crate::server::{
     connection,
     error::GatewayError,
-    upstream::{PooledConnection, UpstreamServer},
+    upstream::{HealthState, PooledConnection, UpstreamServer},
 };
 
 /// Takes a connection to a server then forwards a request
@@ -73,6 +73,9 @@ pub async fn handle_request(
         Ok((res, sender)) => (res, sender),
         Err(e) => {
             tracing::error!(err = ?e, "Failed to forward request");
+            upstream
+                .health_state
+                .store(HealthState::Dead as u8, Ordering::Release);
             upstream.active_connctions.fetch_sub(1, Ordering::AcqRel);
             upstream.pool.total_connections.fetch_sub(1, Ordering::AcqRel);
             return Err(e);
