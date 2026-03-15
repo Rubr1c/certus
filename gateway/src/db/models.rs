@@ -2,6 +2,29 @@ use std::{collections::HashMap, sync::Arc};
 
 use hyper::{HeaderMap, Method, StatusCode, header};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
+
+pub fn extract_body_schema(body: &[u8]) -> Option<String> {
+    let val: Value = serde_json::from_slice(body).ok()?;
+    let obj = val.as_object()?;
+    let schema: HashMap<&str, &str> = obj
+        .iter()
+        .map(|(k, v)| {
+            (
+                k.as_str(),
+                match v {
+                    Value::String(_) => "string",
+                    Value::Number(_) => "number",
+                    Value::Bool(_) => "boolean",
+                    Value::Array(_) => "array",
+                    Value::Object(_) => "object",
+                    Value::Null => "null",
+                },
+            )
+        })
+        .collect();
+    serde_json::to_string(&schema).ok()
+}
 
 /// Shape of log table in database
 #[derive(Debug, Serialize, Deserialize)]
@@ -28,6 +51,7 @@ pub struct ReqResSchemaDTO {
     pub status_code: StatusCode,
     pub req_headers: HeaderMap,
     pub res_headers: HeaderMap,
+    pub body_schema: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -39,6 +63,7 @@ pub struct ReqResSchema {
     pub has_auth: bool,
     pub req_headers: String,
     pub res_headers: String,
+    pub body_schema: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -160,6 +185,7 @@ impl ReqResSchemaDTO {
             has_auth,
             req_headers,
             res_headers,
+            body_schema: self.body_schema,
         }
     }
 }

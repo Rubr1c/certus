@@ -78,7 +78,8 @@ pub fn migrate(conn: &Connection) -> rusqlite::Result<()> {
             status_code INTEGER NOT NULL,
             has_auth INTEGER NOT NULL DEFAULT 0,
             req_headers TEXT NOT NULL,
-            res_headers TEXT NOT NULL
+            res_headers TEXT NOT NULL,
+            body_schema TEXT
         )",
         "CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON logs (timestamp)",
         "CREATE INDEX IF NOT EXISTS idx_request_metrics_timestamp ON request_metrics (timestamp)",
@@ -394,8 +395,8 @@ pub fn save_req_res_schemas(
     let tx = conn.transaction()?;
     {
         let mut query = tx.prepare(
-            "INSERT INTO req_res_schemas (full_path, method, query_params, status_code, has_auth, req_headers, res_headers)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            "INSERT INTO req_res_schemas (full_path, method, query_params, status_code, has_auth, req_headers, res_headers, body_schema)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
         )?;
 
         for schema in req_res_schemas {
@@ -407,6 +408,7 @@ pub fn save_req_res_schemas(
                 schema.has_auth,
                 schema.req_headers,
                 schema.res_headers,
+                schema.body_schema,
             ])?;
         }
     }
@@ -422,7 +424,7 @@ pub fn get_req_res_schemas(
     let offset = page * page_size;
 
     let mut stmt = conn.prepare(
-        "SELECT full_path, method, query_params, status_code, has_auth, req_headers, res_headers
+        "SELECT full_path, method, query_params, status_code, has_auth, req_headers, res_headers, body_schema
          FROM req_res_schemas
          ORDER BY id DESC
          LIMIT ?1 OFFSET ?2",
@@ -437,6 +439,7 @@ pub fn get_req_res_schemas(
             has_auth: row.get(4)?,
             req_headers: row.get(5)?,
             res_headers: row.get(6)?,
+            body_schema: row.get(7)?,
         })
     })?;
 

@@ -351,16 +351,8 @@ pub async fn reroute(
 
     match res {
         Ok(response) => {
-            // dont try and save to cache only if config no cache set
-
-            let _ = state.schema_tx.try_send(ReqResSchemaDTO {
-                full_path: Arc::clone(&path),
-                method: method.clone(),
-                query_params: query.as_ref().map(Arc::clone),
-                status_code: response.status(),
-                req_headers,
-                res_headers: response.headers().clone(),
-            });
+            let res_headers = response.headers().clone();
+            let status_code = response.status();
 
             let bytes_out = response
                 .headers()
@@ -369,10 +361,20 @@ pub async fn reroute(
                 .and_then(|s| s.parse::<u64>().ok())
                 .unwrap_or(0);
             if no_store {
+                let _ = state.schema_tx.try_send(ReqResSchemaDTO {
+                    full_path: Arc::clone(&path),
+                    method: method.clone(),
+                    query_params: query.as_ref().map(Arc::clone),
+                    status_code,
+                    req_headers,
+                    res_headers,
+                    body_schema: None,
+                });
+
                 let duration = start.elapsed().as_millis() as u64;
                 let event = MetricEvent::Request(RequestMetric {
                     route: Arc::clone(matched_route_key),
-                    status_code: response.status().as_u16(),
+                    status_code: status_code.as_u16(),
                     timestamp: Utc::now(),
                     duration_total_ms: duration,
                     duration_upstream_ms,
@@ -388,7 +390,7 @@ pub async fn reroute(
 
                 return response.into_response();
             }
-            let res = dyn_cache::try_save(
+            let (res, body_schema) = dyn_cache::try_save(
                 response,
                 &method,
                 &state.cache,
@@ -397,6 +399,16 @@ pub async fn reroute(
                 config.cache.max_size,
             )
             .await;
+
+            let _ = state.schema_tx.try_send(ReqResSchemaDTO {
+                full_path: Arc::clone(&path),
+                method: method.clone(),
+                query_params: query.as_ref().map(Arc::clone),
+                status_code,
+                req_headers,
+                res_headers,
+                body_schema,
+            });
 
             let duration = start.elapsed().as_millis() as u64;
             let event = MetricEvent::Request(RequestMetric {

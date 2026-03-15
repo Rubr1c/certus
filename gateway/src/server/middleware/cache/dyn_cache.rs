@@ -4,8 +4,9 @@ use axum::{
 };
 use hyper::{Method, Response, body::Incoming, header::CONTENT_LENGTH};
 
-use crate::server::middleware::cache::{
-    CacheKey, CachedResponse, DynCacheBackend,
+use crate::{
+    db::models::extract_body_schema,
+    server::middleware::cache::{CacheKey, CachedResponse, DynCacheBackend},
 };
 
 /// Tries to save a response to a cache
@@ -26,13 +27,13 @@ pub async fn try_save(
     ck: CacheKey<'_>,
     ttl: Option<u64>,
     max_size: u64,
-) -> Response<Body> {
+) -> (Response<Body>, Option<String>) {
     if method != Method::GET {
-        return response.into_response();
+        return (response.into_response(), None);
     }
 
     if !response.status().is_success() {
-        return response.into_response();
+        return (response.into_response(), None);
     }
 
     let content_length = response
@@ -44,9 +45,16 @@ pub async fn try_save(
     if let Some(len) = content_length {
         if len > max_size {
             tracing::debug!("Response too large to cache ({len} bytes)");
-            return response.into_response();
+            return (response.into_response(), None);
         }
     }
+
+    let is_json = response
+        .headers()
+        .get(hyper::header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .map(|ct| ct.contains("application/json"))
+        .unwrap_or(false);
 
     let (parts, body) = response.into_parts();
     let body =
@@ -59,6 +67,8 @@ pub async fn try_save(
         //       responses without Content-Length can still exceed max_size.
         to_bytes(Body::new(body), usize::MAX).await.unwrap_or_default();
 
+    let body_schema = if is_json { extract_body_schema(&body) } else { None };
+
     let cached =
         CachedResponse { status: parts.status, headers: parts.headers, body };
 
@@ -70,7 +80,7 @@ pub async fn try_save(
         _ => cache.set(ck, cached).await,
     }
 
-    response
+    (response, body_schema)
 }
 
 /// Tries to find a response in cache
