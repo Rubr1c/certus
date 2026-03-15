@@ -63,6 +63,50 @@ pub struct CacheMetricRow {
     pub result: String,
 }
 
+#[derive(Serialize)]
+pub struct RequestMetricBucket {
+    pub bucket: String,
+    pub count: i64,
+    pub avg_duration_ms: f64,
+    pub min_duration_ms: i64,
+    pub max_duration_ms: i64,
+    pub avg_upstream_ms: f64,
+    pub bytes_in: i64,
+    pub bytes_out: i64,
+    pub status_2xx: i64,
+    pub status_3xx: i64,
+    pub status_4xx: i64,
+    pub status_5xx: i64,
+    pub error_count: i64,
+}
+
+#[derive(Serialize)]
+pub struct CacheMetricBucket {
+    pub bucket: String,
+    pub total: i64,
+    pub hits: i64,
+    pub misses: i64,
+    pub bypasses: i64,
+    pub hit_rate: f64,
+}
+
+#[derive(Serialize)]
+pub struct RequestMetricSummary {
+    pub key: String,
+    pub count: i64,
+    pub avg_duration_ms: f64,
+    pub min_duration_ms: i64,
+    pub max_duration_ms: i64,
+    pub avg_upstream_ms: f64,
+    pub bytes_in: i64,
+    pub bytes_out: i64,
+    pub error_count: i64,
+    pub status_2xx: i64,
+    pub status_3xx: i64,
+    pub status_4xx: i64,
+    pub status_5xx: i64,
+}
+
 impl ReqResSchemaDTO {
     pub fn into_s(self) -> ReqResSchema {
         const ALLOW: &[header::HeaderName] = &[

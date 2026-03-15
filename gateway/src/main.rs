@@ -78,6 +78,18 @@ async fn main() {
             get(metrics_controller::get_request_metrics),
         )
         .route("/metrics/cache", get(metrics_controller::get_cache_metrics))
+        .route(
+            "/metrics/requests/aggregate",
+            get(metrics_controller::get_request_metrics_aggregated),
+        )
+        .route(
+            "/metrics/cache/aggregate",
+            get(metrics_controller::get_cache_metrics_aggregated),
+        )
+        .route(
+            "/metrics/requests/summary",
+            get(metrics_controller::get_request_metrics_summary),
+        )
         .route("/routes", get(route_controller::get_routes))
         .route("/upstreams/health", get(route_controller::get_all_health))
         .route("/upstreams/{addr}/health", get(route_controller::get_health))
