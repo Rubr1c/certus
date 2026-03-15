@@ -4,7 +4,9 @@ use crate::config::{Config, RouteConfig};
 use crate::server::app_state::AppState;
 use crate::server::middleware::router;
 
-use super::{test_db_conn, test_log_tx, test_metrics_tx, test_schema_tx};
+use super::{
+    test_args, test_db_conn, test_log_tx, test_metrics_tx, test_schema_tx,
+};
 
 #[tokio::test]
 async fn build_tree_matches_configured_route() {
@@ -18,6 +20,7 @@ async fn build_tree_matches_configured_route() {
             test_metrics_tx(),
             test_schema_tx(),
             test_log_tx(),
+            test_args(),
         )
         .await,
     );
@@ -40,6 +43,7 @@ async fn build_tree_matches_wildcard_subpath() {
             test_metrics_tx(),
             test_schema_tx(),
             test_log_tx(),
+            test_args(),
         )
         .await,
     );
@@ -62,6 +66,7 @@ async fn build_tree_no_match_returns_err() {
             test_metrics_tx(),
             test_schema_tx(),
             test_log_tx(),
+            test_args(),
         )
         .await,
     );
@@ -84,6 +89,7 @@ async fn build_tree_root_route() {
             test_metrics_tx(),
             test_schema_tx(),
             test_log_tx(),
+            test_args(),
         )
         .await,
     );
@@ -106,6 +112,7 @@ async fn build_tree_multiple_routes() {
             test_metrics_tx(),
             test_schema_tx(),
             test_log_tx(),
+            test_args(),
         )
         .await,
     );

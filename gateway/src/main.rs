@@ -27,7 +27,8 @@ use gateway::{
         cfg_utils::{reload_config, watch_config},
     },
     controller::{
-        log_controller, metrics_controller, route_controller, schema_controller,
+        config_controller, log_controller, metrics_controller,
+        route_controller, schema_controller,
     },
     db::{db_utils, models::ReqResSchemaDTO},
     logging::log_util::{LogChannelLayer, LogEntryDTO},
@@ -67,7 +68,6 @@ async fn main() {
 
     let config_path = args.config.as_str();
 
-    let args_clone = args.clone();
     let mut certus_routes = Router::new()
         .route("/idle", post(load_balance::set_idle))
         .route("/schemas", get(schema_controller::get_schemas))
@@ -82,9 +82,14 @@ async fn main() {
         .route(
             "/api/upstreams/{addr}/health",
             get(route_controller::get_health),
+        )
+        .route(
+            "/api/config",
+            get(config_controller::get_config)
+                .put(config_controller::update_config),
         );
 
-    if args_clone.ws.contains(&WebSocketType::Logs) {
+    if args.ws.contains(&WebSocketType::Logs) {
         certus_routes = certus_routes
             .route("/ws/logs", any(log_controller::log_ws_handler));
         log_broadcast_tx = Some(broadcast::channel::<LogEntryDTO>(1024).0);
@@ -112,6 +117,7 @@ async fn main() {
             metrics_tx,
             schema_tx,
             log_broadcast_tx.clone(),
+            args.clone(),
         )
         .await,
     );
@@ -258,13 +264,12 @@ async fn main() {
         }
     });
 
-    let _watcher =
-        match watch_config(config_path, state.clone(), args.clone()).await {
-            Ok(watcher) => Some(watcher),
-            Err(_) => None,
-        };
+    let _watcher = match watch_config(config_path, state.clone()).await {
+        Ok(watcher) => Some(watcher),
+        Err(_) => None,
+    };
 
-    app_state::init_server_state(state.clone(), args).await;
+    app_state::init_server_state(state.clone()).await;
 
     let config = state.config.load();
     let port = config.server.port;

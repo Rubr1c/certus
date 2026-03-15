@@ -4,6 +4,7 @@ use parking_lot::Mutex;
 use rusqlite::Connection;
 use tokio::sync::{broadcast, mpsc};
 
+use crate::config::CmdArgs;
 use crate::db::models::ReqResSchemaDTO;
 use crate::logging::log_util::LogEntryDTO;
 use crate::metrics::MetricEvent;
@@ -43,4 +44,8 @@ fn test_schema_tx() -> mpsc::Sender<ReqResSchemaDTO> {
 
 fn test_log_tx() -> Option<broadcast::Sender<LogEntryDTO>> {
     None
+}
+
+fn test_args() -> Arc<CmdArgs> {
+    Arc::new(CmdArgs { config: String::new(), save: false, ws: Vec::new() })
 }

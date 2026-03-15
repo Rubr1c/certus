@@ -48,6 +48,7 @@ pub struct AppState {
     pub metrics_tx: mpsc::Sender<MetricEvent>,
     pub schema_tx: mpsc::Sender<ReqResSchemaDTO>,
     pub log_tx: Option<broadcast::Sender<LogEntryDTO>>,
+    pub args: Arc<CmdArgs>,
 }
 
 impl AppState {
@@ -57,6 +58,7 @@ impl AppState {
         metrics_tx: mpsc::Sender<MetricEvent>,
         schema_tx: mpsc::Sender<ReqResSchemaDTO>,
         log_tx: Option<broadcast::Sender<LogEntryDTO>>,
+        args: Arc<CmdArgs>,
     ) -> Self {
         Self {
             routing_table: ArcSwap::from_pointee(RoutingTable {
@@ -117,6 +119,7 @@ impl AppState {
             metrics_tx,
             schema_tx,
             log_tx,
+            args,
         }
     }
 }
@@ -131,7 +134,7 @@ pub async fn create_pool(url: &String) -> bb8::Pool<RedisConnectionManager> {
         .expect("Failed to make connection bb8 pool")
 }
 
-pub async fn init_server_state(state: Arc<AppState>, args: Arc<CmdArgs>) {
+pub async fn init_server_state(state: Arc<AppState>) {
     let config = state.config.load();
 
     let mut new_routes_map = HashMap::new();
@@ -186,7 +189,7 @@ pub async fn init_server_state(state: Arc<AppState>, args: Arc<CmdArgs>) {
 
     state.routing_table.store(Arc::new(new_table));
 
-    if args.save {
+    if state.args.save {
         let conn_guard = state.db_conn.lock();
         if let Err(e) = db_utils::save_config(&conn_guard, &config) {
             tracing::error!(err = ?e, "Failed to save config");

@@ -4,7 +4,8 @@ use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use tokio::{fs, sync::mpsc};
 
 use crate::{
-    config::{CmdArgs, Config, error::ConfigError},
+    config::Config,
+    config::error::ConfigError,
     server::app_state::{self, AppState},
 };
 
@@ -34,7 +35,6 @@ use crate::{
 pub async fn watch_config(
     path: &str,
     state: Arc<AppState>,
-    args: Arc<CmdArgs>,
 ) -> notify::Result<RecommendedWatcher> {
     let (tx, mut rx) = mpsc::channel(1);
 
@@ -64,11 +64,8 @@ pub async fn watch_config(
                         match reload_config(&path).await {
                             Ok(new_config) => {
                                 state.config.store(Arc::new(new_config));
-                                app_state::init_server_state(
-                                    state.clone(),
-                                    args.clone(),
-                                )
-                                .await;
+                                app_state::init_server_state(state.clone())
+                                    .await;
                                 tracing::info!("Config hot-reloaded");
                             }
                             Err(e) => {
