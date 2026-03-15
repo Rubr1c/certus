@@ -12,7 +12,7 @@ use tokio::net::TcpListener;
 
 use crate::config::{
     AuthConfig, AuthType, CacheConfig, Config, ConnectionConfig,
-    RateLimitConfig, RouteConfig, ServerConfig, StaticCacheConfig, StorageType,
+    RateLimitConfig, RouteConfig, ServerConfig,
 };
 use crate::server::app_state::{AppState, RoutingTable};
 use crate::server::upstream::UpstreamServer;
@@ -61,14 +61,7 @@ fn build_config(
         routes,
         default_server: addr.to_string(),
         connection: ConnectionConfig { connect_timeout: 5 },
-        cache: CacheConfig {
-            size: 100,
-            ttl: None,
-            tti: None,
-            max_size: 10_485_760,
-            cache_type: StorageType::default(),
-            static_cache: StaticCacheConfig::default(),
-        },
+        cache: CacheConfig { size: 100, ..CacheConfig::default() },
         tls: None,
     }
 }

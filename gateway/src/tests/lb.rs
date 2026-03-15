@@ -32,12 +32,8 @@ fn p2c_returns_correct_server() {
 
     let config = RouteConfig {
         endpoints: vec![addrs[0].clone(), addrs[1].clone()],
-        max_connections: 100,
-        needs_auth: false,
-        is_static: false,
-        http_version: HttpVersion::HTTP1,
         token_weight: 1.0,
-        no_cache: false,
+        ..RouteConfig::default()
     };
 
     let target = p2c_pick(&routes, &config, &addrs[2]);
@@ -58,12 +54,8 @@ fn p2c_with_one_server() {
 
     let config = RouteConfig {
         endpoints: vec![addrs[0].clone()],
-        max_connections: 100,
-        needs_auth: false,
-        is_static: false,
-        http_version: HttpVersion::HTTP1,
         token_weight: 1.0,
-        no_cache: false,
+        ..RouteConfig::default()
     };
 
     let target = p2c_pick(&routes, &config, &addrs[1]);
@@ -77,15 +69,7 @@ fn p2c_default_server() {
 
     let addrs = create_addrs(1);
 
-    let config = RouteConfig {
-        endpoints: vec![],
-        max_connections: 100,
-        needs_auth: false,
-        is_static: false,
-        http_version: HttpVersion::HTTP1,
-        token_weight: 1.0,
-        no_cache: false,
-    };
+    let config = RouteConfig { token_weight: 1.0, ..RouteConfig::default() };
 
     let target = p2c_pick(&routes, &config, &addrs[0]);
 
