@@ -394,6 +394,7 @@ pub async fn reroute(
                 &state.cache,
                 ck,
                 h_max_age,
+                config.cache.max_size,
             )
             .await;
 

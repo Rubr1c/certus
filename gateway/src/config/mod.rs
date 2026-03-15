@@ -152,6 +152,8 @@ pub struct CacheConfig {
     pub cache_type: StorageType,
     pub ttl: Option<u64>,
     pub tti: Option<u64>,
+    #[serde(default = "default_cache_max_size")]
+    pub max_size: u64,
     #[serde(default, rename = "static")]
     pub static_cache: StaticCacheConfig,
 }
@@ -227,6 +229,7 @@ impl Default for CacheConfig {
             size: 1000,
             ttl: None,
             tti: None,
+            max_size: default_cache_max_size(),
             cache_type: StorageType::default(),
             static_cache: StaticCacheConfig::default(),
         }
@@ -280,4 +283,8 @@ fn default_auth_prefix() -> String {
 
 fn default_cache_size() -> u64 {
     1000
+}
+
+fn default_cache_max_size() -> u64 {
+    10_485_760
 }

@@ -2,7 +2,7 @@ use axum::{
     body::{Body, to_bytes},
     response::IntoResponse,
 };
-use hyper::{Method, Response, body::Incoming};
+use hyper::{Method, Response, body::Incoming, header::CONTENT_LENGTH};
 
 use crate::server::middleware::cache::{
     CacheKey, CachedResponse, DynCacheBackend,
@@ -17,6 +17,7 @@ use crate::server::middleware::cache::{
 /// * `cache` - target cache to save in
 /// * `ck` - CacheKey for the request
 /// * `ttl` - optional ttl overide
+/// * `max_size` - max response body size (bytes) to cache
 #[inline]
 pub async fn try_save(
     response: Response<Incoming>,
@@ -24,6 +25,7 @@ pub async fn try_save(
     cache: &DynCacheBackend,
     ck: CacheKey<'_>,
     ttl: Option<u64>,
+    max_size: u64,
 ) -> Response<Body> {
     if method != Method::GET {
         return response.into_response();
@@ -33,13 +35,28 @@ pub async fn try_save(
         return response.into_response();
     }
 
+    let content_length = response
+        .headers()
+        .get(CONTENT_LENGTH)
+        .and_then(|h| h.to_str().ok())
+        .and_then(|s| s.parse::<u64>().ok());
+
+    if let Some(len) = content_length {
+        if len > max_size {
+            tracing::debug!("Response too large to cache ({len} bytes)");
+            return response.into_response();
+        }
+    }
+
     let (parts, body) = response.into_parts();
     let body =
         //TODO: set limit
         //
         //ISSUE: when setting max size then reading the error the
         //       response gets consumed so returning the original
-        //       is not possible. a fix that is performant is needed.  
+        //       is not possible. a fix that is performant is needed.
+        //       Content-Length is checked above, but chunked/streaming
+        //       responses without Content-Length can still exceed max_size.
         to_bytes(Body::new(body), usize::MAX).await.unwrap_or_default();
 
     let cached =

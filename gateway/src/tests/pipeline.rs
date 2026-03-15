@@ -65,6 +65,7 @@ fn build_config(
             size: 100,
             ttl: None,
             tti: None,
+            max_size: 10_485_760,
             cache_type: StorageType::default(),
             static_cache: StaticCacheConfig::default(),
         },
