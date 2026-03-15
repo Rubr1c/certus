@@ -77,7 +77,12 @@ async fn main() {
             get(metrics_controller::get_request_metrics),
         )
         .route("/metrics/cache", get(metrics_controller::get_cache_metrics))
-        .route("/api/routes", get(route_controller::get_routes));
+        .route("/api/routes", get(route_controller::get_routes))
+        .route("/api/upstreams/health", get(route_controller::get_all_health))
+        .route(
+            "/api/upstreams/{addr}/health",
+            get(route_controller::get_health),
+        );
 
     if args_clone.ws.contains(&WebSocketType::Logs) {
         certus_routes = certus_routes

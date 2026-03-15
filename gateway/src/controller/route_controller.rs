@@ -1,9 +1,15 @@
-use std::sync::{Arc, atomic::Ordering};
+use std::sync::Arc;
 
-use axum::{Json, extract::State, response::IntoResponse};
+use axum::{
+    Json,
+    extract::{Path, State},
+    http::StatusCode,
+    response::IntoResponse,
+};
 use serde::Serialize;
+use std::sync::atomic::Ordering;
 
-use crate::server::{app_state::AppState, upstream::HealthState};
+use crate::server::{app_state::AppState, connection, upstream::HealthState};
 
 #[derive(Serialize)]
 pub struct UpstreamInfo {
@@ -18,6 +24,12 @@ pub struct UpstreamInfo {
 pub struct RouteInfo {
     pub path: String,
     pub upstreams: Vec<UpstreamInfo>,
+}
+
+#[derive(Serialize)]
+pub struct UpstreamHealth {
+    pub address: String,
+    pub healthy: bool,
 }
 
 pub async fn get_routes(
@@ -55,4 +67,38 @@ pub async fn get_routes(
         .collect();
 
     Json(routes)
+}
+
+pub async fn get_all_health(
+    State(state): State<Arc<AppState>>,
+) -> impl IntoResponse {
+    let table = state.routing_table.load();
+
+    let mut results: Vec<UpstreamHealth> =
+        Vec::with_capacity(table.routes.len());
+
+    for (_, upstream) in &table.routes {
+        let ok = connection::health_ok(upstream).await;
+        results.push(UpstreamHealth {
+            address: upstream.pool.server_addr.to_string(),
+            healthy: ok,
+        });
+    }
+
+    Json(results)
+}
+
+pub async fn get_health(
+    State(state): State<Arc<AppState>>,
+    Path(addr): Path<String>,
+) -> impl IntoResponse {
+    let table = state.routing_table.load();
+
+    let Some(upstream) = table.routes.get(&addr) else {
+        return Err(StatusCode::NOT_FOUND);
+    };
+
+    let ok = connection::health_ok(upstream).await;
+
+    Ok(Json(UpstreamHealth { address: addr, healthy: ok }))
 }
