@@ -26,7 +26,9 @@ use gateway::{
         CmdArgs, WebSocketType,
         cfg_utils::{reload_config, watch_config},
     },
-    controller::{log_controller, metrics_controller, schema_controller},
+    controller::{
+        log_controller, metrics_controller, route_controller, schema_controller,
+    },
     db::{db_utils, models::ReqResSchemaDTO},
     logging::log_util::{LogChannelLayer, LogEntryDTO},
     metrics::MetricEvent,
@@ -74,7 +76,8 @@ async fn main() {
             "/metrics/requests",
             get(metrics_controller::get_request_metrics),
         )
-        .route("/metrics/cache", get(metrics_controller::get_cache_metrics));
+        .route("/metrics/cache", get(metrics_controller::get_cache_metrics))
+        .route("/api/routes", get(route_controller::get_routes));
 
     if args_clone.ws.contains(&WebSocketType::Logs) {
         certus_routes = certus_routes

@@ -2,6 +2,7 @@ use serde::Deserialize;
 
 pub mod log_controller;
 pub mod metrics_controller;
+pub mod route_controller;
 pub mod schema_controller;
 
 fn default_per_page() -> u32 {
