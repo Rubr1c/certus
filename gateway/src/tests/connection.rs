@@ -2,8 +2,8 @@ use std::sync::atomic::Ordering;
 
 use tokio::net::TcpListener;
 
-use crate::server::connection;
-use crate::server::upstream::UpstreamServer;
+use crate::connection::pool;
+use crate::upstream::server::UpstreamServer;
 
 #[tokio::test]
 async fn borrow_increments_counters() {
@@ -16,7 +16,7 @@ async fn borrow_increments_counters() {
         stream
     });
 
-    let conn = connection::borrow_connection(&upstream, 5).await;
+    let conn = pool::borrow_connection(&upstream, 5).await;
     let _stream = accept.await.unwrap();
 
     assert!(conn.is_ok());
@@ -35,10 +35,10 @@ async fn release_reusable_keeps_total() {
         stream
     });
 
-    let conn = connection::borrow_connection(&upstream, 5).await.unwrap();
+    let conn = pool::borrow_connection(&upstream, 5).await.unwrap();
     let _stream = accept.await.unwrap();
 
-    connection::release_connection(&upstream, conn, true).await;
+    pool::release_connection(&upstream, conn, true).await;
 
     assert_eq!(upstream.active_connctions.load(Ordering::Acquire), 0);
     assert_eq!(upstream.pool.total_connections.load(Ordering::Acquire), 1);
@@ -56,10 +56,10 @@ async fn release_not_reusable_decrements_total() {
         stream
     });
 
-    let conn = connection::borrow_connection(&upstream, 5).await.unwrap();
+    let conn = pool::borrow_connection(&upstream, 5).await.unwrap();
     let _stream = accept.await.unwrap();
 
-    connection::release_connection(&upstream, conn, false).await;
+    pool::release_connection(&upstream, conn, false).await;
 
     assert_eq!(upstream.active_connctions.load(Ordering::Acquire), 0);
     assert_eq!(upstream.pool.total_connections.load(Ordering::Acquire), 0);
@@ -77,10 +77,10 @@ async fn borrow_returns_overloaded_at_max() {
         stream
     });
 
-    let _first = connection::borrow_connection(&upstream, 5).await.unwrap();
+    let _first = pool::borrow_connection(&upstream, 5).await.unwrap();
     let _stream = accept.await.unwrap();
 
-    let second = connection::borrow_connection(&upstream, 5).await;
+    let second = pool::borrow_connection(&upstream, 5).await;
 
     assert!(second.is_err());
 }
@@ -102,8 +102,7 @@ async fn handle_request_failure_cleans_up_counters() {
         .unwrap();
 
     let res =
-        crate::server::middleware::handler::handle_request(&upstream, req, 5)
-            .await;
+        crate::middleware::forwarding::handle_request(&upstream, req, 5).await;
     accept.await.unwrap();
 
     assert!(res.is_err());

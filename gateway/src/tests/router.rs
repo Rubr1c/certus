@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use crate::config::{Config, RouteConfig};
-use crate::server::app_state::AppState;
-use crate::server::middleware::router;
+use crate::config::types::{Config, RouteConfig};
+use crate::middleware::router;
+use crate::server::state::app_state::AppState;
 
 use super::{
     test_args, test_db_conn, test_log_tx, test_metrics_tx, test_schema_tx,

@@ -2,9 +2,9 @@ use std::net::{IpAddr, Ipv4Addr};
 
 use moka::sync::Cache;
 
-use crate::config::{Config, RouteConfig};
-use crate::server::middleware::rate_limit::{
-    self, DynRateLimitBackend, TokenBucketKey,
+use crate::config::types::{Config, RouteConfig};
+use crate::middleware::rate_limit::{
+    backend::DynRateLimitBackend, key::TokenBucketKey, limiter,
 };
 
 #[tokio::test]
@@ -15,8 +15,7 @@ async fn allows_request_with_enough_tokens() {
     let ip = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
 
     let res =
-        rate_limit::run(&route, TokenBucketKey::Ip(ip), &config, &backend)
-            .await;
+        limiter::run(&route, TokenBucketKey::Ip(ip), &config, &backend).await;
 
     assert!(res.is_ok());
 }
@@ -32,17 +31,17 @@ async fn rejects_when_tokens_exhausted() {
     let ip = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
 
     assert!(
-        rate_limit::run(&route, TokenBucketKey::Ip(ip), &config, &backend)
+        limiter::run(&route, TokenBucketKey::Ip(ip), &config, &backend)
             .await
             .is_ok()
     );
     assert!(
-        rate_limit::run(&route, TokenBucketKey::Ip(ip), &config, &backend)
+        limiter::run(&route, TokenBucketKey::Ip(ip), &config, &backend)
             .await
             .is_ok()
     );
     assert!(
-        rate_limit::run(&route, TokenBucketKey::Ip(ip), &config, &backend)
+        limiter::run(&route, TokenBucketKey::Ip(ip), &config, &backend)
             .await
             .is_err()
     );
@@ -61,23 +60,23 @@ async fn different_ips_get_separate_buckets() {
     let ip2 = IpAddr::V4(Ipv4Addr::new(10, 0, 0, 2));
 
     assert!(
-        rate_limit::run(&route, TokenBucketKey::Ip(ip1), &config, &backend)
+        limiter::run(&route, TokenBucketKey::Ip(ip1), &config, &backend)
             .await
             .is_ok()
     );
     assert!(
-        rate_limit::run(&route, TokenBucketKey::Ip(ip1), &config, &backend)
+        limiter::run(&route, TokenBucketKey::Ip(ip1), &config, &backend)
             .await
             .is_err()
     );
 
     assert!(
-        rate_limit::run(&route, TokenBucketKey::Ip(ip2), &config, &backend)
+        limiter::run(&route, TokenBucketKey::Ip(ip2), &config, &backend)
             .await
             .is_ok()
     );
     assert!(
-        rate_limit::run(&route, TokenBucketKey::Ip(ip2), &config, &backend)
+        limiter::run(&route, TokenBucketKey::Ip(ip2), &config, &backend)
             .await
             .is_err()
     );
@@ -94,17 +93,17 @@ async fn high_weight_drains_faster() {
     let ip = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
 
     assert!(
-        rate_limit::run(&route, TokenBucketKey::Ip(ip), &config, &backend)
+        limiter::run(&route, TokenBucketKey::Ip(ip), &config, &backend)
             .await
             .is_ok()
     );
     assert!(
-        rate_limit::run(&route, TokenBucketKey::Ip(ip), &config, &backend)
+        limiter::run(&route, TokenBucketKey::Ip(ip), &config, &backend)
             .await
             .is_ok()
     );
     assert!(
-        rate_limit::run(&route, TokenBucketKey::Ip(ip), &config, &backend)
+        limiter::run(&route, TokenBucketKey::Ip(ip), &config, &backend)
             .await
             .is_err()
     );
@@ -121,12 +120,12 @@ async fn tokens_refill_after_time() {
     let ip = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
 
     assert!(
-        rate_limit::run(&route, TokenBucketKey::Ip(ip), &config, &backend)
+        limiter::run(&route, TokenBucketKey::Ip(ip), &config, &backend)
             .await
             .is_ok()
     );
     assert!(
-        rate_limit::run(&route, TokenBucketKey::Ip(ip), &config, &backend)
+        limiter::run(&route, TokenBucketKey::Ip(ip), &config, &backend)
             .await
             .is_err()
     );
@@ -134,7 +133,7 @@ async fn tokens_refill_after_time() {
     tokio::time::sleep(std::time::Duration::from_millis(150)).await;
 
     assert!(
-        rate_limit::run(&route, TokenBucketKey::Ip(ip), &config, &backend)
+        limiter::run(&route, TokenBucketKey::Ip(ip), &config, &backend)
             .await
             .is_ok()
     );

@@ -1,4 +1,4 @@
-use crate::config::cfg_utils;
+use crate::config::parser;
 
 #[tokio::test]
 async fn reload_config_parses_valid_yaml() {
@@ -15,7 +15,7 @@ routes:
 "#;
     std::fs::write(&path, yaml).unwrap();
 
-    let config = cfg_utils::reload_config(path.to_str().unwrap()).await;
+    let config = parser::reload_config(path.to_str().unwrap()).await;
 
     assert!(config.is_ok());
     let config = config.unwrap();
@@ -30,7 +30,7 @@ async fn reload_config_rejects_invalid_yaml() {
 
     std::fs::write(&path, "not: [valid: yaml: {{{}}}").unwrap();
 
-    let config = cfg_utils::reload_config(path.to_str().unwrap()).await;
+    let config = parser::reload_config(path.to_str().unwrap()).await;
 
     assert!(config.is_err());
 }
@@ -38,7 +38,7 @@ async fn reload_config_rejects_invalid_yaml() {
 #[tokio::test]
 async fn reload_config_rejects_missing_file() {
     let result =
-        cfg_utils::reload_config("/tmp/nonexistent_certus_config_12345.yaml")
+        parser::reload_config("/tmp/nonexistent_certus_config_12345.yaml")
             .await;
 
     assert!(result.is_err());

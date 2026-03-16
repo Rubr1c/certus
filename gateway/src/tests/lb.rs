@@ -4,11 +4,9 @@ use std::{
 };
 
 use crate::{
-    config::RouteConfig,
-    server::{
-        middleware::load_balance::p2c_pick,
-        upstream::{HttpVersion, UpstreamServer},
-    },
+    config::types::RouteConfig,
+    middleware::load_balance::p2c::p2c_pick,
+    upstream::{protocol::HttpVersion, server::UpstreamServer},
 };
 
 use super::create_addrs;

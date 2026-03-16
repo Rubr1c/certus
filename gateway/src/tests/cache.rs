@@ -5,8 +5,11 @@ use dashmap::DashMap;
 use hyper::{HeaderMap, StatusCode};
 use moka::sync::Cache;
 
-use crate::server::middleware::cache::{
-    CacheKey, CachedResponse, DynCacheBackend, StaticCacheBackend, dyn_cache,
+use crate::middleware::cache::{
+    backend::{DynCacheBackend, StaticCacheBackend},
+    dynamic,
+    key::CacheKey,
+    response::CachedResponse,
     static_cache,
 };
 
@@ -15,7 +18,7 @@ async fn dyn_cache_miss_on_empty() {
     let cache = DynCacheBackend::InMemory(Cache::new(100));
     let ck = CacheKey { token: None, path: Cow::Borrowed("/test") };
 
-    let res = dyn_cache::try_find(&cache, "/test", &ck).await;
+    let res = dynamic::try_find(&cache, "/test", &ck).await;
 
     assert!(res.is_none());
 }
@@ -36,7 +39,7 @@ async fn dyn_cache_hit_on_get() {
     );
     let cache = DynCacheBackend::InMemory(inner);
 
-    let res = dyn_cache::try_find(&cache, "/test", &ck).await;
+    let res = dynamic::try_find(&cache, "/test", &ck).await;
 
     assert!(res.is_some());
     assert_eq!(res.unwrap().status(), StatusCode::OK);
@@ -64,7 +67,7 @@ async fn dyn_cache_different_tokens_are_different_keys() {
         token: Some(Cow::Borrowed("token_b")),
         path: Cow::Borrowed("/test"),
     };
-    let res = dyn_cache::try_find(&cache, "/test", &ck).await;
+    let res = dynamic::try_find(&cache, "/test", &ck).await;
 
     assert!(res.is_none());
 }
