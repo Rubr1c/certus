@@ -11,6 +11,22 @@ use axum::{
 };
 use axum_server::tls_rustls::RustlsConfig;
 use clap::Parser;
+use gateway::{
+    cli::{CmdArgs, WebSocketType},
+    config,
+    controllers::{
+        config_controller, log_controller, metrics_controller,
+        route_controller, schema_controller,
+    },
+    db,
+    logging::{layer::LogChannelLayer, types::LogEntryDTO},
+    metrics::types::MetricEvent,
+    middleware::{load_balance, pipeline, router},
+    schema::types::ReqResSchemaDTO,
+    server::state::{self, app_state::AppState, routing_table::RoutingTable},
+    upstream::{health, server::HealthState},
+    websocket::{log_socket, metrics_socket},
+};
 use parking_lot::Mutex;
 use tokio::{
     sync::{broadcast, mpsc},
@@ -19,26 +35,6 @@ use tokio::{
 use tower_http::cors::{self, CorsLayer};
 use tracing_subscriber::{
     EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt,
-};
-
-use gateway::{
-    config::{
-        CmdArgs, WebSocketType,
-        cfg_utils::{reload_config, watch_config},
-    },
-    controller::{
-        config_controller, log_controller, metrics_controller,
-        route_controller, schema_controller,
-    },
-    db::{db_utils, models::ReqResSchemaDTO},
-    logging::log_util::{LogChannelLayer, LogEntryDTO},
-    metrics::MetricEvent,
-    server::{
-        app_state::{self, AppState, RoutingTable},
-        connection,
-        middleware::{load_balance, router},
-        upstream::HealthState,
-    },
 };
 
 #[tokio::main]
@@ -70,7 +66,7 @@ async fn main() {
     let config_path = args.config.as_str();
 
     let mut certus_routes = Router::new()
-        .route("/idle", post(load_balance::set_idle))
+        .route("/idle", post(load_balance::idle_queue::set_idle))
         .route("/schemas", get(schema_controller::get_schemas))
         .route("/logs", get(log_controller::get_logs))
         .route(
@@ -100,30 +96,30 @@ async fn main() {
         );
 
     if args.ws.contains(&WebSocketType::Logs) {
-        certus_routes = certus_routes
-            .route("/ws/logs", any(log_controller::log_ws_handler));
+        certus_routes =
+            certus_routes.route("/ws/logs", any(log_socket::log_ws_handler));
         log_broadcast_tx = Some(broadcast::channel::<LogEntryDTO>(1024).0);
         tracing::debug!("Running log ws server");
     }
 
     if args.ws.contains(&WebSocketType::Metrics) {
         certus_routes = certus_routes
-            .route("/ws/metrics", any(metrics_controller::metrics_ws_handler));
+            .route("/ws/metrics", any(metrics_socket::metrics_ws_handler));
         metrics_broadcast_tx = Some(broadcast::channel::<MetricEvent>(1024).0);
         tracing::debug!("Running metrics ws server");
     }
 
-    let log_conn = db_utils::connect_db().expect("log db");
-    let metrics_conn = db_utils::connect_db().expect("metrics db");
-    let schema_conn = db_utils::connect_db().expect("schema db");
+    let log_conn = db::connection::connect_db().expect("log db");
+    let metrics_conn = db::connection::connect_db().expect("metrics db");
+    let schema_conn = db::connection::connect_db().expect("schema db");
 
-    db_utils::migrate(&log_conn).expect("migrate");
+    db::migration::migrate(&log_conn).expect("migrate");
 
     let log_conn = Arc::new(Mutex::new(log_conn));
     let metrics_conn = Arc::new(Mutex::new(metrics_conn));
     let schema_conn = Arc::new(Mutex::new(schema_conn));
 
-    let config = reload_config(config_path).await.unwrap();
+    let config = config::parser::reload_config(config_path).await.unwrap();
 
     let tls = config.tls.clone();
 
@@ -157,13 +153,13 @@ async fn main() {
                     }
 
                     if batch.len() >= 100 {
-                        db_utils::flush_log_batch(&log_conn_clone, &mut batch);
+                        db::flush::flush_log_batch(&log_conn_clone, &mut batch);
                     }
                 }
 
                 _ = interval.tick() => {
                     if !batch.is_empty() {
-                        db_utils::flush_log_batch(&log_conn_clone, &mut batch);
+                        db::flush::flush_log_batch(&log_conn_clone, &mut batch);
                     }
                 }
             }
@@ -185,12 +181,12 @@ async fn main() {
                    batch.push(metric);
 
                    if batch.len() >= 100 {
-                        db_utils::flush_metric_batch(&metrics_conn_clone, &mut batch);
+                        db::flush::flush_metric_batch(&metrics_conn_clone, &mut batch);
                    }
                 },
                _ = interval.tick() => {
                    if !batch.is_empty() {
-                        db_utils::flush_metric_batch(&metrics_conn_clone, &mut batch);
+                        db::flush::flush_metric_batch(&metrics_conn_clone, &mut batch);
                    }
                 }
             }
@@ -208,12 +204,12 @@ async fn main() {
                     batch.push(schema);
 
                     if batch.len() >= 100 {
-                        db_utils::flush_req_res_schema_batch(&schema_conn, &mut batch);
+                        db::flush::flush_req_res_schema_batch(&schema_conn, &mut batch);
                     }
                 },
                 _ = interval.tick() => {
                     if !batch.is_empty() {
-                        db_utils::flush_req_res_schema_batch(&schema_conn, &mut batch);
+                        db::flush::flush_req_res_schema_batch(&schema_conn, &mut batch);
                     }
                 }
             }
@@ -278,19 +274,20 @@ async fn main() {
 
             let table = state_clone.routing_table.load();
             for (addr, upstream) in &table.routes {
-                if !connection::health_ok(upstream).await {
+                if !health::health_ok(upstream).await {
                     tracing::warn!(server = %addr, "Health check failed");
                 }
             }
         }
     });
 
-    let _watcher = match watch_config(config_path, state.clone()).await {
-        Ok(watcher) => Some(watcher),
-        Err(_) => None,
-    };
+    let _watcher =
+        match config::watcher::watch_config(config_path, state.clone()).await {
+            Ok(watcher) => Some(watcher),
+            Err(_) => None,
+        };
 
-    app_state::init_server_state(state.clone()).await;
+    state::initializer::init_server_state(state.clone()).await;
 
     let config = state.config.load();
     let port = config.server.port;
@@ -300,7 +297,7 @@ async fn main() {
 
     let mut app = Router::new()
         .nest("/_certus/api/v1", certus_routes)
-        .route("/{*any}", any(router::reroute))
+        .route("/{*any}", any(pipeline::reroute))
         .with_state(state);
 
     let origins = config.server.origins.clone();

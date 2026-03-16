@@ -1,5 +1,3 @@
-use axum::body::Body;
-use hyper::Request;
 use jsonwebtoken::Algorithm;
 
 use crate::{
@@ -7,9 +5,7 @@ use crate::{
     server::middleware::auth,
 };
 
-fn dummy_req() -> Request<Body> {
-    Request::builder().body(Body::empty()).unwrap()
-}
+use super::dummy_req;
 
 #[test]
 fn auth_not_enabled() {
