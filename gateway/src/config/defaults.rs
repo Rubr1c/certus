@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::upstream::protocol::HttpVersion;
+use crate::upstream::protocol;
 
 use super::types::{
     AuthConfig, AuthType, CacheConfig, Config, ConnectionConfig,
@@ -36,7 +36,7 @@ impl Default for RouteConfig {
             endpoints: Vec::new(),
             is_static: false,
             needs_auth: false,
-            http_version: HttpVersion::HTTP1,
+            http_version: protocol::HttpVersion::HTTP1,
             max_connections: 100,
             token_weight: 0.0,
             no_cache: false,

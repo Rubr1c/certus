@@ -10,18 +10,16 @@ use super::{
 
 /// Cache backend for static routes (keyed by path string).
 /// Only in-memory for now since static responses rarely change.
-pub enum StaticCacheBackend {
+pub enum StaticBackend {
     InMemory(DashMap<String, CachedResponse>),
     Redis(bb8::Pool<RedisConnectionManager>),
 }
 
-impl StaticCacheBackend {
+impl StaticBackend {
     pub async fn get(&self, key: &str) -> Option<CachedResponse> {
         match self {
-            StaticCacheBackend::InMemory(map) => {
-                map.get(key).map(|v| v.clone())
-            }
-            StaticCacheBackend::Redis(pool) => {
+            StaticBackend::InMemory(map) => map.get(key).map(|v| v.clone()),
+            StaticBackend::Redis(pool) => {
                 let mut conn = pool.get().await.ok()?;
                 serialization::read_cached_response_hash(&mut conn, key).await
             }
@@ -30,10 +28,10 @@ impl StaticCacheBackend {
 
     pub async fn set(&self, key: String, value: CachedResponse) {
         match self {
-            StaticCacheBackend::InMemory(map) => {
+            StaticBackend::InMemory(map) => {
                 map.insert(key, value);
             }
-            StaticCacheBackend::Redis(pool) => {
+            StaticBackend::Redis(pool) => {
                 let Ok(mut conn) = pool.get().await else { return };
                 let _ = serialization::write_cached_response_hash(
                     &mut conn, &key, &value,
@@ -51,18 +49,16 @@ impl StaticCacheBackend {
 /// (redis v1.0.4's `get` always returns `Option<String>`, and `set` requires
 /// `ToSingleRedisArg`). Instead we convert through `SerializableCachedResponse`
 /// to/from a JSON string, which works natively with the typed redis commands.
-pub enum DynCacheBackend {
+pub enum DynBackend {
     InMemory(Cache<OwnedCacheKey, CachedResponse>),
     Redis { pool: bb8::Pool<RedisConnectionManager>, ttl: Option<u64> },
 }
 
-impl DynCacheBackend {
+impl DynBackend {
     pub async fn get(&self, key: &CacheKey<'_>) -> Option<CachedResponse> {
         match self {
-            DynCacheBackend::InMemory(cache) => {
-                cache.get(&key.clone().into_owned())
-            }
-            DynCacheBackend::Redis { pool, .. } => {
+            DynBackend::InMemory(cache) => cache.get(&key.clone().into_owned()),
+            DynBackend::Redis { pool, .. } => {
                 let mut conn = pool.get().await.ok()?;
                 let redis_key = format!(
                     "cache:{}:{}",
@@ -77,10 +73,10 @@ impl DynCacheBackend {
 
     pub async fn set(&self, key: CacheKey<'_>, value: CachedResponse) {
         match self {
-            DynCacheBackend::InMemory(cache) => {
+            DynBackend::InMemory(cache) => {
                 cache.insert(key.into_owned(), value)
             }
-            DynCacheBackend::Redis { pool, ttl } => {
+            DynBackend::Redis { pool, ttl } => {
                 let Ok(mut conn) = pool.get().await else { return };
                 let redis_key = format!(
                     "cache:{}:{}",
@@ -116,10 +112,10 @@ impl DynCacheBackend {
         ttl: &u64,
     ) {
         match self {
-            DynCacheBackend::InMemory(cache) => {
+            DynBackend::InMemory(cache) => {
                 cache.insert(key.into_owned(), value)
             }
-            DynCacheBackend::Redis { pool, ttl: _ } => {
+            DynBackend::Redis { pool, ttl: _ } => {
                 let Ok(mut conn) = pool.get().await else { return };
                 let redis_key = format!(
                     "cache:{}:{}",

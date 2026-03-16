@@ -1,13 +1,9 @@
 use std::sync::Arc;
 
 use parking_lot::Mutex;
-use rusqlite::Connection;
 use tokio::sync::{broadcast, mpsc};
 
-use crate::cli::CmdArgs;
-use crate::logging::types::LogEntryDTO;
-use crate::metrics::types::MetricEvent;
-use crate::schema::types::ReqResSchemaDTO;
+use crate::{cli, logging, metrics, schema};
 
 pub mod auth;
 pub mod cache;
@@ -28,24 +24,28 @@ fn create_addrs(count: i32) -> Vec<String> {
     addrs
 }
 
-fn test_db_conn() -> Arc<Mutex<Connection>> {
-    Arc::new(Mutex::new(Connection::open_in_memory().unwrap()))
+fn test_db_conn() -> Arc<Mutex<rusqlite::Connection>> {
+    Arc::new(Mutex::new(rusqlite::Connection::open_in_memory().unwrap()))
 }
 
-fn test_metrics_tx() -> mpsc::Sender<MetricEvent> {
-    let (tx, _rx) = mpsc::channel::<MetricEvent>(16);
+fn test_metrics_tx() -> mpsc::Sender<metrics::types::MetricEvent> {
+    let (tx, _rx) = mpsc::channel::<metrics::types::MetricEvent>(16);
     tx
 }
 
-fn test_schema_tx() -> mpsc::Sender<ReqResSchemaDTO> {
-    let (tx, _rx) = mpsc::channel::<ReqResSchemaDTO>(16);
+fn test_schema_tx() -> mpsc::Sender<schema::types::ReqResSchemaDTO> {
+    let (tx, _rx) = mpsc::channel::<schema::types::ReqResSchemaDTO>(16);
     tx
 }
 
-fn test_log_tx() -> Option<broadcast::Sender<LogEntryDTO>> {
+fn test_log_tx() -> Option<broadcast::Sender<logging::types::LogEntryDTO>> {
     None
 }
 
-fn test_args() -> Arc<CmdArgs> {
-    Arc::new(CmdArgs { config: String::new(), save: false, ws: Vec::new() })
+fn test_args() -> Arc<cli::CmdArgs> {
+    Arc::new(cli::CmdArgs {
+        config: String::new(),
+        save: false,
+        ws: Vec::new(),
+    })
 }

@@ -1,4 +1,4 @@
-use jsonwebtoken::{Algorithm, DecodingKey, Validation};
+use jsonwebtoken::{DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
 
 use crate::error::GatewayError;
@@ -28,7 +28,7 @@ pub struct Claims {
 pub fn decode(
     token: &str,
     secret: &String,
-    algorithm: &Algorithm,
+    algorithm: &jsonwebtoken::Algorithm,
 ) -> Result<Claims, GatewayError> {
     match jsonwebtoken::decode::<Claims>(
         token,

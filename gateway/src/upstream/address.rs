@@ -1,4 +1,4 @@
-use super::protocol::Protocol;
+use super::protocol;
 
 /// Parses a server address string into (connect_addr, hostname, protocol).
 ///
@@ -6,19 +6,19 @@ use super::protocol::Protocol;
 /// - `https://domain.com` → (`domain.com:443`, `domain.com`, HTTPS)
 /// - `http://domain.com:8080` → (`domain.com:8080`, `domain.com`, HTTP)
 /// - `domain.com:3000` → (`domain.com:3000`, `domain.com`, HTTP)
-pub fn parse_address(address: &str) -> (String, String, Protocol) {
+pub fn parse_address(address: &str) -> (String, String, protocol::Protocol) {
     let (protocol, rest) =
         if let Some(stripped) = address.strip_prefix("https://") {
-            (Protocol::HTTPS, stripped)
+            (protocol::Protocol::HTTPS, stripped)
         } else if let Some(stripped) = address.strip_prefix("http://") {
-            (Protocol::HTTP, stripped)
+            (protocol::Protocol::HTTP, stripped)
         } else {
-            (Protocol::HTTP, address)
+            (protocol::Protocol::HTTP, address)
         };
 
     let default_port = match protocol {
-        Protocol::HTTPS => 443,
-        Protocol::HTTP => 80,
+        protocol::Protocol::HTTPS => 443,
+        protocol::Protocol::HTTP => 80,
     };
 
     let (hostname, connect_addr) =

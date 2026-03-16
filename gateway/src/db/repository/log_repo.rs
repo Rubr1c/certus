@@ -1,4 +1,4 @@
-use crate::{db::models::log::LogEntry, logging::types::LogEntryDTO};
+use crate::{db::models::log, logging::types};
 
 /// Saves a log to an sqlite database
 ///
@@ -13,7 +13,7 @@ use crate::{db::models::log::LogEntry, logging::types::LogEntryDTO};
 /// * Failed to execute query
 pub fn save_log(
     conn: &rusqlite::Connection,
-    entry: LogEntryDTO,
+    entry: types::LogEntryDTO,
 ) -> rusqlite::Result<()> {
     let fields_json = serde_json::to_string(&entry.fields)
         .unwrap_or_else(|_| "{}".to_string());
@@ -49,7 +49,7 @@ pub fn save_log(
 /// * Failed to commit transaction
 pub fn save_logs(
     conn: &mut rusqlite::Connection,
-    entries: Vec<LogEntryDTO>,
+    entries: Vec<types::LogEntryDTO>,
 ) -> rusqlite::Result<()> {
     let tx = conn.transaction()?;
     {
@@ -89,13 +89,13 @@ pub fn save_logs(
 /// * Failed to map query
 pub fn get_logs(
     conn: &rusqlite::Connection,
-) -> rusqlite::Result<Vec<LogEntry>> {
+) -> rusqlite::Result<Vec<log::LogEntry>> {
     let mut stmt = conn.prepare(
         "SELECT id, timestamp, level, target, message, fields FROM logs",
     )?;
 
     let logs = stmt.query_map([], |row| {
-        Ok(LogEntry {
+        Ok(log::LogEntry {
             id: row.get(0)?,
             timestamp: row.get(1)?,
             level: row.get(2)?,
@@ -104,7 +104,7 @@ pub fn get_logs(
             fields: row.get(5)?,
         })
     })?;
-    let mut log_vec: Vec<LogEntry> = Vec::new();
+    let mut log_vec: Vec<log::LogEntry> = Vec::new();
     for log in logs {
         log_vec.push(log?);
     }
@@ -120,7 +120,7 @@ pub fn get_log_entries(
     search: Option<&str>,
     page: u32,
     page_size: u32,
-) -> rusqlite::Result<Vec<LogEntry>> {
+) -> rusqlite::Result<Vec<log::LogEntry>> {
     let mut sql = String::from(
         "SELECT id, timestamp, level, target, message, fields FROM logs",
     );
@@ -168,7 +168,7 @@ pub fn get_log_entries(
 
     let mut stmt = conn.prepare(&sql)?;
     let rows = stmt.query_map(param_refs.as_slice(), |row| {
-        Ok(LogEntry {
+        Ok(log::LogEntry {
             id: row.get(0)?,
             timestamp: row.get(1)?,
             level: row.get(2)?,

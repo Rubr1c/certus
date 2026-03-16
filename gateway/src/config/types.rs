@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::upstream::protocol::HttpVersion;
+use crate::upstream::protocol;
 
 use super::defaults;
 
@@ -59,7 +59,7 @@ pub struct RouteConfig {
     #[serde(default)]
     pub needs_auth: bool,
     #[serde(default)]
-    pub http_version: HttpVersion,
+    pub http_version: protocol::HttpVersion,
     #[serde(default = "defaults::default_max_connections")]
     pub max_connections: usize,
     #[serde(default)]

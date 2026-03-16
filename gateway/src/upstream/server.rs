@@ -5,9 +5,9 @@ use std::sync::{
 
 use crossbeam::queue::SegQueue;
 
-use crate::upstream::protocol::{HttpVersion, PooledConnection, Protocol};
+use crate::upstream::protocol;
 
-use super::address::parse_address;
+use super::address;
 
 /// Enum representing if server is healthy or not
 #[repr(u8)]
@@ -27,20 +27,21 @@ pub struct UpstreamServer {
 pub struct ConnectionPool {
     pub server_addr: Arc<str>,
     pub hostname: String,
-    pub http_version: HttpVersion,
-    pub protocol: Protocol,
+    pub http_version: protocol::HttpVersion,
+    pub protocol: protocol::Protocol,
     pub max_connections: usize,
     pub total_connections: AtomicUsize,
-    pub idle_connections: SegQueue<PooledConnection>,
+    pub idle_connections: SegQueue<protocol::PooledConnection>,
 }
 
 impl UpstreamServer {
     pub fn new(
         address: String,
         max_connections: usize,
-        http_version: HttpVersion,
+        http_version: protocol::HttpVersion,
     ) -> Self {
-        let (server_addr, hostname, protocol) = parse_address(&address);
+        let (server_addr, hostname, protocol) =
+            address::parse_address(&address);
 
         UpstreamServer {
             active_connctions: AtomicUsize::new(0),

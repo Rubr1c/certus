@@ -1,16 +1,9 @@
 use std::sync::Arc;
 
-use axum::{
-    Json,
-    extract::{Query, State},
-    http::StatusCode,
-    response::IntoResponse,
-};
+use axum::response::IntoResponse;
 use serde::Deserialize;
 
-use crate::{db::repository::log_repo, server::state::app_state::AppState};
-
-use super::Pagination;
+use crate::{controllers, db::repository::log_repo, server::state::app_state};
 
 #[derive(Deserialize)]
 pub struct LogQuery {
@@ -22,9 +15,11 @@ pub struct LogQuery {
 }
 
 pub async fn get_logs(
-    State(state): State<Arc<AppState>>,
-    Query(pagination): Query<Pagination>,
-    Query(filters): Query<LogQuery>,
+    axum::extract::State(state): axum::extract::State<Arc<app_state::AppState>>,
+    axum::extract::Query(pagination): axum::extract::Query<
+        controllers::Pagination,
+    >,
+    axum::extract::Query(filters): axum::extract::Query<LogQuery>,
 ) -> impl IntoResponse {
     let conn = Arc::clone(&state.db_conn);
 
@@ -44,14 +39,14 @@ pub async fn get_logs(
     .await;
 
     match result {
-        Ok(Ok(logs)) => Json(logs).into_response(),
+        Ok(Ok(logs)) => axum::Json(logs).into_response(),
         Ok(Err(e)) => {
             tracing::error!(err = ?e, "Failed to get logs");
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR.into_response()
         }
         Err(e) => {
             tracing::error!(err = ?e, "Log query task panicked");
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR.into_response()
         }
     }
 }

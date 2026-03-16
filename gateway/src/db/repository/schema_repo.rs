@@ -1,8 +1,8 @@
-use crate::schema::types::ReqResSchema;
+use crate::schema::types;
 
 pub fn save_req_res_schemas(
     conn: &mut rusqlite::Connection,
-    req_res_schemas: Vec<ReqResSchema>,
+    req_res_schemas: Vec<types::ReqResSchema>,
 ) -> rusqlite::Result<()> {
     let tx = conn.transaction()?;
     {
@@ -32,7 +32,7 @@ pub fn get_req_res_schemas(
     conn: &rusqlite::Connection,
     page: u32,
     page_size: u32,
-) -> rusqlite::Result<Vec<ReqResSchema>> {
+) -> rusqlite::Result<Vec<types::ReqResSchema>> {
     let offset = page * page_size;
 
     let mut stmt = conn.prepare(
@@ -43,7 +43,7 @@ pub fn get_req_res_schemas(
     )?;
 
     let rows = stmt.query_map(rusqlite::params![page_size, offset], |row| {
-        Ok(ReqResSchema {
+        Ok(types::ReqResSchema {
             full_path: row.get(0)?,
             method: row.get(1)?,
             query_params: row.get(2)?,

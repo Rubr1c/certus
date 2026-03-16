@@ -1,8 +1,6 @@
 use std::sync::Arc;
 
-use crate::config::types::{Config, RouteConfig};
-use crate::middleware::router;
-use crate::server::state::app_state::AppState;
+use crate::{config::types, middleware::router, server::state::app_state};
 
 use super::{
     test_args, test_db_conn, test_log_tx, test_metrics_tx, test_schema_tx,
@@ -10,11 +8,11 @@ use super::{
 
 #[tokio::test]
 async fn build_tree_matches_configured_route() {
-    let mut config = Config::default();
-    config.routes.insert("/api".to_string(), RouteConfig::default());
+    let mut config = types::Config::default();
+    config.routes.insert("/api".to_string(), types::RouteConfig::default());
 
     let state = Arc::new(
-        AppState::new(
+        app_state::AppState::new(
             config,
             test_db_conn(),
             test_metrics_tx(),
@@ -34,11 +32,11 @@ async fn build_tree_matches_configured_route() {
 
 #[tokio::test]
 async fn build_tree_matches_wildcard_subpath() {
-    let mut config = Config::default();
-    config.routes.insert("/api".to_string(), RouteConfig::default());
+    let mut config = types::Config::default();
+    config.routes.insert("/api".to_string(), types::RouteConfig::default());
 
     let state = Arc::new(
-        AppState::new(
+        app_state::AppState::new(
             config,
             test_db_conn(),
             test_metrics_tx(),
@@ -58,11 +56,11 @@ async fn build_tree_matches_wildcard_subpath() {
 
 #[tokio::test]
 async fn build_tree_no_match_returns_err() {
-    let mut config = Config::default();
-    config.routes.insert("/api".to_string(), RouteConfig::default());
+    let mut config = types::Config::default();
+    config.routes.insert("/api".to_string(), types::RouteConfig::default());
 
     let state = Arc::new(
-        AppState::new(
+        app_state::AppState::new(
             config,
             test_db_conn(),
             test_metrics_tx(),
@@ -82,11 +80,11 @@ async fn build_tree_no_match_returns_err() {
 
 #[tokio::test]
 async fn build_tree_root_route() {
-    let mut config = Config::default();
-    config.routes.insert("/".to_string(), RouteConfig::default());
+    let mut config = types::Config::default();
+    config.routes.insert("/".to_string(), types::RouteConfig::default());
 
     let state = Arc::new(
-        AppState::new(
+        app_state::AppState::new(
             config,
             test_db_conn(),
             test_metrics_tx(),
@@ -105,12 +103,12 @@ async fn build_tree_root_route() {
 
 #[tokio::test]
 async fn build_tree_multiple_routes() {
-    let mut config = Config::default();
-    config.routes.insert("/api".to_string(), RouteConfig::default());
-    config.routes.insert("/health".to_string(), RouteConfig::default());
+    let mut config = types::Config::default();
+    config.routes.insert("/api".to_string(), types::RouteConfig::default());
+    config.routes.insert("/health".to_string(), types::RouteConfig::default());
 
     let state = Arc::new(
-        AppState::new(
+        app_state::AppState::new(
             config,
             test_db_conn(),
             test_metrics_tx(),

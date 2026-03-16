@@ -6,10 +6,11 @@ use rustls::{
         HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier,
     },
     crypto::CryptoProvider,
+    pki_types,
 };
 use tokio_rustls::TlsConnector;
 
-use crate::upstream::protocol::HttpVersion;
+use crate::upstream::protocol;
 
 // temporary
 
@@ -19,11 +20,11 @@ struct NoVerifier(Arc<CryptoProvider>);
 impl ServerCertVerifier for NoVerifier {
     fn verify_server_cert(
         &self,
-        _end_entity: &rustls::pki_types::CertificateDer<'_>,
-        _intermediates: &[rustls::pki_types::CertificateDer<'_>],
-        _server_name: &rustls::pki_types::ServerName<'_>,
+        _end_entity: &pki_types::CertificateDer<'_>,
+        _intermediates: &[pki_types::CertificateDer<'_>],
+        _server_name: &pki_types::ServerName<'_>,
         _ocsp_response: &[u8],
-        _now: rustls::pki_types::UnixTime,
+        _now: pki_types::UnixTime,
     ) -> Result<ServerCertVerified, rustls::Error> {
         Ok(ServerCertVerified::assertion())
     }
@@ -31,7 +32,7 @@ impl ServerCertVerifier for NoVerifier {
     fn verify_tls12_signature(
         &self,
         _message: &[u8],
-        _cert: &rustls::pki_types::CertificateDer<'_>,
+        _cert: &pki_types::CertificateDer<'_>,
         _dss: &rustls::DigitallySignedStruct,
     ) -> Result<HandshakeSignatureValid, rustls::Error> {
         Ok(HandshakeSignatureValid::assertion())
@@ -40,7 +41,7 @@ impl ServerCertVerifier for NoVerifier {
     fn verify_tls13_signature(
         &self,
         _message: &[u8],
-        _cert: &rustls::pki_types::CertificateDer<'_>,
+        _cert: &pki_types::CertificateDer<'_>,
         _dss: &rustls::DigitallySignedStruct,
     ) -> Result<HandshakeSignatureValid, rustls::Error> {
         Ok(HandshakeSignatureValid::assertion())
@@ -51,7 +52,7 @@ impl ServerCertVerifier for NoVerifier {
     }
 }
 
-pub fn tls_connector(http_version: HttpVersion) -> TlsConnector {
+pub fn tls_connector(http_version: protocol::HttpVersion) -> TlsConnector {
     let provider =
         CryptoProvider::get_default().cloned().unwrap_or_else(|| {
             Arc::new(rustls::crypto::aws_lc_rs::default_provider())
@@ -63,8 +64,8 @@ pub fn tls_connector(http_version: HttpVersion) -> TlsConnector {
         .with_no_client_auth();
 
     config.alpn_protocols = match http_version {
-        HttpVersion::HTTP2 => vec![b"h2".to_vec()],
-        HttpVersion::HTTP1 => vec![b"http/1.1".to_vec()],
+        protocol::HttpVersion::HTTP2 => vec![b"h2".to_vec()],
+        protocol::HttpVersion::HTTP1 => vec![b"http/1.1".to_vec()],
     };
 
     TlsConnector::from(Arc::new(config))

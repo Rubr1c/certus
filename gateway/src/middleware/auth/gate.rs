@@ -1,6 +1,3 @@
-use axum::http::HeaderValue;
-use hyper::HeaderMap;
-
 use crate::{
     config::types::{AuthType, Config},
     error::GatewayError,
@@ -24,7 +21,7 @@ use super::jwt;
 /// * Token failed to be decoded [`decode`]
 #[inline]
 pub fn run(
-    headers: &mut HeaderMap<HeaderValue>,
+    headers: &mut hyper::HeaderMap<axum::http::HeaderValue>,
     token: Option<&str>,
     config: &Config,
     needs_auth: bool,
@@ -32,45 +29,51 @@ pub fn run(
     if needs_auth {
         tracing::info!("Authenticating user");
         match token {
-            Some(t) => match &config.auth.method {
-                AuthType::JWT { secret, algorithm } => {
-                    match jwt::decode(t, secret, &algorithm) {
-                        Ok(claims) => {
-                            //TODO: put claims in header
-                            tracing::info!("User authenticated");
+            Some(t) => {
+                match &config.auth.method {
+                    AuthType::JWT { secret, algorithm } => {
+                        match jwt::decode(t, secret, &algorithm) {
+                            Ok(claims) => {
+                                //TODO: put claims in header
+                                tracing::info!("User authenticated");
 
-                            match claims.user_id {
-                                Some(id) => {
-                                    headers.insert(
+                                match claims.user_id {
+                                    Some(id) => {
+                                        headers.insert(
                                         "X-User-Id",
-                                        HeaderValue::from_str(id.as_str())
-                                            .map_err(|_| GatewayError::InternalServerError)?
+                                        axum::http::HeaderValue::from_str(
+                                            id.as_str(),
+                                        )
+                                        .map_err(|_| GatewayError::InternalServerError)?
                                     );
+                                    }
+                                    _ => {}
                                 }
-                                _ => {}
-                            }
 
-                            match claims.role {
-                                Some(role) => {
-                                    headers.insert(
+                                match claims.role {
+                                    Some(role) => {
+                                        headers.insert(
                                         "X-User-Role",
-                                        HeaderValue::from_str(role.as_str())
-                                            .map_err(|_| GatewayError::InternalServerError)?
+                                        axum::http::HeaderValue::from_str(
+                                            role.as_str(),
+                                        )
+                                        .map_err(|_| GatewayError::InternalServerError)?
                                     );
+                                    }
+                                    _ => {}
                                 }
-                                _ => {}
-                            }
 
-                            return Ok(());
-                        }
-                        Err(e) => {
-                            tracing::info!("User not authenticated");
-                            return Err(e);
+                                return Ok(());
+                            }
+                            Err(e) => {
+                                tracing::info!("User not authenticated");
+                                return Err(e);
+                            }
                         }
                     }
+                    AuthType::None => return Ok(()),
                 }
-                AuthType::None => return Ok(()),
-            },
+            }
             _ => {
                 tracing::info!("User not authenticated");
                 return Err(GatewayError::Unauthorized);

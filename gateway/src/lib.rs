@@ -22,11 +22,7 @@ use std::{
     time::Duration,
 };
 
-use axum::{
-    Router,
-    http::HeaderValue,
-    routing::{any, get, post},
-};
+use axum::routing::{any, get, post};
 use axum_server::tls_rustls::RustlsConfig;
 use clap::Parser;
 use parking_lot::Mutex;
@@ -40,7 +36,6 @@ use tracing_subscriber::{
 };
 
 use crate::{
-    cli::{CmdArgs, WebSocketType},
     controllers::{
         config_controller, log_controller, metrics_controller,
         route_controller, schema_controller,
@@ -49,7 +44,9 @@ use crate::{
     metrics::types::MetricEvent,
     middleware::{load_balance, pipeline, router},
     schema::types::ReqResSchemaDTO,
-    server::state::{self, app_state::AppState, routing_table::RoutingTable},
+    server::state::{
+        app_state::AppState, initializer, routing_table::RoutingTable,
+    },
     upstream::{health, server::HealthState},
     websocket::{log_socket, metrics_socket},
 };
@@ -77,11 +74,11 @@ pub async fn run() {
         .with(db_layer)
         .try_init();
 
-    let args = Arc::new(CmdArgs::parse());
+    let args = Arc::new(cli::CmdArgs::parse());
 
     let config_path = args.config.as_str();
 
-    let mut certus_routes = Router::new()
+    let mut certus_routes = axum::Router::new()
         .route("/idle", post(load_balance::idle_queue::set_idle))
         .route("/schemas", get(schema_controller::get_schemas))
         .route("/logs", get(log_controller::get_logs))
@@ -111,14 +108,14 @@ pub async fn run() {
                 .put(config_controller::update_config),
         );
 
-    if args.ws.contains(&WebSocketType::Logs) {
+    if args.ws.contains(&cli::WebSocketType::Logs) {
         certus_routes =
             certus_routes.route("/ws/logs", any(log_socket::log_ws_handler));
         log_broadcast_tx = Some(broadcast::channel::<LogEntryDTO>(1024).0);
         tracing::debug!("Running log ws server");
     }
 
-    if args.ws.contains(&WebSocketType::Metrics) {
+    if args.ws.contains(&cli::WebSocketType::Metrics) {
         certus_routes = certus_routes
             .route("/ws/metrics", any(metrics_socket::metrics_ws_handler));
         metrics_broadcast_tx = Some(broadcast::channel::<MetricEvent>(1024).0);
@@ -303,7 +300,7 @@ pub async fn run() {
             Err(_) => None,
         };
 
-    state::initializer::init_server_state(state.clone()).await;
+    initializer::init_server_state(state.clone()).await;
 
     let config = state.config.load();
     let port = config.server.port;
@@ -311,7 +308,7 @@ pub async fn run() {
     tracing::info!("Certus Gateway Running on port {}", port);
     println!("Config watcher started. Press Ctrl+C to exit.");
 
-    let mut app = Router::new()
+    let mut app = axum::Router::new()
         .nest("/_certus/api/v1", certus_routes)
         .route("/{*any}", any(pipeline::reroute))
         .with_state(state);
@@ -323,7 +320,7 @@ pub async fn run() {
         tracing::warn!("No cors set allowing from all origins");
         app.layer(CorsLayer::new().allow_origin(cors::Any))
     } else {
-        let parsed_origins: Vec<HeaderValue> = origins
+        let parsed_origins: Vec<axum::http::HeaderValue> = origins
             .iter()
             .map(|ip| ip.parse().expect("Invalid Origin IP"))
             .collect();

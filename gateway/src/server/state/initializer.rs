@@ -5,12 +5,12 @@ use crossbeam::queue::SegQueue;
 use crate::{
     db::repository::config_repo,
     middleware::{cache::static_cache, router},
-    upstream::{health, server::UpstreamServer},
+    upstream::{health, server},
 };
 
-use super::{app_state::AppState, routing_table::RoutingTable};
+use super::{app_state, routing_table};
 
-pub async fn init_server_state(state: Arc<AppState>) {
+pub async fn init_server_state(state: Arc<app_state::AppState>) {
     let config = state.config.load();
 
     let mut new_routes_map = HashMap::new();
@@ -19,7 +19,7 @@ pub async fn init_server_state(state: Arc<AppState>) {
         let mut is_static_and_not_fetched = route_config.is_static;
 
         for server in &route_config.endpoints {
-            let upstream = Arc::new(UpstreamServer::new(
+            let upstream = Arc::new(server::UpstreamServer::new(
                 server.clone(),
                 route_config.max_connections,
                 route_config.http_version,
@@ -61,7 +61,10 @@ pub async fn init_server_state(state: Arc<AppState>) {
 
     let new_router = router::build_tree(state.clone());
 
-    let new_table = RoutingTable { router: new_router, routes: new_routes_map };
+    let new_table = routing_table::RoutingTable {
+        router: new_router,
+        routes: new_routes_map,
+    };
 
     state.routing_table.store(Arc::new(new_table));
 

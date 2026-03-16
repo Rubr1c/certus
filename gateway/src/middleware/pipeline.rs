@@ -5,13 +5,9 @@ use std::{
     time::Instant,
 };
 
-use axum::{
-    body::Body,
-    extract::{ConnectInfo, State},
-    response::IntoResponse,
-};
+use axum::response::IntoResponse;
 use chrono::Utc;
-use hyper::{Method, Request, header};
+use hyper::header;
 use tracing::{Level, instrument};
 
 use crate::{
@@ -44,9 +40,9 @@ use super::{
 /// * `req` - request body
 #[instrument(name = "router", skip_all, fields(ip = %addr.ip()))]
 pub async fn reroute(
-    State(state): State<Arc<AppState>>,
-    ConnectInfo(addr): ConnectInfo<SocketAddr>,
-    mut req: Request<Body>,
+    axum::extract::State(state): axum::extract::State<Arc<AppState>>,
+    axum::extract::ConnectInfo(addr): axum::extract::ConnectInfo<SocketAddr>,
+    mut req: hyper::Request<axum::body::Body>,
 ) -> impl IntoResponse {
     let start = Instant::now();
 
@@ -149,7 +145,7 @@ pub async fn reroute(
 
     //config no-cache
     let c_no_cache = target_route.1.no_cache;
-    let cacheable_method = method == Method::GET;
+    let cacheable_method = method == hyper::Method::GET;
 
     //TODO: stale-while-revalidate, stale-if-error
     //header cache options

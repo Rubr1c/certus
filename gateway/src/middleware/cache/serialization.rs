@@ -1,14 +1,12 @@
-use axum::{body::Bytes, http::HeaderName};
 use bb8_redis::RedisConnectionManager;
-use hyper::{HeaderMap, StatusCode};
 use serde::{Deserialize, Serialize};
 
-use crate::middleware::cache::response::CachedResponse;
+use super::response;
 
 #[derive(Serialize, Deserialize)]
 struct SerializableHeaders(Vec<(String, String)>);
 
-fn headers_to_json(headers: &HeaderMap) -> Option<String> {
+fn headers_to_json(headers: &hyper::HeaderMap) -> Option<String> {
     let data = SerializableHeaders(
         headers
             .iter()
@@ -20,15 +18,16 @@ fn headers_to_json(headers: &HeaderMap) -> Option<String> {
     serde_json::to_string(&data).ok()
 }
 
-fn headers_from_json(json: &str) -> HeaderMap {
-    let mut headers = HeaderMap::new();
+fn headers_from_json(json: &str) -> hyper::HeaderMap {
+    let mut headers = hyper::HeaderMap::new();
     let Ok(data) = serde_json::from_str::<SerializableHeaders>(json) else {
         return headers;
     };
     for (k, v) in data.0 {
-        if let (Ok(name), Ok(val)) =
-            (k.parse::<HeaderName>(), v.parse::<hyper::header::HeaderValue>())
-        {
+        if let (Ok(name), Ok(val)) = (
+            k.parse::<axum::http::HeaderName>(),
+            v.parse::<hyper::header::HeaderValue>(),
+        ) {
             headers.insert(name, val);
         }
     }
@@ -38,7 +37,7 @@ fn headers_from_json(json: &str) -> HeaderMap {
 pub async fn write_cached_response_hash(
     conn: &mut bb8::PooledConnection<'_, RedisConnectionManager>,
     redis_key: &str,
-    value: &CachedResponse,
+    value: &response::CachedResponse,
 ) -> Result<(), ()> {
     let Some(headers_json) = headers_to_json(&value.headers) else {
         return Err(());
@@ -59,7 +58,7 @@ pub async fn write_cached_response_hash(
 pub async fn read_cached_response_hash(
     conn: &mut bb8::PooledConnection<'_, RedisConnectionManager>,
     redis_key: &str,
-) -> Option<CachedResponse> {
+) -> Option<response::CachedResponse> {
     let (status, headers, body): (
         Option<u16>,
         Option<String>,
@@ -77,9 +76,9 @@ pub async fn read_cached_response_hash(
     let headers = headers?;
     let body = body?;
 
-    Some(CachedResponse {
-        status: StatusCode::from_u16(status).ok()?,
+    Some(response::CachedResponse {
+        status: hyper::StatusCode::from_u16(status).ok()?,
         headers: headers_from_json(&headers),
-        body: Bytes::from(body),
+        body: axum::body::Bytes::from(body),
     })
 }

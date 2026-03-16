@@ -1,14 +1,10 @@
-use axum::body::Body;
-use hyper::Request;
-use jsonwebtoken::Algorithm;
-
 use crate::{
     config::types::{AuthConfig, AuthType, Config},
     middleware::auth::gate,
 };
 
-fn dummy_req() -> Request<Body> {
-    Request::builder().body(Body::empty()).unwrap()
+fn dummy_req() -> hyper::Request<axum::body::Body> {
+    hyper::Request::builder().body(axum::body::Body::empty()).unwrap()
 }
 
 #[test]
@@ -26,7 +22,7 @@ fn auth_enabled_no_token() {
     config.auth = AuthConfig {
         method: AuthType::JWT {
             secret: "secret".to_string(),
-            algorithm: Algorithm::default(),
+            algorithm: jsonwebtoken::Algorithm::default(),
         },
         prefix: "Bearer".to_string(),
     };
@@ -42,7 +38,7 @@ fn auth_enabled_invalid_token() {
     config.auth = AuthConfig {
         method: AuthType::JWT {
             secret: "secret".to_string(),
-            algorithm: Algorithm::default(),
+            algorithm: jsonwebtoken::Algorithm::default(),
         },
         prefix: "Bearer".to_string(),
     };
@@ -59,7 +55,7 @@ fn auth_enabled_valid_token() {
     config.auth = AuthConfig {
         method: AuthType::JWT {
             secret: "secret".to_string(),
-            algorithm: Algorithm::default(),
+            algorithm: jsonwebtoken::Algorithm::default(),
         },
         prefix: "Bearer".to_string(),
     };

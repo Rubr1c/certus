@@ -6,18 +6,16 @@ use super::{
     token_bucket::{SerializableTokenBucket, TokenBucket},
 };
 
-pub enum DynRateLimitBackend {
+pub enum DynBackend {
     InMemory(Cache<OwnedTokenBucketKey, TokenBucket>),
     Redis(bb8::Pool<RedisConnectionManager>),
 }
 
-impl DynRateLimitBackend {
+impl DynBackend {
     pub async fn get(&self, key: &TokenBucketKey<'_>) -> Option<TokenBucket> {
         match self {
-            DynRateLimitBackend::InMemory(map) => {
-                map.get(&key.clone().into_owned())
-            }
-            DynRateLimitBackend::Redis(pool) => {
+            DynBackend::InMemory(map) => map.get(&key.clone().into_owned()),
+            DynBackend::Redis(pool) => {
                 let mut conn = pool.get().await.ok()?;
                 let redis_key = redis_key(key);
                 let (tokens, last_refill_epoch_ms): (Option<f64>, Option<u64>) =
@@ -39,10 +37,10 @@ impl DynRateLimitBackend {
 
     pub async fn set(&self, key: TokenBucketKey<'_>, value: TokenBucket) {
         match self {
-            DynRateLimitBackend::InMemory(cache) => {
+            DynBackend::InMemory(cache) => {
                 cache.insert(key.into_owned(), value);
             }
-            DynRateLimitBackend::Redis(pool) => {
+            DynBackend::Redis(pool) => {
                 let Ok(mut conn) = pool.get().await else { return };
                 let serializable = SerializableTokenBucket::from(&value);
                 let redis_key = redis_key(&key);

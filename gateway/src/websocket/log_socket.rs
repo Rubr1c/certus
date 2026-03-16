@@ -9,11 +9,11 @@ use axum::{
 };
 use tokio::sync::broadcast;
 
-use crate::{logging::types::LogEntryDTO, server::state::app_state::AppState};
+use crate::{logging::types, server::state::app_state};
 
 pub async fn log_ws_handler(
     ws: WebSocketUpgrade,
-    State(state): State<Arc<AppState>>,
+    State(state): State<Arc<app_state::AppState>>,
 ) -> Response {
     ws.on_upgrade(move |socket| {
         handle_log_socket(
@@ -26,7 +26,7 @@ pub async fn log_ws_handler(
 
 pub async fn handle_log_socket(
     mut socket: WebSocket,
-    log_tx: broadcast::Sender<LogEntryDTO>,
+    log_tx: broadcast::Sender<types::LogEntryDTO>,
 ) {
     let mut log_rx = log_tx.subscribe();
 

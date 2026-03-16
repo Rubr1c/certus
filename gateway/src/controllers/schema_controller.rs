@@ -1,19 +1,16 @@
 use std::sync::Arc;
 
-use axum::{
-    Json,
-    extract::{Query, State},
-    http::StatusCode,
-    response::IntoResponse,
+use axum::response::IntoResponse;
+
+use crate::{
+    controllers, db::repository::schema_repo, server::state::app_state,
 };
 
-use crate::{db::repository::schema_repo, server::state::app_state::AppState};
-
-use super::Pagination;
-
 pub async fn get_schemas(
-    State(state): State<Arc<AppState>>,
-    Query(pagination): Query<Pagination>,
+    axum::extract::State(state): axum::extract::State<Arc<app_state::AppState>>,
+    axum::extract::Query(pagination): axum::extract::Query<
+        controllers::Pagination,
+    >,
 ) -> impl IntoResponse {
     let conn = Arc::clone(&state.db_conn);
 
@@ -28,14 +25,14 @@ pub async fn get_schemas(
     .await;
 
     match result {
-        Ok(Ok(schemas)) => Json(schemas).into_response(),
+        Ok(Ok(schemas)) => axum::Json(schemas).into_response(),
         Ok(Err(e)) => {
             tracing::error!(err = ?e, "Failed to get schemas");
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR.into_response()
         }
         Err(e) => {
             tracing::error!(err = ?e, "Schema query task panicked");
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR.into_response()
         }
     }
 }

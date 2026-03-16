@@ -1,15 +1,15 @@
 use std::{collections::HashMap, sync::Arc};
 
-use hyper::{HeaderMap, Method, StatusCode, header};
+use hyper::header;
 use serde::Serialize;
 
 pub struct ReqResSchemaDTO {
     pub full_path: Arc<str>,
-    pub method: Method,
+    pub method: hyper::Method,
     pub query_params: Option<Arc<str>>,
-    pub status_code: StatusCode,
-    pub req_headers: HeaderMap,
-    pub res_headers: HeaderMap,
+    pub status_code: hyper::StatusCode,
+    pub req_headers: hyper::HeaderMap,
+    pub res_headers: hyper::HeaderMap,
     pub body_schema: Option<String>,
 }
 
@@ -46,7 +46,7 @@ impl ReqResSchemaDTO {
 
         let mut has_auth = false;
 
-        let headers_to_json = |headers: &HeaderMap,
+        let headers_to_json = |headers: &hyper::HeaderMap,
                                has_auth: &mut bool|
          -> String {
             let mut map = HashMap::with_capacity(headers.keys_len());

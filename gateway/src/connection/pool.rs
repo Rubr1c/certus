@@ -1,11 +1,11 @@
 use std::sync::atomic::Ordering;
 
 use crate::{
-    error::GatewayError, upstream::protocol::PooledConnection,
-    upstream::server::UpstreamServer,
+    error::GatewayError,
+    upstream::{protocol, server},
 };
 
-use super::open::open_connection;
+use super::open;
 
 /// Tries to borrow an idle connection if not able it
 /// opens a new one
@@ -21,14 +21,14 @@ use super::open::open_connection;
 /// * Max connections to server reached
 /// * Failed to open new connection
 pub async fn borrow_connection(
-    upstream: &UpstreamServer,
+    upstream: &server::UpstreamServer,
     timeout: u64,
-) -> Result<PooledConnection, GatewayError> {
+) -> Result<protocol::PooledConnection, GatewayError> {
     tracing::info!("Checking for idle connetions");
     while let Some(sender) = upstream.pool.idle_connections.pop() {
         let alive = match &sender {
-            PooledConnection::Http1(s) => s.is_ready(),
-            PooledConnection::Http2(s) => s.is_ready(),
+            protocol::PooledConnection::Http1(s) => s.is_ready(),
+            protocol::PooledConnection::Http2(s) => s.is_ready(),
         };
 
         if alive {
@@ -49,7 +49,7 @@ pub async fn borrow_connection(
         return Err(GatewayError::Overloaded);
     }
 
-    let sender = open_connection(upstream, timeout)
+    let sender = open::open_connection(upstream, timeout)
         .await
         .map_err(|e| GatewayError::ConnectionFailed(e.to_string()))?;
 
@@ -67,8 +67,8 @@ pub async fn borrow_connection(
 /// * `sender` - connection to the server
 /// * `reusable` - if the connection can be reused and put in idle
 pub async fn release_connection(
-    upstream: &UpstreamServer,
-    sender: PooledConnection,
+    upstream: &server::UpstreamServer,
+    sender: protocol::PooledConnection,
     reusable: bool,
 ) {
     tracing::info!("Releasing connetion");

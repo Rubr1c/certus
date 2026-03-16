@@ -3,11 +3,7 @@ use std::time::Instant;
 use crate::{
     config::types::{Config, RouteConfig},
     error::GatewayError,
-};
-
-use super::{
-    backend::DynRateLimitBackend, key::TokenBucketKey,
-    token_bucket::TokenBucket,
+    middleware::rate_limit,
 };
 
 /// Runs rate limiting by getting the bucket associated to the key
@@ -21,15 +17,16 @@ use super::{
 #[inline]
 pub async fn run(
     target_route: &RouteConfig,
-    key: TokenBucketKey<'_>,
+    key: rate_limit::key::TokenBucketKey<'_>,
     config: &Config,
-    backend: &DynRateLimitBackend,
+    backend: &rate_limit::backend::DynBackend,
 ) -> Result<(), GatewayError> {
     let max_tokens = config.rate_limit.max_tokens;
     let refill_rate = config.rate_limit.refill_rate;
 
-    let mut bucket =
-        backend.get(&key).await.unwrap_or_else(|| TokenBucket::new(max_tokens));
+    let mut bucket = backend.get(&key).await.unwrap_or_else(|| {
+        rate_limit::token_bucket::TokenBucket::new(max_tokens)
+    });
 
     let now = Instant::now();
     let duration = now.duration_since(bucket.last_refill).as_secs_f64();

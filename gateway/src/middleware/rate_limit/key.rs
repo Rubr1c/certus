@@ -1,12 +1,10 @@
 use std::{borrow::Cow, net::IpAddr};
 
-use axum::http::HeaderValue;
-
 #[derive(Clone, Hash, PartialEq, Eq)]
 pub enum TokenBucketKey<'a> {
     Ip(IpAddr),
     Token(Cow<'a, str>),
-    Header(Cow<'a, str>, HeaderValue),
+    Header(Cow<'a, str>, axum::http::HeaderValue),
 }
 
 pub type OwnedTokenBucketKey = TokenBucketKey<'static>;

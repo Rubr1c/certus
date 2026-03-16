@@ -1,6 +1,5 @@
 use std::sync::atomic::Ordering;
 
-use axum::{body::Body, extract::Request, response::Response};
 use hyper::body::Incoming;
 use tracing::instrument;
 
@@ -26,8 +25,8 @@ use crate::{
 /// * Failed to send request to server
 async fn forward_request(
     conn: PooledConnection,
-    req: Request<Body>,
-) -> Result<(Response<Incoming>, PooledConnection), GatewayError> {
+    req: axum::extract::Request,
+) -> Result<(hyper::Response<Incoming>, PooledConnection), GatewayError> {
     tracing::info!("Atempting forward request");
     let (res, sender) =
         match conn {
@@ -67,9 +66,9 @@ async fn forward_request(
 #[instrument(name = "request", skip_all, fields(server = %upstream.pool.server_addr))]
 pub async fn handle_request(
     upstream: &UpstreamServer,
-    req: Request<Body>,
+    req: axum::extract::Request,
     timeout: u64,
-) -> Result<Response<Incoming>, GatewayError> {
+) -> Result<hyper::Response<Incoming>, GatewayError> {
     let sender = pool::borrow_connection(&upstream, timeout).await?;
 
     let (res, sender) = match forward_request(sender, req).await {

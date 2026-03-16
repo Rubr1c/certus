@@ -1,19 +1,16 @@
-use axum::{
-    body::{Body, Bytes},
-    response::IntoResponse,
-};
-use hyper::{HeaderMap, Response, StatusCode};
+use axum::response::IntoResponse;
 
 #[derive(Debug, Clone)]
 pub struct CachedResponse {
-    pub status: StatusCode,
-    pub headers: HeaderMap,
-    pub body: Bytes,
+    pub status: hyper::StatusCode,
+    pub headers: hyper::HeaderMap,
+    pub body: axum::body::Bytes,
 }
 
 impl IntoResponse for CachedResponse {
-    fn into_response(self) -> Response<Body> {
-        let mut response = Response::new(Body::from(self.body));
+    fn into_response(self) -> hyper::Response<axum::body::Body> {
+        let mut response =
+            hyper::Response::new(axum::body::Body::from(self.body));
 
         *response.status_mut() = self.status;
         *response.headers_mut() = self.headers;

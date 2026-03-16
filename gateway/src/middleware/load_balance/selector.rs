@@ -4,21 +4,21 @@ use crossbeam::queue::SegQueue;
 use dashmap::DashMap;
 use tracing::instrument;
 
-use crate::{config::types::RouteConfig, upstream::server::UpstreamServer};
+use crate::{config::types, upstream::server};
 
-use super::p2c::p2c_pick;
+use super::p2c;
 
 #[inline]
 #[instrument(name = "lb", skip_all)]
 pub fn run<'a>(
-    routes: &'a HashMap<String, Arc<UpstreamServer>>,
-    target: (&'a String, &'a RouteConfig),
+    routes: &'a HashMap<String, Arc<server::UpstreamServer>>,
+    target: (&'a String, &'a types::RouteConfig),
     default_server: &'a String,
-    idle_queue: &'a DashMap<String, SegQueue<Arc<UpstreamServer>>>,
+    idle_queue: &'a DashMap<String, SegQueue<Arc<server::UpstreamServer>>>,
 ) -> &'a String {
     if idle_queue.is_empty() {
         tracing::info!("Idle Queue is empty");
-        return p2c_pick(&routes, &target.1, &default_server);
+        return p2c::p2c_pick(&routes, &target.1, &default_server);
     }
 
     match idle_queue.get(target.0) {
@@ -28,13 +28,13 @@ pub fn run<'a>(
                 .map(|(key, _)| key)
                 .unwrap_or_else(|| {
                     tracing::info!("Idle Queue is empty");
-                    p2c_pick(routes, &target.1, default_server)
+                    p2c::p2c_pick(routes, &target.1, default_server)
                 }),
             _ => {
                 tracing::info!("Idle Queue is empty");
-                p2c_pick(routes, &target.1, default_server)
+                p2c::p2c_pick(routes, &target.1, default_server)
             }
         },
-        _ => p2c_pick(routes, &target.1, default_server),
+        _ => p2c::p2c_pick(routes, &target.1, default_server),
     }
 }

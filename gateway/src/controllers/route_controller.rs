@@ -1,17 +1,12 @@
 use std::sync::Arc;
-
-use axum::{
-    Json,
-    extract::{Path, State},
-    http::StatusCode,
-    response::IntoResponse,
-};
-use serde::Serialize;
 use std::sync::atomic::Ordering;
 
+use axum::response::IntoResponse;
+use serde::Serialize;
+
 use crate::{
-    server::state::app_state::AppState,
-    upstream::{health, server::HealthState},
+    server::state::app_state,
+    upstream::{health, server},
 };
 
 #[derive(Serialize)]
@@ -36,7 +31,7 @@ pub struct UpstreamHealth {
 }
 
 pub async fn get_routes(
-    State(state): State<Arc<AppState>>,
+    axum::extract::State(state): axum::extract::State<Arc<app_state::AppState>>,
 ) -> impl IntoResponse {
     let config = state.config.load();
     let table = state.routing_table.load();
@@ -52,7 +47,7 @@ pub async fn get_routes(
                     table.routes.get(addr).map(|upstream| UpstreamInfo {
                         address: upstream.pool.server_addr.to_string(),
                         healthy: upstream.health_state.load(Ordering::Relaxed)
-                            == HealthState::Alive as u8,
+                            == server::HealthState::Alive as u8,
                         active_connections: upstream
                             .active_connctions
                             .load(Ordering::Relaxed),
@@ -69,11 +64,11 @@ pub async fn get_routes(
         })
         .collect();
 
-    Json(routes)
+    axum::Json(routes)
 }
 
 pub async fn get_all_health(
-    State(state): State<Arc<AppState>>,
+    axum::extract::State(state): axum::extract::State<Arc<app_state::AppState>>,
 ) -> impl IntoResponse {
     let table = state.routing_table.load();
 
@@ -88,20 +83,20 @@ pub async fn get_all_health(
         });
     }
 
-    Json(results)
+    axum::Json(results)
 }
 
 pub async fn get_health(
-    State(state): State<Arc<AppState>>,
-    Path(addr): Path<String>,
+    axum::extract::State(state): axum::extract::State<Arc<app_state::AppState>>,
+    axum::extract::Path(addr): axum::extract::Path<String>,
 ) -> impl IntoResponse {
     let table = state.routing_table.load();
 
     let Some(upstream) = table.routes.get(&addr) else {
-        return Err(StatusCode::NOT_FOUND);
+        return Err(axum::http::StatusCode::NOT_FOUND);
     };
 
     let ok = health::health_ok(upstream).await;
 
-    Ok(Json(UpstreamHealth { address: addr, healthy: ok }))
+    Ok(axum::Json(UpstreamHealth { address: addr, healthy: ok }))
 }

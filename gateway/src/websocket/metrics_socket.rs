@@ -9,11 +9,11 @@ use axum::{
 };
 use tokio::sync::broadcast;
 
-use crate::{metrics::types::MetricEvent, server::state::app_state::AppState};
+use crate::{metrics::types, server::state::app_state};
 
 pub async fn metrics_ws_handler(
     ws: WebSocketUpgrade,
-    State(state): State<Arc<AppState>>,
+    State(state): State<Arc<app_state::AppState>>,
 ) -> Response {
     ws.on_upgrade(move |socket| {
         handle_metrics_socket(
@@ -26,7 +26,7 @@ pub async fn metrics_ws_handler(
 
 pub async fn handle_metrics_socket(
     mut socket: WebSocket,
-    metrics_tx: broadcast::Sender<MetricEvent>,
+    metrics_tx: broadcast::Sender<types::MetricEvent>,
 ) {
     let mut metrics_rx = metrics_tx.subscribe();
 

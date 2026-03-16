@@ -1,7 +1,6 @@
-use axum::{body::Body, extract::Request};
-use hyper::{Method, header};
+use hyper::header;
 
-use super::server::UpstreamServer;
+use super::server;
 use crate::middleware::forwarding;
 
 /// Checks if the health of the server is ok
@@ -9,12 +8,12 @@ use crate::middleware::forwarding;
 /// # Arguments
 ///
 /// * `upstream` - target server trying to check
-pub async fn health_ok(upstream: &UpstreamServer) -> bool {
-    let req = match Request::builder()
-        .method(Method::GET)
+pub async fn health_ok(upstream: &server::UpstreamServer) -> bool {
+    let req = match axum::extract::Request::builder()
+        .method(hyper::Method::GET)
         .uri("/")
         .header(header::HOST, upstream.pool.hostname.as_str())
-        .body(Body::empty())
+        .body(axum::body::Body::empty())
     {
         Ok(r) => r,
         Err(e) => {

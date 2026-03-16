@@ -1,16 +1,11 @@
 use std::{net::IpAddr, sync::Arc};
 
-use axum::{
-    Json,
-    extract::{Query, State},
-    http::StatusCode,
-    response::IntoResponse,
-};
+use axum::response::IntoResponse;
 use serde::Deserialize;
 
-use crate::{db::repository::metrics_repo, server::state::app_state::AppState};
-
-use super::Pagination;
+use crate::{
+    controllers, db::repository::metrics_repo, server::state::app_state,
+};
 
 #[derive(Deserialize)]
 pub struct BaseMetricQuery {
@@ -68,9 +63,11 @@ fn parse_interval(s: &str) -> Option<i64> {
 }
 
 pub async fn get_request_metrics(
-    State(state): State<Arc<AppState>>,
-    Query(pagination): Query<Pagination>,
-    Query(filters): Query<RequestMetricQuery>,
+    axum::extract::State(state): axum::extract::State<Arc<app_state::AppState>>,
+    axum::extract::Query(pagination): axum::extract::Query<
+        controllers::Pagination,
+    >,
+    axum::extract::Query(filters): axum::extract::Query<RequestMetricQuery>,
 ) -> impl IntoResponse {
     let conn = Arc::clone(&state.db_conn);
     let ip_str = filters.ip.map(|ip| ip.to_string());
@@ -92,22 +89,24 @@ pub async fn get_request_metrics(
     .await;
 
     match result {
-        Ok(Ok(metrics)) => Json(metrics).into_response(),
+        Ok(Ok(metrics)) => axum::Json(metrics).into_response(),
         Ok(Err(e)) => {
             tracing::error!(err = ?e, "Failed to get request metrics");
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR.into_response()
         }
         Err(e) => {
             tracing::error!(err = ?e, "Request metrics query task panicked");
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR.into_response()
         }
     }
 }
 
 pub async fn get_cache_metrics(
-    State(state): State<Arc<AppState>>,
-    Query(pagination): Query<Pagination>,
-    Query(filters): Query<BaseMetricQuery>,
+    axum::extract::State(state): axum::extract::State<Arc<app_state::AppState>>,
+    axum::extract::Query(pagination): axum::extract::Query<
+        controllers::Pagination,
+    >,
+    axum::extract::Query(filters): axum::extract::Query<BaseMetricQuery>,
 ) -> impl IntoResponse {
     let conn = Arc::clone(&state.db_conn);
 
@@ -125,28 +124,28 @@ pub async fn get_cache_metrics(
     .await;
 
     match result {
-        Ok(Ok(metrics)) => Json(metrics).into_response(),
+        Ok(Ok(metrics)) => axum::Json(metrics).into_response(),
         Ok(Err(e)) => {
             tracing::error!(err = ?e, "Failed to get cache metrics");
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR.into_response()
         }
         Err(e) => {
             tracing::error!(err = ?e, "Cache metrics query task panicked");
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR.into_response()
         }
     }
 }
 
 pub async fn get_request_metrics_aggregated(
-    State(state): State<Arc<AppState>>,
-    Query(filters): Query<AggregateRequestQuery>,
+    axum::extract::State(state): axum::extract::State<Arc<app_state::AppState>>,
+    axum::extract::Query(filters): axum::extract::Query<AggregateRequestQuery>,
 ) -> impl IntoResponse {
     let interval_str = filters.interval.as_deref().unwrap_or("5m");
     let interval_secs = match parse_interval(interval_str) {
         Some(s) => s,
         None => {
             return (
-                StatusCode::BAD_REQUEST,
+                axum::http::StatusCode::BAD_REQUEST,
                 "Invalid interval. Use: 1m, 5m, 15m, 30m, 1h, 6h, 1d",
             )
                 .into_response();
@@ -170,28 +169,28 @@ pub async fn get_request_metrics_aggregated(
     .await;
 
     match result {
-        Ok(Ok(buckets)) => Json(buckets).into_response(),
+        Ok(Ok(buckets)) => axum::Json(buckets).into_response(),
         Ok(Err(e)) => {
             tracing::error!(err = ?e, "Failed to get aggregated request metrics");
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR.into_response()
         }
         Err(e) => {
             tracing::error!(err = ?e, "Aggregated request metrics task panicked");
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR.into_response()
         }
     }
 }
 
 pub async fn get_cache_metrics_aggregated(
-    State(state): State<Arc<AppState>>,
-    Query(filters): Query<AggregateCacheQuery>,
+    axum::extract::State(state): axum::extract::State<Arc<app_state::AppState>>,
+    axum::extract::Query(filters): axum::extract::Query<AggregateCacheQuery>,
 ) -> impl IntoResponse {
     let interval_str = filters.interval.as_deref().unwrap_or("5m");
     let interval_secs = match parse_interval(interval_str) {
         Some(s) => s,
         None => {
             return (
-                StatusCode::BAD_REQUEST,
+                axum::http::StatusCode::BAD_REQUEST,
                 "Invalid interval. Use: 1m, 5m, 15m, 30m, 1h, 6h, 1d",
             )
                 .into_response();
@@ -213,21 +212,21 @@ pub async fn get_cache_metrics_aggregated(
     .await;
 
     match result {
-        Ok(Ok(buckets)) => Json(buckets).into_response(),
+        Ok(Ok(buckets)) => axum::Json(buckets).into_response(),
         Ok(Err(e)) => {
             tracing::error!(err = ?e, "Failed to get aggregated cache metrics");
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR.into_response()
         }
         Err(e) => {
             tracing::error!(err = ?e, "Aggregated cache metrics task panicked");
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR.into_response()
         }
     }
 }
 
 pub async fn get_request_metrics_summary(
-    State(state): State<Arc<AppState>>,
-    Query(filters): Query<SummaryQuery>,
+    axum::extract::State(state): axum::extract::State<Arc<app_state::AppState>>,
+    axum::extract::Query(filters): axum::extract::Query<SummaryQuery>,
 ) -> impl IntoResponse {
     let group_by = filters.group_by.as_deref().unwrap_or("route");
 
@@ -235,7 +234,7 @@ pub async fn get_request_metrics_summary(
         "route" | "method" | "status" | "upstream" => {}
         _ => {
             return (
-                StatusCode::BAD_REQUEST,
+                axum::http::StatusCode::BAD_REQUEST,
                 "Invalid group_by. Use: route, method, status, upstream",
             )
                 .into_response();
@@ -257,14 +256,14 @@ pub async fn get_request_metrics_summary(
     .await;
 
     match result {
-        Ok(Ok(summary)) => Json(summary).into_response(),
+        Ok(Ok(summary)) => axum::Json(summary).into_response(),
         Ok(Err(e)) => {
             tracing::error!(err = ?e, "Failed to get request metrics summary");
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR.into_response()
         }
         Err(e) => {
             tracing::error!(err = ?e, "Request metrics summary task panicked");
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR.into_response()
         }
     }
 }

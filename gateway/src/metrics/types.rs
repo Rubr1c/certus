@@ -1,7 +1,6 @@
 use std::{net::IpAddr, sync::Arc};
 
 use chrono::{DateTime, Utc};
-use hyper::Method;
 use serde::Serialize;
 
 use super::serialize;
@@ -34,7 +33,7 @@ pub struct RequestMetric {
     pub client_ip: IpAddr,
 
     #[serde(serialize_with = "serialize::serialize_method")]
-    pub method: Method,
+    pub method: hyper::Method,
 
     pub route: Arc<str>,
     pub upstream_addr: Option<Arc<str>>,

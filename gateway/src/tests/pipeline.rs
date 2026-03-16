@@ -1,21 +1,16 @@
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
-use axum::body::Body;
-use axum::extract::{ConnectInfo, State};
 use axum::response::IntoResponse;
-use hyper::Request;
-use jsonwebtoken::Algorithm;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 
-use crate::config::types::{
-    AuthConfig, AuthType, CacheConfig, Config, ConnectionConfig,
-    RateLimitConfig, RouteConfig, ServerConfig,
-};
-use crate::server::state::{app_state::AppState, routing_table::RoutingTable};
-use crate::upstream::server::UpstreamServer;
+use crate::config::types;
+use crate::middleware::{pipeline, router};
+use crate::server::state::{app_state, routing_table};
+use crate::upstream::server;
 
 use super::{
     test_args, test_db_conn, test_log_tx, test_metrics_tx, test_schema_tx,
@@ -40,38 +35,41 @@ async fn mock_upstream_ok(listener: TcpListener) {
 
 fn build_config(
     addr: &str,
-    auth: AuthConfig,
-    rate_limit: RateLimitConfig,
-) -> Config {
+    auth: types::AuthConfig,
+    rate_limit: types::RateLimitConfig,
+) -> types::Config {
     let mut routes = HashMap::new();
     routes.insert(
         "/api".to_string(),
-        RouteConfig {
+        types::RouteConfig {
             endpoints: vec![addr.to_string()],
-            needs_auth: auth.method != AuthType::None,
+            needs_auth: auth.method != types::AuthType::None,
             token_weight: 1.0,
-            ..RouteConfig::default()
+            ..types::RouteConfig::default()
         },
     );
 
-    Config {
-        server: ServerConfig::default(),
+    types::Config {
+        server: types::ServerConfig::default(),
         auth,
         rate_limit,
         routes,
         default_server: addr.to_string(),
-        connection: ConnectionConfig { connect_timeout: 5 },
-        cache: CacheConfig { size: 100, ..CacheConfig::default() },
+        connection: types::ConnectionConfig { connect_timeout: 5 },
+        cache: types::CacheConfig {
+            size: 100,
+            ..types::CacheConfig::default()
+        },
         tls: None,
     }
 }
 
 async fn build_state_with_upstream(
-    config: Config,
+    config: types::Config,
     addr: &str,
-) -> Arc<AppState> {
+) -> Arc<app_state::AppState> {
     let state = Arc::new(
-        AppState::new(
+        app_state::AppState::new(
             config,
             test_db_conn(),
             test_metrics_tx(),
@@ -83,7 +81,7 @@ async fn build_state_with_upstream(
         .await,
     );
 
-    let upstream = Arc::new(UpstreamServer::new(
+    let upstream = Arc::new(server::UpstreamServer::new(
         addr.to_string(),
         100,
         Default::default(),
@@ -92,30 +90,30 @@ async fn build_state_with_upstream(
     let mut routes_map = HashMap::new();
     routes_map.insert(addr.to_string(), upstream);
 
-    let router = crate::middleware::router::build_tree(state.clone());
-    let table = RoutingTable { router, routes: routes_map };
+    let router = router::build_tree(state.clone());
+    let table = routing_table::RoutingTable { router, routes: routes_map };
     state.routing_table.store(Arc::new(table));
 
     state
 }
 
 async fn call_reroute(
-    state: Arc<AppState>,
+    state: Arc<app_state::AppState>,
     method: &str,
     path: &str,
     auth_header: Option<&str>,
 ) -> axum::response::Response {
     let client_addr: SocketAddr = "10.0.0.1:12345".parse().unwrap();
 
-    let mut builder = Request::builder().method(method).uri(path);
+    let mut builder = hyper::Request::builder().method(method).uri(path);
     if let Some(h) = auth_header {
         builder = builder.header("Authorization", h);
     }
-    let req = builder.body(Body::empty()).unwrap();
+    let req = builder.body(axum::body::Body::empty()).unwrap();
 
-    crate::middleware::pipeline::reroute(
-        State(state),
-        ConnectInfo(client_addr),
+    pipeline::reroute(
+        axum::extract::State(state),
+        axum::extract::ConnectInfo(client_addr),
         req,
     )
     .await
@@ -128,8 +126,11 @@ async fn reroute_forwards_to_upstream() {
     let addr = listener.local_addr().unwrap().to_string();
     tokio::spawn(mock_upstream_ok(listener));
 
-    let config =
-        build_config(&addr, AuthConfig::default(), RateLimitConfig::default());
+    let config = build_config(
+        &addr,
+        types::AuthConfig::default(),
+        types::RateLimitConfig::default(),
+    );
     let state = build_state_with_upstream(config, &addr).await;
 
     let res = call_reroute(state, "GET", "/api", None).await;
@@ -143,8 +144,11 @@ async fn reroute_returns_not_found_for_unknown_path() {
     let addr = listener.local_addr().unwrap().to_string();
     tokio::spawn(mock_upstream_ok(listener));
 
-    let config =
-        build_config(&addr, AuthConfig::default(), RateLimitConfig::default());
+    let config = build_config(
+        &addr,
+        types::AuthConfig::default(),
+        types::RateLimitConfig::default(),
+    );
     let state = build_state_with_upstream(config, &addr).await;
 
     let res = call_reroute(state, "GET", "/unknown", None).await;
@@ -160,11 +164,11 @@ async fn reroute_rate_limits() {
 
     let config = build_config(
         &addr,
-        AuthConfig::default(),
-        RateLimitConfig {
+        types::AuthConfig::default(),
+        types::RateLimitConfig {
             max_tokens: 1.0,
             refill_rate: 0.0,
-            ..RateLimitConfig::default()
+            ..types::RateLimitConfig::default()
         },
     );
     let state = build_state_with_upstream(config, &addr).await;
@@ -182,15 +186,15 @@ async fn reroute_rejects_unauthorized() {
     let addr = listener.local_addr().unwrap().to_string();
     tokio::spawn(mock_upstream_ok(listener));
 
-    let auth = AuthConfig {
-        method: AuthType::JWT {
+    let auth = types::AuthConfig {
+        method: types::AuthType::JWT {
             secret: "test-secret".to_string(),
-            algorithm: Algorithm::default(),
+            algorithm: jsonwebtoken::Algorithm::default(),
         },
         prefix: "Bearer".to_string(),
     };
 
-    let config = build_config(&addr, auth, RateLimitConfig::default());
+    let config = build_config(&addr, auth, types::RateLimitConfig::default());
     let state = build_state_with_upstream(config, &addr).await;
 
     let res = call_reroute(state, "GET", "/api", None).await;
@@ -203,14 +207,14 @@ async fn reroute_caches_get_response() {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap().to_string();
 
-    let accept_count = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let accept_count = Arc::new(AtomicUsize::new(0));
     let counter = accept_count.clone();
     tokio::spawn(async move {
         loop {
             let Ok((mut stream, _)) = listener.accept().await else {
                 break;
             };
-            counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            counter.fetch_add(1, Ordering::SeqCst);
             tokio::spawn(async move {
                 let mut buf = vec![0u8; 4096];
                 let _ = stream.read(&mut buf).await;
@@ -223,8 +227,11 @@ async fn reroute_caches_get_response() {
         }
     });
 
-    let config =
-        build_config(&addr, AuthConfig::default(), RateLimitConfig::default());
+    let config = build_config(
+        &addr,
+        types::AuthConfig::default(),
+        types::RateLimitConfig::default(),
+    );
     let state = build_state_with_upstream(config, &addr).await;
 
     let first = call_reroute(state.clone(), "GET", "/api", None).await;
@@ -233,5 +240,5 @@ async fn reroute_caches_get_response() {
     let second = call_reroute(state, "GET", "/api", None).await;
     assert_eq!(second.status(), 200);
 
-    assert_eq!(accept_count.load(std::sync::atomic::Ordering::SeqCst), 1);
+    assert_eq!(accept_count.load(Ordering::SeqCst), 1);
 }

@@ -1,12 +1,7 @@
 use std::sync::Arc;
 
-use axum::{
-    body::{Body, to_bytes},
-    extract::State,
-    response::IntoResponse,
-};
+use axum::{body::to_bytes, response::IntoResponse};
 use crossbeam::queue::SegQueue;
-use hyper::{Request, StatusCode};
 
 use crate::{
     server::state::app_state::AppState, upstream::server::UpstreamServer,
@@ -14,12 +9,12 @@ use crate::{
 
 //TODO: make faster
 pub async fn set_idle(
-    State(state): State<Arc<AppState>>,
-    req: Request<Body>,
+    axum::extract::State(state): axum::extract::State<Arc<AppState>>,
+    req: axum::extract::Request,
 ) -> impl IntoResponse {
     let bytes = match to_bytes(req.into_body(), 1024 * 1024).await {
         Ok(b) => b,
-        Err(_) => return StatusCode::BAD_REQUEST.into_response(),
+        Err(_) => return axum::http::StatusCode::BAD_REQUEST.into_response(),
     };
 
     let body_string = String::from_utf8_lossy(&bytes).into_owned();
@@ -54,5 +49,5 @@ pub async fn set_idle(
         }
     }
 
-    StatusCode::OK.into_response()
+    axum::http::StatusCode::OK.into_response()
 }

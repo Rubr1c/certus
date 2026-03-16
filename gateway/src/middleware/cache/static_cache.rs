@@ -1,19 +1,13 @@
-use axum::{
-    body::{Body, to_bytes},
-    http,
-    response::IntoResponse,
-};
-use hyper::{Request, Response};
+use axum::{body::to_bytes, http, response::IntoResponse};
 
 use crate::{
+    middleware::cache,
     middleware::forwarding,
     upstream::{
         protocol::{HttpVersion, Protocol},
         server::UpstreamServer,
     },
 };
-
-use super::{backend::StaticCacheBackend, response::CachedResponse};
 /// Tries to find a response in static cache
 ///
 /// # Arguments
@@ -22,9 +16,9 @@ use super::{backend::StaticCacheBackend, response::CachedResponse};
 /// * `path` - full path of the request
 #[inline]
 pub async fn try_find(
-    cache: &StaticCacheBackend,
+    cache: &cache::backend::StaticBackend,
     path: &str,
-) -> Option<Response<Body>> {
+) -> Option<hyper::Response<axum::body::Body>> {
     match cache.get(path).await {
         Some(res) => {
             tracing::info!("Returning static cached response to {}", path);
@@ -46,7 +40,7 @@ pub async fn try_find(
 /// * `path` - full path of the request
 /// * `timeout` - when to timeout trying to connect to server
 pub async fn send_and_save(
-    cache: &StaticCacheBackend,
+    cache: &cache::backend::StaticBackend,
     upstream: &UpstreamServer,
     path: &String,
     timeout: u64,
@@ -64,12 +58,12 @@ pub async fn send_and_save(
     let full_uri =
         format!("{}://{}{}", scheme, upstream.pool.server_addr, path);
 
-    let req = match Request::builder()
+    let req = match hyper::Request::builder()
         .method(http::Method::GET)
         .uri(full_uri)
         .version(version)
         .header(http::header::HOST, upstream.pool.hostname.as_str())
-        .body(Body::empty())
+        .body(axum::body::Body::empty())
     {
         Ok(r) => r,
         Err(e) => {
@@ -94,10 +88,11 @@ pub async fn send_and_save(
                 return;
             }
 
-            let body =
-                to_bytes(Body::new(body), usize::MAX).await.unwrap_or_default();
+            let body = to_bytes(axum::body::Body::new(body), usize::MAX)
+                .await
+                .unwrap_or_default();
 
-            let cached = CachedResponse {
+            let cached = cache::response::CachedResponse {
                 status: parts.status,
                 headers: parts.headers,
                 body,

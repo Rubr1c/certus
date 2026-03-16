@@ -1,14 +1,11 @@
-use axum::{
-    body::{Body, to_bytes},
-    response::IntoResponse,
+use axum::{body::to_bytes, response::IntoResponse};
+use hyper::{
+    body::Incoming,
+    header::{CONTENT_LENGTH, CONTENT_TYPE},
 };
-use hyper::{Method, Response, body::Incoming, header::CONTENT_LENGTH};
 
-use crate::schema::extractor::extract_body_schema;
-
-use super::{
-    backend::DynCacheBackend, key::CacheKey, response::CachedResponse,
-};
+use crate::middleware::cache;
+use crate::schema::extractor;
 
 /// Tries to save a response to a cache
 ///
@@ -22,14 +19,14 @@ use super::{
 /// * `max_size` - max response body size (bytes) to cache
 #[inline]
 pub async fn try_save(
-    response: Response<Incoming>,
-    method: &Method,
-    cache: &DynCacheBackend,
-    ck: CacheKey<'_>,
+    response: hyper::Response<Incoming>,
+    method: &hyper::Method,
+    cache: &cache::backend::DynBackend,
+    ck: cache::key::CacheKey<'_>,
     ttl: Option<u64>,
     max_size: u64,
-) -> (Response<Body>, Option<String>) {
-    if method != Method::GET {
+) -> (hyper::Response<axum::body::Body>, Option<String>) {
+    if method != hyper::Method::GET {
         return (response.into_response(), None);
     }
 
@@ -52,7 +49,7 @@ pub async fn try_save(
 
     let is_json = response
         .headers()
-        .get(hyper::header::CONTENT_TYPE)
+        .get(CONTENT_TYPE)
         .and_then(|v| v.to_str().ok())
         .map(|ct| ct.contains("application/json"))
         .unwrap_or(false);
@@ -66,12 +63,18 @@ pub async fn try_save(
         //       is not possible. a fix that is performant is needed.
         //       Content-Length is checked above, but chunked/streaming
         //       responses without Content-Length can still exceed max_size.
-        to_bytes(Body::new(body), usize::MAX).await.unwrap_or_default();
+        to_bytes(axum::body::Body::new(body), usize::MAX)
+            .await
+            .unwrap_or_default();
 
-    let body_schema = if is_json { extract_body_schema(&body) } else { None };
+    let body_schema =
+        if is_json { extractor::extract_body_schema(&body) } else { None };
 
-    let cached =
-        CachedResponse { status: parts.status, headers: parts.headers, body };
+    let cached = cache::response::CachedResponse {
+        status: parts.status,
+        headers: parts.headers,
+        body,
+    };
 
     let response = cached.clone().into_response();
 
@@ -93,10 +96,10 @@ pub async fn try_save(
 /// * `ck` - CacheKey for the request
 #[inline]
 pub async fn try_find(
-    cache: &DynCacheBackend,
+    cache: &cache::backend::DynBackend,
     path: &str,
-    ck: &CacheKey<'_>,
-) -> Option<Response<Body>> {
+    ck: &cache::key::CacheKey<'_>,
+) -> Option<hyper::Response<axum::body::Body>> {
     match cache.get(ck).await {
         Some(res) => {
             tracing::info!("Returning cached response to {}", path);

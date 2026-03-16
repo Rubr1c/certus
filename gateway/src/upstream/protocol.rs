@@ -1,4 +1,3 @@
-use axum::body::Body;
 use hyper::client::conn;
 use serde::{Deserialize, Serialize};
 
@@ -19,6 +18,6 @@ pub enum Protocol {
 
 /// Enum holding send request of the protocols
 pub enum PooledConnection {
-    Http1(conn::http1::SendRequest<Body>),
-    Http2(conn::http2::SendRequest<Body>),
+    Http1(conn::http1::SendRequest<axum::body::Body>),
+    Http2(conn::http2::SendRequest<axum::body::Body>),
 }
