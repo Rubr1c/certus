@@ -15,14 +15,17 @@ cargo run -p gateway
 
 ## Releases
 
-Gateway releases are published from version tags on `main`.
+Pushes to `main` build and upload workflow artifacts.
+
+Version tags on `main` also publish a GitHub Release.
 
 Release flow:
 
 1. Update the version in `gateway/Cargo.toml`
 2. Commit the version bump on `main`
-3. Create a matching tag like `v0.1.0-alpha.1`
-4. Push the tag
+3. Push the commit to `main` if you have not already
+4. Create a matching tag like `v0.1.0-alpha.1`
+5. Push the tag
 
 The release workflow builds target binaries and uploads a versioned source zip.
 
