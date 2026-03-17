@@ -1,9 +1,4 @@
-use std::{
-    borrow::Cow,
-    net::{IpAddr, SocketAddr},
-    sync::Arc,
-    time::Instant,
-};
+use std::{borrow::Cow, net::SocketAddr, sync::Arc, time::Instant};
 
 use axum::response::IntoResponse;
 use chrono::Utc;
@@ -16,7 +11,6 @@ use crate::{
     metrics::types::{
         CacheMetric, CacheResult, EarlyExit, MetricEvent, RequestMetric,
     },
-    middleware::rate_limit::limiter,
     schema::types::ReqResSchemaDTO,
     server::state::app_state::AppState,
     upstream::protocol::HttpVersion,
@@ -25,9 +19,9 @@ use crate::{
 use super::{
     auth,
     cache::{self, key::CacheKey, static_cache},
-    forwarding,
+    forwarding, ip,
     load_balance::selector,
-    rate_limit::key::TokenBucketKey,
+    rate_limit::{key::TokenBucketKey, limiter},
 };
 
 /// Main axum function of the gateway that calls all the modules
@@ -67,14 +61,10 @@ pub async fn reroute(
     let _span_guard = span.enter();
 
     let headers = req.headers();
-    let ip = headers
-        .get(header::FORWARDED)
-        .and_then(|h| h.to_str().ok())
-        .map(|s| s.parse::<IpAddr>().unwrap_or(addr.ip()))
-        .unwrap_or(addr.ip());
+    let ip = ip::extract_ip(headers, addr.ip());
 
     let token = headers
-        .get("Authorization")
+        .get(header::AUTHORIZATION)
         .and_then(|h| h.to_str().ok())
         .and_then(|s| {
             let prefix = &config.auth.prefix;
