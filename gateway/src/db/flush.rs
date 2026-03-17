@@ -15,7 +15,7 @@ use crate::{
 ///
 /// * `conn` - arc mutex connection of a sqlite database
 /// * `batch` - mutable vector of logs to save
-pub fn flush_log_batch(
+pub fn log(
     conn: &Arc<Mutex<rusqlite::Connection>>,
     batch: &mut Vec<LogEntryDTO>,
 ) {
@@ -31,7 +31,7 @@ pub fn flush_log_batch(
     });
 }
 
-pub fn flush_metric_batch(
+pub fn metrics(
     conn: &Arc<Mutex<rusqlite::Connection>>,
     batch: &mut Vec<MetricEvent>,
 ) {
@@ -47,7 +47,7 @@ pub fn flush_metric_batch(
     });
 }
 
-pub fn flush_req_res_schema_batch(
+pub fn schema(
     conn: &Arc<Mutex<rusqlite::Connection>>,
     batch: &mut Vec<ReqResSchemaDTO>,
 ) {
@@ -58,7 +58,7 @@ pub fn flush_req_res_schema_batch(
         let schemas = schemas.into_iter().map(|dto| dto.into_s()).collect();
         let mut conn_guard = conn_clone.lock();
 
-        if let Err(e) = schema::req_res::save(&mut conn_guard, schemas) {
+        if let Err(e) = schema::save(&mut conn_guard, schemas) {
             tracing::error!(err = ?e, "Failed to batch save schemas");
         }
     });

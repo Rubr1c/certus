@@ -16,7 +16,7 @@ pub struct LogQuery {
     pub search: Option<String>,
 }
 
-pub async fn get_logs(
+pub async fn get(
     axum::extract::State(state): axum::extract::State<Arc<app_state::AppState>>,
     axum::extract::Query(pagination): axum::extract::Query<
         controllers::Pagination,

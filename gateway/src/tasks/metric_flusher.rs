@@ -28,12 +28,12 @@ pub async fn run(
                    batch.push(metric);
 
                    if batch.len() >= 100 {
-                        db::flush::flush_metric_batch(&conn, &mut batch);
+                        db::flush::metrics(&conn, &mut batch);
                    }
                 },
                _ = interval.tick() => {
                    if !batch.is_empty() {
-                        db::flush::flush_metric_batch(&conn, &mut batch);
+                        db::flush::metrics(&conn, &mut batch);
                    }
                 }
             }

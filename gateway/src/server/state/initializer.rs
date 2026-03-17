@@ -10,7 +10,7 @@ use crate::{
 
 use super::{app_state, routing_table};
 
-pub async fn init_server_state(state: Arc<app_state::AppState>) {
+pub async fn init(state: Arc<app_state::AppState>) {
     let config = state.config.load();
 
     let mut new_routes_map = HashMap::new();

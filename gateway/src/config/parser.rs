@@ -17,12 +17,12 @@ use super::{Config, error::ConfigError};
 /// # Examples
 ///
 /// ```ignore
-/// let config = match reload_config("config.yaml").await {
+/// let config = match reload("config.yaml").await {
 ///     Ok(c) => c,
 ///     Err(_) => Config::default(),
 /// };
 /// ```
-pub async fn reload_config(path: &str) -> Result<Config, ConfigError> {
+pub async fn reload(path: &str) -> Result<Config, ConfigError> {
     let contents = fs::read_to_string(path).await?;
 
     Ok(serde_yaml::from_str::<Config>(&contents)?)

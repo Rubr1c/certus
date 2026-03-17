@@ -1,39 +1,6 @@
 use crate::{db::models::log::LogEntry, logging::LogEntryDTO};
 use rusqlite::types::ToSql;
 
-/// Saves a log to an sqlite database
-///
-/// # Arguments
-///
-/// * `conn` - connection to sqlite database
-/// * `entry` - data of the log to save
-///
-/// # Errors
-///
-/// Returns an error if:
-/// * Failed to execute query
-pub fn save_one(
-    conn: &rusqlite::Connection,
-    entry: LogEntryDTO,
-) -> rusqlite::Result<()> {
-    let fields_json = serde_json::to_string(&entry.fields)
-        .unwrap_or_else(|_| "{}".to_string());
-
-    conn.execute(
-        "INSERT INTO logs (timestamp, level, target, message, fields) 
-                  VALUES (?1, ?2, ?3, ?4, ?5)",
-        [
-            entry.timestamp,
-            entry.level,
-            entry.target,
-            entry.message,
-            fields_json,
-        ],
-    )?;
-
-    Ok(())
-}
-
 /// Saves a vec of logs transactionaly
 ///
 /// # Arguments

@@ -30,7 +30,7 @@ pub struct UpstreamHealth {
     pub healthy: bool,
 }
 
-pub async fn get_routes(
+pub async fn get(
     axum::extract::State(state): axum::extract::State<Arc<app_state::AppState>>,
 ) -> impl IntoResponse {
     let config = state.config.load();
@@ -67,7 +67,7 @@ pub async fn get_routes(
     axum::Json(routes)
 }
 
-pub async fn get_all_health(
+pub async fn all(
     axum::extract::State(state): axum::extract::State<Arc<app_state::AppState>>,
 ) -> impl IntoResponse {
     let table = state.routing_table.load();
@@ -86,7 +86,7 @@ pub async fn get_all_health(
     axum::Json(results)
 }
 
-pub async fn get_health(
+pub async fn one(
     axum::extract::State(state): axum::extract::State<Arc<app_state::AppState>>,
     axum::extract::Path(addr): axum::extract::Path<String>,
 ) -> impl IntoResponse {

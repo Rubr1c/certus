@@ -28,13 +28,13 @@ pub async fn run(
                     }
 
                     if batch.len() >= 100 {
-                        db::flush::flush_log_batch(&conn, &mut batch);
+                        db::flush::log(&conn, &mut batch);
                     }
                 }
 
                 _ = interval.tick() => {
                     if !batch.is_empty() {
-                        db::flush::flush_log_batch(&conn, &mut batch);
+                        db::flush::log(&conn, &mut batch);
                     }
                 }
             }

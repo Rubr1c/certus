@@ -25,12 +25,12 @@ use super::parser;
 /// ```ignore
 /// let app_state: Arc<AppState> = Arc::new(/* */);
 /// let args = Arc::new(CmdArgs::try_parse().unwrap());
-/// let _watcher = match watch_config("config.yaml", app_state.clone(), args.clone()).await {
+/// let _watcher = match watch("config.yaml", app_state.clone(), args.clone()).await {
 ///     Ok(watcher) => Some(watcher),
 ///     Err(_) => None
 /// };
 /// ```
-pub async fn watch_config(
+pub async fn watch(
     path: &str,
     state: Arc<AppState>,
 ) -> notify::Result<RecommendedWatcher> {
@@ -59,13 +59,10 @@ pub async fn watch_config(
                         while rx.try_recv().is_ok() {}
 
                         tracing::info!("Realoding config");
-                        match parser::reload_config(&path).await {
+                        match parser::reload(&path).await {
                             Ok(new_config) => {
                                 state.config.store(Arc::new(new_config));
-                                state::initializer::init_server_state(
-                                    state.clone(),
-                                )
-                                .await;
+                                state::initializer::init(state.clone()).await;
                                 tracing::info!("Config hot-reloaded");
                             }
                             Err(e) => {

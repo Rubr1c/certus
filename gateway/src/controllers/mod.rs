@@ -1,10 +1,10 @@
 use serde::Deserialize;
 
-pub mod config_controller;
-pub mod log_controller;
+pub mod config;
+pub mod log;
 pub mod metrics;
-pub mod route_controller;
-pub mod schema_controller;
+pub mod route;
+pub mod schema;
 
 fn default_per_page() -> u32 {
     20

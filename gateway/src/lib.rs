@@ -45,7 +45,7 @@ pub async fn run() {
 
     let (log_conn, metrics_conn, schema_conn) = server::bootstrap::db::run();
 
-    let config = config::parser::reload_config(config_path).await.unwrap();
+    let config = config::parser::reload(config_path).await.unwrap();
 
     let tls = config.tls.clone();
 
@@ -76,12 +76,12 @@ pub async fn run() {
     tasks::health_reaper::run(state.clone()).await;
 
     let _watcher =
-        match config::watcher::watch_config(config_path, state.clone()).await {
+        match config::watcher::watch(config_path, state.clone()).await {
             Ok(watcher) => Some(watcher),
             Err(_) => None,
         };
 
-    initializer::init_server_state(state.clone()).await;
+    initializer::init(state.clone()).await;
 
     let config = state.config.load();
     let port = config.server.port;

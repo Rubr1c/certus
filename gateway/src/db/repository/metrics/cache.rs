@@ -1,5 +1,36 @@
-use crate::db::models::cache_metric::{CacheMetricBucket, CacheMetricRow};
+use crate::{
+    db::models::cache_metric::{CacheMetricBucket, CacheMetricRow},
+    metrics::{CacheMetric, CacheResult},
+};
 use rusqlite::types::ToSql;
+
+pub fn save(
+    conn: &mut rusqlite::Connection,
+    metrics: Vec<&CacheMetric>,
+) -> rusqlite::Result<()> {
+    let tx = conn.transaction()?;
+    {
+        let mut query = tx.prepare(
+            "INSERT INTO cache_metrics (route, timestamp, result)
+                  VALUES (?1, ?2, ?3)",
+        )?;
+
+        for metric in metrics {
+            let result = match metric.result {
+                CacheResult::Hit => "hit",
+                CacheResult::Miss => "miss",
+                CacheResult::Bypass => "bypass",
+            };
+            query.execute(rusqlite::params![
+                metric.route.as_ref(),
+                metric.timestamp.to_string(),
+                result,
+            ])?;
+        }
+    }
+    tx.commit()?;
+    Ok(())
+}
 
 pub fn get(
     conn: &rusqlite::Connection,

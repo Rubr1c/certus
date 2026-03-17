@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 
 #[inline]
-pub fn create_signal() -> impl Future<Output = ()> {
+pub fn signal() -> impl Future<Output = ()> {
     async {
         tokio::signal::ctrl_c().await.expect("Failed to listen for Ctrl+C");
 
@@ -10,7 +10,7 @@ pub fn create_signal() -> impl Future<Output = ()> {
 }
 
 #[inline]
-pub fn create_singal_handle() -> axum_server::Handle<SocketAddr> {
+pub fn handle() -> axum_server::Handle<SocketAddr> {
     let handle = axum_server::Handle::new();
     let shutdown_handle = handle.clone();
 

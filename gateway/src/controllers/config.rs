@@ -8,7 +8,7 @@ use crate::{
     server::state::{self, app_state},
 };
 
-pub async fn get_config(
+pub async fn get(
     axum::extract::State(state): axum::extract::State<Arc<app_state::AppState>>,
 ) -> impl IntoResponse {
     let config = state.config.load();
@@ -16,7 +16,7 @@ pub async fn get_config(
     axum::Json(value)
 }
 
-pub async fn update_config(
+pub async fn update(
     axum::extract::State(state): axum::extract::State<Arc<app_state::AppState>>,
     axum::Json(new_config): axum::Json<Config>,
 ) -> impl IntoResponse {
@@ -35,7 +35,7 @@ pub async fn update_config(
     }
 
     state.config.store(new_config);
-    state::initializer::init_server_state(state.clone()).await;
+    state::initializer::init(state.clone()).await;
 
     axum::http::StatusCode::OK.into_response()
 }

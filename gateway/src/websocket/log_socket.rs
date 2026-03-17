@@ -11,12 +11,12 @@ use tokio::sync::broadcast;
 
 use crate::{logging::LogEntryDTO, server::state::app_state};
 
-pub async fn log_ws_handler(
+pub async fn ws(
     ws: WebSocketUpgrade,
     State(state): State<Arc<app_state::AppState>>,
 ) -> Response {
     ws.on_upgrade(move |socket| {
-        handle_log_socket(
+        run(
             socket,
             // has to exist to have reached here
             state.log_tx.as_ref().unwrap().clone(),
@@ -24,7 +24,7 @@ pub async fn log_ws_handler(
     })
 }
 
-pub async fn handle_log_socket(
+pub async fn run(
     mut socket: WebSocket,
     log_tx: broadcast::Sender<LogEntryDTO>,
 ) {

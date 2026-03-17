@@ -49,7 +49,7 @@ pub struct SummaryQuery {
     pub group_by: Option<String>,
 }
 
-pub fn parse_interval(s: &str) -> Option<i64> {
+pub fn interval(s: &str) -> Option<i64> {
     match s {
         "1m" => Some(60),
         "5m" => Some(300),
@@ -62,6 +62,6 @@ pub fn parse_interval(s: &str) -> Option<i64> {
     }
 }
 
-pub fn valid_group_by(group_by: &str) -> bool {
+pub fn group_by(group_by: &str) -> bool {
     matches!(group_by, "route" | "method" | "status" | "upstream")
 }

@@ -4,7 +4,7 @@ use axum::response::IntoResponse;
 
 use crate::{controllers, db, server::state::app_state};
 
-pub async fn get_schemas(
+pub async fn get(
     axum::extract::State(state): axum::extract::State<Arc<app_state::AppState>>,
     axum::extract::Query(pagination): axum::extract::Query<
         controllers::Pagination,
@@ -13,7 +13,7 @@ pub async fn get_schemas(
     match db::task::run(
         Arc::clone(&state.db_conn),
         move |conn| {
-            db::repository::schema::req_res::get(
+            db::repository::schema::get(
                 conn,
                 pagination.page,
                 pagination.per_page,

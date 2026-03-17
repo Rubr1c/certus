@@ -25,7 +25,7 @@ pub async fn run(
                 listener,
                 app.into_make_service_with_connect_info::<SocketAddr>(),
             )
-            .with_graceful_shutdown(shutdown::create_signal())
+            .with_graceful_shutdown(shutdown::signal())
             .await
             .unwrap();
         }

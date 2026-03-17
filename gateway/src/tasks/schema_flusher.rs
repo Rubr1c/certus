@@ -21,12 +21,12 @@ pub async fn run(
                     batch.push(schema);
 
                     if batch.len() >= 100 {
-                        db::flush::flush_req_res_schema_batch(&conn, &mut batch);
+                        db::flush::schema(&conn, &mut batch);
                     }
                 },
                 _ = interval.tick() => {
                     if !batch.is_empty() {
-                        db::flush::flush_req_res_schema_batch(&conn, &mut batch);
+                        db::flush::schema(&conn, &mut batch);
                     }
                 }
             }

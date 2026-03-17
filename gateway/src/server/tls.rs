@@ -18,7 +18,7 @@ pub async fn serve(
     tls_config: RustlsConfig,
 ) {
     axum_server::bind_rustls(address, tls_config)
-        .handle(shutdown::create_singal_handle())
+        .handle(shutdown::handle())
         .serve(app.into_make_service_with_connect_info::<SocketAddr>())
         .await
         .unwrap()

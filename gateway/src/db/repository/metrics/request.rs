@@ -1,7 +1,50 @@
-use crate::db::models::request_metric::{
-    RequestMetricBucket, RequestMetricRow,
+use crate::{
+    db::models::request_metric::{RequestMetricBucket, RequestMetricRow},
+    metrics::RequestMetric,
 };
 use rusqlite::types::ToSql;
+
+pub fn save(
+    conn: &mut rusqlite::Connection,
+    metrics: Vec<&RequestMetric>,
+) -> rusqlite::Result<()> {
+    let tx = conn.transaction()?;
+    {
+        let mut query = tx.prepare(
+            "INSERT INTO request_metrics (
+                route,
+                timestamp,
+                status_code,
+                duration_total_ms,
+                duration_upstream_ms,
+                bytes_in,
+                bytes_out,
+                client_ip,
+                method,
+                upstream_addr,
+                early_exit
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+        )?;
+
+        for metric in metrics {
+            query.execute(rusqlite::params![
+                metric.route.as_ref(),
+                metric.timestamp.to_string(),
+                metric.status_code,
+                metric.duration_total_ms as i64,
+                metric.duration_upstream_ms as i64,
+                metric.bytes_in as i64,
+                metric.bytes_out as i64,
+                metric.client_ip.to_string(),
+                metric.method.to_string(),
+                metric.upstream_addr.as_deref(),
+                metric.early_exit.as_ref().map(|e| e.as_str())
+            ])?;
+        }
+    }
+    tx.commit()?;
+    Ok(())
+}
 
 pub fn get(
     conn: &rusqlite::Connection,
