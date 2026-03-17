@@ -1,5 +1,6 @@
 use thiserror::Error;
 
+/// An error type for any error that can happen related to the config
 #[derive(Debug, Error)]
 pub enum ConfigError {
     #[error("IO error: {0}")]

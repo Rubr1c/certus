@@ -36,3 +36,7 @@ dev.db
 **/dev.db
 
 dev.db-journal
+dev.*
+
+# TLS certs
+*.pem

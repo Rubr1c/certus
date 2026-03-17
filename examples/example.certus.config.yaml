@@ -1,0 +1,45 @@
+server:
+  port: 8080
+
+default_server: '127.0.0.1:3000'
+
+# tls:
+#   cert_path: 'examples/certs/cert.pem'
+#   key_path: 'examples/certs/key.pem'
+
+auth:
+  method:
+    !jwt
+      secret: "secret"
+      algorithm: "HS256"
+  prefix: "Test"
+
+rate_limit:
+  max_tokens: 50
+  refill_rate: 10
+
+cache:
+  size: 100
+  type:
+    !redis
+      url: redis://127.0.0.1
+
+routes:
+  /users:
+    endpoints: ['127.0.0.1:3001', '127.0.0.1:3002']
+    needs_auth: true
+
+  /test:
+    endpoints: ['127.0.0.1:3003', '127.0.0.1:3004']
+    token_weight: 0
+    http_version: HTTP2
+
+  /test/best:
+    endpoints: ['127.0.0.1:3005', '127.0.0.1:3006']
+    token_weight: 25
+
+  /_static:
+    endpoints: ['127.0.0.1:3004']
+    is_static: true
+    max_connections: 5
+    http_version: HTTP2

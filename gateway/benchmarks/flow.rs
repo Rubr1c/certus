@@ -9,14 +9,18 @@ use axum::{
 };
 use criterion::{Criterion, criterion_group, criterion_main};
 use hyper_util::{client::legacy::Client, rt::TokioExecutor};
+use parking_lot::Mutex;
+use rusqlite::Connection;
 use tokio::{net::TcpListener, runtime::Runtime};
 use tower::ServiceExt;
 
 use gateway::{
     config::cfg_utils::reload_config,
+    db::models::ReqResSchemaDTO,
+    metrics::MetricEvent,
     server::{
         app_state::{self, AppState},
-        middleware::router::{build_tree, reroute},
+        middleware::router::reroute,
     },
 };
 
@@ -26,8 +30,18 @@ fn create_runtime() -> Runtime {
 
 async fn setup_state() -> Arc<AppState> {
     let config = reload_config("../examples/certus.config.yaml").await.unwrap();
-    let state = Arc::new(AppState::new(config));
-    build_tree(state.clone());
+    let conn = Arc::new(Mutex::new(Connection::open_in_memory().unwrap()));
+    let (metrics_tx, _) = tokio::sync::mpsc::channel::<MetricEvent>(16);
+    let (schema_tx, _) = tokio::sync::mpsc::channel::<ReqResSchemaDTO>(16);
+    let args = Arc::new(gateway::config::CmdArgs {
+        config: String::new(),
+        save: false,
+        ws: Vec::new(),
+    });
+    let state = Arc::new(
+        AppState::new(config, conn, metrics_tx, schema_tx, None, None, args)
+            .await,
+    );
     app_state::init_server_state(state.clone()).await;
     state
 }
