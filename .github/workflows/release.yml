@@ -1,0 +1,154 @@
+name: Gateway Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  meta:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      prerelease: ${{ steps.meta.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: meta
+        shell: bash
+        run: |
+          VERSION="$(sed -n 's/^version = "\(.*\)"/\1/p' gateway/Cargo.toml | head -n1)"
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+
+          if [ -z "$VERSION" ]; then
+            echo "Failed to read version from gateway/Cargo.toml"
+            exit 1
+          fi
+
+          if [ "$VERSION" != "$TAG_VERSION" ]; then
+            echo "Tag version ($TAG_VERSION) does not match Cargo version ($VERSION)"
+            exit 1
+          fi
+
+          git fetch origin main
+          if ! git branch -r --contains "$GITHUB_SHA" | grep -q "origin/main"; then
+            echo "Tagged commit is not on origin/main"
+            exit 1
+          fi
+
+          if [[ "$VERSION" == *-* ]]; then
+            PRERELEASE=true
+          else
+            PRERELEASE=false
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$PRERELEASE" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: meta
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            asset_target: linux-x86_64
+            binary: gateway
+            archive_ext: tar.gz
+          - runner: macos-14
+            target: aarch64-apple-darwin
+            asset_target: macos-aarch64
+            binary: gateway
+            archive_ext: tar.gz
+          - runner: windows-latest
+            target: x86_64-pc-windows-msvc
+            asset_target: windows-x86_64
+            binary: gateway.exe
+            archive_ext: zip
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Build gateway
+        run: cargo build --release --target ${{ matrix.target }} -p gateway
+
+      - name: Package Unix binary
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          VERSION="${{ needs.meta.outputs.version }}"
+          ASSET="gateway-v${VERSION}-${{ matrix.asset_target }}"
+
+          mkdir -p "$ASSET"
+          cp "target/${{ matrix.target }}/release/${{ matrix.binary }}" "$ASSET/"
+          cp README.md "$ASSET/"
+
+          tar -czf "${ASSET}.tar.gz" "$ASSET"
+
+      - name: Package Windows binary
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $version = "${{ needs.meta.outputs.version }}"
+          $asset = "gateway-v$version-${{ matrix.asset_target }}"
+
+          New-Item -ItemType Directory -Force -Path $asset | Out-Null
+          Copy-Item "target/${{ matrix.target }}/release/${{ matrix.binary }}" "$asset/"
+          Copy-Item "README.md" "$asset/"
+
+          Compress-Archive -Path $asset -DestinationPath "$asset.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset_target }}
+          path: |
+            gateway-v${{ needs.meta.outputs.version }}-${{ matrix.asset_target }}.${{ matrix.archive_ext }}
+
+  source:
+    needs: meta
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create source archive
+        shell: bash
+        run: |
+          VERSION="${{ needs.meta.outputs.version }}"
+          git archive \
+            --format=zip \
+            --prefix="gateway-v${VERSION}-source/" \
+            --output="gateway-v${VERSION}-source.zip" \
+            HEAD
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: source
+          path: gateway-v${{ needs.meta.outputs.version }}-source.zip
+
+  release:
+    needs: [meta, build, source]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: v${{ needs.meta.outputs.version }}
+          tag_name: ${{ github.ref_name }}
+          prerelease: ${{ needs.meta.outputs.prerelease }}
+          files: dist/*
