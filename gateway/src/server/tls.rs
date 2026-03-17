@@ -2,7 +2,7 @@ use std::net::SocketAddr;
 
 use axum_server::tls_rustls::RustlsConfig;
 
-use crate::{config::types::TLSConfig, server::shutdown};
+use crate::{config::TLSConfig, server::shutdown};
 
 #[inline]
 pub async fn load(config: TLSConfig) -> RustlsConfig {

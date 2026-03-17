@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use crossbeam::queue::SegQueue;
 
 use crate::{
-    db::repository::config_repo,
+    db,
     middleware::{cache::static_cache, router},
     upstream::{health, server},
 };
@@ -70,7 +70,7 @@ pub async fn init_server_state(state: Arc<app_state::AppState>) {
 
     if state.args.save {
         let conn_guard = state.db_conn.lock();
-        if let Err(e) = config_repo::save_config(&conn_guard, &config) {
+        if let Err(e) = db::repository::config::save(&conn_guard, &config) {
             tracing::error!(err = ?e, "Failed to save config");
         }
     }

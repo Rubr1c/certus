@@ -1,11 +1,8 @@
 use axum::{body::to_bytes, response::IntoResponse};
-use hyper::{
-    body::Incoming,
-    header::{CONTENT_LENGTH, CONTENT_TYPE},
-};
+use hyper::{body::Incoming, header::CONTENT_LENGTH};
 
 use crate::middleware::cache;
-use crate::schema::extractor;
+use crate::schema;
 
 /// Tries to save a response to a cache
 ///
@@ -47,13 +44,6 @@ pub async fn try_save(
         }
     }
 
-    let is_json = response
-        .headers()
-        .get(CONTENT_TYPE)
-        .and_then(|v| v.to_str().ok())
-        .map(|ct| ct.contains("application/json"))
-        .unwrap_or(false);
-
     let (parts, body) = response.into_parts();
     let body =
         //TODO: set limit
@@ -67,8 +57,7 @@ pub async fn try_save(
             .await
             .unwrap_or_default();
 
-    let body_schema =
-        if is_json { extractor::extract_body_schema(&body) } else { None };
+    let body_schema = schema::response::extract_body(&parts.headers, &body);
 
     let cached = cache::response::CachedResponse {
         status: parts.status,

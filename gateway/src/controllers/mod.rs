@@ -2,7 +2,7 @@ use serde::Deserialize;
 
 pub mod config_controller;
 pub mod log_controller;
-pub mod metrics_controller;
+pub mod metrics;
 pub mod route_controller;
 pub mod schema_controller;
 

@@ -2,12 +2,15 @@ use std::net::{IpAddr, Ipv4Addr};
 
 use moka::sync::Cache;
 
-use crate::{config::types, middleware::rate_limit};
+use crate::{
+    config::{Config, RouteConfig},
+    middleware::rate_limit,
+};
 
 #[tokio::test]
 async fn allows_request_with_enough_tokens() {
-    let config = types::Config::default();
-    let route = types::RouteConfig::default();
+    let config = Config::default();
+    let route = RouteConfig::default();
     let backend = rate_limit::backend::DynBackend::InMemory(Cache::new(100));
     let ip = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
 
@@ -24,14 +27,11 @@ async fn allows_request_with_enough_tokens() {
 
 #[tokio::test]
 async fn rejects_when_tokens_exhausted() {
-    let mut config = types::Config::default();
+    let mut config = Config::default();
     config.rate_limit.max_tokens = 2.0;
     config.rate_limit.refill_rate = 0.0;
 
-    let route = types::RouteConfig {
-        token_weight: 1.0,
-        ..types::RouteConfig::default()
-    };
+    let route = RouteConfig { token_weight: 1.0, ..RouteConfig::default() };
     let backend = rate_limit::backend::DynBackend::InMemory(Cache::new(100));
     let ip = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
 
@@ -69,14 +69,11 @@ async fn rejects_when_tokens_exhausted() {
 
 #[tokio::test]
 async fn different_ips_get_separate_buckets() {
-    let mut config = types::Config::default();
+    let mut config = Config::default();
     config.rate_limit.max_tokens = 1.0;
     config.rate_limit.refill_rate = 0.0;
 
-    let route = types::RouteConfig {
-        token_weight: 1.0,
-        ..types::RouteConfig::default()
-    };
+    let route = RouteConfig { token_weight: 1.0, ..RouteConfig::default() };
     let backend = rate_limit::backend::DynBackend::InMemory(Cache::new(100));
 
     let ip1 = IpAddr::V4(Ipv4Addr::new(10, 0, 0, 1));
@@ -127,14 +124,11 @@ async fn different_ips_get_separate_buckets() {
 
 #[tokio::test]
 async fn high_weight_drains_faster() {
-    let mut config = types::Config::default();
+    let mut config = Config::default();
     config.rate_limit.max_tokens = 10.0;
     config.rate_limit.refill_rate = 0.0;
 
-    let route = types::RouteConfig {
-        token_weight: 5.0,
-        ..types::RouteConfig::default()
-    };
+    let route = RouteConfig { token_weight: 5.0, ..RouteConfig::default() };
     let backend = rate_limit::backend::DynBackend::InMemory(Cache::new(100));
     let ip = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
 
@@ -172,14 +166,11 @@ async fn high_weight_drains_faster() {
 
 #[tokio::test]
 async fn tokens_refill_after_time() {
-    let mut config = types::Config::default();
+    let mut config = Config::default();
     config.rate_limit.max_tokens = 1.0;
     config.rate_limit.refill_rate = 10.0;
 
-    let route = types::RouteConfig {
-        token_weight: 1.0,
-        ..types::RouteConfig::default()
-    };
+    let route = RouteConfig { token_weight: 1.0, ..RouteConfig::default() };
     let backend = rate_limit::backend::DynBackend::InMemory(Cache::new(100));
     let ip = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
 

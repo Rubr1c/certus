@@ -1,11 +1,16 @@
 use bb8_redis::RedisConnectionManager;
 use dashmap::DashMap;
 use moka::sync::Cache;
+use std::time::Duration;
 
 use super::{
     key::{CacheKey, OwnedCacheKey},
     response::CachedResponse,
     serialization,
+};
+use crate::{
+    config::{CacheConfig, StorageType},
+    connection,
 };
 
 /// Cache backend for static routes (keyed by path string).
@@ -13,6 +18,37 @@ use super::{
 pub enum StaticBackend {
     InMemory(DashMap<String, CachedResponse>),
     Redis(bb8::Pool<RedisConnectionManager>),
+}
+
+pub async fn build(config: &CacheConfig) -> DynBackend {
+    match &config.cache_type {
+        StorageType::InMemory => {
+            let mut cache = Cache::<OwnedCacheKey, CachedResponse>::builder();
+
+            if let Some(secs) = config.ttl {
+                cache = cache.time_to_live(Duration::from_secs(secs));
+            }
+
+            if let Some(secs) = config.tti {
+                cache = cache.time_to_idle(Duration::from_secs(secs));
+            }
+
+            DynBackend::InMemory(cache.max_capacity(config.size).build())
+        }
+        StorageType::Redis { url } => {
+            let pool = connection::redis::create_pool(url).await;
+            DynBackend::Redis { pool, ttl: config.ttl }
+        }
+    }
+}
+
+pub async fn build_static(config: &CacheConfig) -> StaticBackend {
+    match &config.cache_type {
+        StorageType::InMemory => StaticBackend::InMemory(DashMap::new()),
+        StorageType::Redis { url } => {
+            StaticBackend::Redis(connection::redis::create_pool(url).await)
+        }
+    }
 }
 
 impl StaticBackend {

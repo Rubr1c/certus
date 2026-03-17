@@ -1,28 +1,44 @@
-use std::{borrow::Cow, net::SocketAddr, sync::Arc, time::Instant};
+use std::{net::SocketAddr, sync::Arc, time::Instant};
 
 use axum::response::IntoResponse;
-use chrono::Utc;
 use hyper::header;
 use tracing::{Level, instrument};
 
 use crate::{
-    config::types::RateLimitKey,
+    config::{Config, RouteConfig},
     error::GatewayError,
-    metrics::types::{
-        CacheMetric, CacheResult, EarlyExit, MetricEvent, RequestMetric,
-    },
-    schema::types::ReqResSchemaDTO,
-    server::state::app_state::AppState,
-    upstream::protocol::HttpVersion,
+    metrics::{CacheMetric, MetricEvent, RequestMetric},
+    middleware::{rate_limit, request_context::RequestContext},
+    schema::ReqResSchemaDTO,
+    server::state::{app_state::AppState, routing_table::RoutingTable},
 };
 
 use super::{
     auth,
-    cache::{self, key::CacheKey, static_cache},
-    forwarding, ip,
+    cache::{self, static_cache},
+    forwarding,
     load_balance::selector,
-    rate_limit::{key::TokenBucketKey, limiter},
+    rate_limit::limiter,
 };
+
+#[inline]
+fn resolve_route<'a>(
+    routing_table: &'a Arc<RoutingTable>,
+    config: &'a Arc<Config>,
+    path: &str,
+) -> Result<(&'a Arc<str>, (&'a String, &'a RouteConfig)), GatewayError> {
+    let matched_route_key = match routing_table.router.at(path) {
+        Ok(match_result) => match_result.value,
+        Err(_) => return Err(GatewayError::NotFound),
+    };
+
+    let target_route = config
+        .routes
+        .get_key_value(matched_route_key.as_ref())
+        .expect("route should exist");
+
+    Ok((matched_route_key, target_route))
+}
 
 /// Main axum function of the gateway that calls all the modules
 /// with the request data and app state and returns a response
@@ -40,58 +56,22 @@ pub async fn reroute(
 ) -> impl IntoResponse {
     let start = Instant::now();
 
-    let path: Arc<str> = req.uri().path().into();
-    let query: Option<Arc<str>> = req.uri().query().map(Arc::from);
     let config = state.config.load();
     let routing_table = state.routing_table.load();
+    let ctx = RequestContext::extract(&req, addr, &config);
 
-    let matched_route_key = match routing_table.router.at(&path) {
-        Ok(match_result) => match_result.value,
-        Err(_) => {
-            return GatewayError::NotFound.into_response();
-        }
-    };
-
-    let target_route = config
-        .routes
-        .get_key_value(matched_route_key.as_ref())
-        .expect("route should exist");
+    let (matched_route_key, target_route) =
+        match resolve_route(&routing_table, &config, &ctx.path) {
+            Ok(v) => v,
+            Err(e) => return e.into_response(),
+        };
 
     let span = tracing::span!(Level::INFO, "route");
     let _span_guard = span.enter();
 
     let headers = req.headers();
-    let ip = ip::extract_ip(headers, addr.ip());
-
-    let token = headers
-        .get(header::AUTHORIZATION)
-        .and_then(|h| h.to_str().ok())
-        .and_then(|s| {
-            let prefix = &config.auth.prefix;
-            s.strip_prefix(prefix.as_str())?.strip_prefix(' ')
-        })
-        .map(str::to_owned);
-
-    let bytes_in = headers
-        .get(header::CONTENT_LENGTH)
-        .and_then(|h| h.to_str().ok())
-        .and_then(|s| s.parse::<u64>().ok())
-        .unwrap_or(0);
-
-    let token_bucket_key = match &config.rate_limit.key {
-        RateLimitKey::Ip => TokenBucketKey::Ip(ip),
-        RateLimitKey::Token => match &token {
-            Some(token) => TokenBucketKey::Token(Cow::Borrowed(token.as_str())),
-            _ => TokenBucketKey::Ip(ip),
-        },
-        RateLimitKey::Header(header) => match headers.get(header.as_str()) {
-            Some(val) => TokenBucketKey::Header(
-                Cow::Borrowed(header.as_str()),
-                val.clone(),
-            ),
-            _ => TokenBucketKey::Ip(ip),
-        },
-    };
+    let token_bucket_key =
+        rate_limit::key::build(&config.rate_limit, &ctx, headers);
 
     match limiter::run(
         &target_route.1,
@@ -105,127 +85,56 @@ pub async fn reroute(
         Err(err) => {
             let duration = start.elapsed().as_millis() as u64;
             let _ = state.metrics_tx.try_send(MetricEvent::Request(
-                RequestMetric {
-                    route: Arc::clone(matched_route_key),
-                    status_code: 429,
-                    timestamp: Utc::now(),
-                    duration_total_ms: duration,
-                    duration_upstream_ms: 0,
-                    bytes_in,
-                    bytes_out: 0,
-                    client_ip: ip,
-                    method: req.method().clone(),
-                    upstream_addr: None,
-                    early_exit: Some(EarlyExit::RateLimited),
-                },
+                RequestMetric::rate_limited(
+                    Arc::clone(matched_route_key),
+                    duration,
+                    ctx.bytes_in,
+                    ctx.ip,
+                    ctx.method.clone(),
+                ),
             ));
             return err.into_response();
         }
     }
 
-    let method = req.method().clone();
-    let ck = CacheKey {
-        token: token.as_deref().map(Cow::Borrowed),
-        path: query.as_ref().map_or_else(
-            || Cow::Borrowed(&*path),
-            |q| Cow::Owned(format!("{}?{}", path, q)),
-        ),
-    };
-    // need to put this in a fn or something and these checks are prob expensive
+    let ck = cache::key::build(&ctx);
+    let c_policy = cache::policy::build(
+        target_route.1,
+        &ctx.method,
+        ctx.token.as_deref(),
+        headers,
+    );
 
-    //config no-cache
-    let c_no_cache = target_route.1.no_cache;
-    let cacheable_method = method == hyper::Method::GET;
-
-    //TODO: stale-while-revalidate, stale-if-error
-    //header cache options
-    let mut h_no_cache = false;
-    let mut h_no_store = false;
-    let mut h_private = false;
-    let mut h_public = false;
-    let mut h_max_age: Option<u64> = None;
-    let mut h_s_max_age: Option<u64> = None;
-
-    let mut no_store = c_no_cache || !cacheable_method;
-
-    if !c_no_cache && cacheable_method {
-        if let Some(cc_header) =
-            headers.get(header::CACHE_CONTROL).and_then(|h| h.to_str().ok())
+    if c_policy.lookup {
+        //can maybe combine both cache methods into one fn
+        if let Some(res) =
+            static_cache::try_find(&state.static_cache, &ctx.path).await
         {
-            for part in cc_header.split(',') {
-                let part = part.trim();
-                match part {
-                    "no-cache" => h_no_cache = true,
-                    "no-store" => h_no_store = true,
-                    "private" => h_private = true,
-                    "public" => h_public = true,
-                    _ if part.starts_with("max-age=") => {
-                        h_max_age = part[8..].parse::<u64>().ok();
-                    }
-                    _ if part.starts_with("s-maxage") => {
-                        h_s_max_age = part[9..].parse::<u64>().ok();
-                    }
-                    _ => {}
-                }
-            }
+            let _ = state.metrics_tx.try_send(MetricEvent::Cache(
+                CacheMetric::hit(Arc::clone(matched_route_key)),
+            ));
 
-            if h_s_max_age.is_some() {
-                h_max_age = h_s_max_age;
-            }
+            return res;
         }
 
-        no_store = c_no_cache
-            || h_no_store
-            || h_private
-            || !cacheable_method
-            || (token.is_some() && !h_public);
-        let no_cache = no_store || h_no_cache;
-
-        if !no_cache {
-            //can maybe combine both cache methods into one fn
-            if let Some(res) =
-                static_cache::try_find(&state.static_cache, &path).await
-            {
-                let metric = CacheMetric {
-                    route: Arc::clone(matched_route_key),
-                    timestamp: Utc::now(),
-                    result: CacheResult::Hit,
-                };
-                let _ = state.metrics_tx.try_send(MetricEvent::Cache(metric));
+        match cache::dynamic::try_find(&state.cache, &ctx.path, &ck).await {
+            Some(res) => {
+                let _ = state.metrics_tx.try_send(MetricEvent::Cache(
+                    CacheMetric::hit(Arc::clone(matched_route_key)),
+                ));
 
                 return res;
             }
-
-            match cache::dynamic::try_find(&state.cache, &path, &ck).await {
-                Some(res) => {
-                    let metric = CacheMetric {
-                        route: Arc::clone(matched_route_key),
-                        timestamp: Utc::now(),
-                        result: CacheResult::Hit,
-                    };
-                    let _ =
-                        state.metrics_tx.try_send(MetricEvent::Cache(metric));
-
-                    return res;
-                }
-                _ => {
-                    let metric = CacheMetric {
-                        route: Arc::clone(matched_route_key),
-                        timestamp: Utc::now(),
-                        result: CacheResult::Miss,
-                    };
-                    let _ =
-                        state.metrics_tx.try_send(MetricEvent::Cache(metric));
-                }
+            _ => {
+                let _ = state.metrics_tx.try_send(MetricEvent::Cache(
+                    CacheMetric::miss(Arc::clone(matched_route_key)),
+                ));
             }
         }
-    } else {
-        let metric = CacheMetric {
-            route: Arc::clone(matched_route_key),
-            timestamp: Utc::now(),
-            result: CacheResult::Bypass,
-        };
-        let _ = state.metrics_tx.try_send(MetricEvent::Cache(metric));
+    } else if c_policy.bypass {
+        let _ = state.metrics_tx.try_send(MetricEvent::Cache(
+            CacheMetric::bypass(Arc::clone(matched_route_key)),
+        ));
     }
 
     let server = selector::run(
@@ -243,7 +152,7 @@ pub async fn reroute(
 
     match auth::gate::run(
         req.headers_mut(),
-        token.as_deref(),
+        ctx.token.as_deref(),
         &config,
         target_route.1.needs_auth,
     ) {
@@ -251,40 +160,19 @@ pub async fn reroute(
         Err(e) => {
             let duration = start.elapsed().as_millis() as u64;
             let _ = state.metrics_tx.try_send(MetricEvent::Request(
-                RequestMetric {
-                    route: Arc::clone(matched_route_key),
-                    status_code: 401,
-                    timestamp: Utc::now(),
-                    duration_total_ms: duration,
-                    duration_upstream_ms: 0,
-                    bytes_in,
-                    bytes_out: 0,
-                    client_ip: ip,
-                    method: method.clone(),
-                    upstream_addr: None,
-                    early_exit: Some(EarlyExit::Unauthorized),
-                },
+                RequestMetric::unauthorized(
+                    Arc::clone(matched_route_key),
+                    duration,
+                    ctx.bytes_in,
+                    ctx.ip,
+                    ctx.method.clone(),
+                ),
             ));
             return e.into_response();
         }
     }
 
-    if matches!(target_route.1.http_version, HttpVersion::HTTP1) {
-        let pq =
-            req.uri().path_and_query().map(|pq| pq.as_str()).unwrap_or("/");
-        *req.uri_mut() = pq.parse().expect("valid path_and_query");
-
-        if !req.headers().contains_key(header::HOST) {
-            req.headers_mut().insert(
-                header::HOST,
-                upstream
-                    .pool
-                    .hostname
-                    .parse()
-                    .expect("upstream hostname is valid header value"),
-            );
-        }
-    }
+    forwarding::prepare(target_route.1, &mut req, &upstream);
 
     let req_headers = req.headers().clone();
 
@@ -310,11 +198,11 @@ pub async fn reroute(
                 .and_then(|h| h.to_str().ok())
                 .and_then(|s| s.parse::<u64>().ok())
                 .unwrap_or(0);
-            if no_store {
+            if c_policy.no_store {
                 let _ = state.schema_tx.try_send(ReqResSchemaDTO {
-                    full_path: Arc::clone(&path),
-                    method: method.clone(),
-                    query_params: query.as_ref().map(Arc::clone),
+                    full_path: Arc::clone(&ctx.path),
+                    method: ctx.method.clone(),
+                    query_params: ctx.query.as_ref().map(Arc::clone),
                     status_code,
                     req_headers,
                     res_headers,
@@ -322,38 +210,36 @@ pub async fn reroute(
                 });
 
                 let duration = start.elapsed().as_millis() as u64;
-                let event = MetricEvent::Request(RequestMetric {
-                    route: Arc::clone(matched_route_key),
-                    status_code: status_code.as_u16(),
-                    timestamp: Utc::now(),
-                    duration_total_ms: duration,
-                    duration_upstream_ms,
-                    bytes_in,
-                    bytes_out,
-                    client_ip: ip,
-                    method: method.clone(),
-                    upstream_addr: Some(Arc::clone(&upstream.pool.server_addr)),
-                    early_exit: None,
-                });
-
-                let _ = state.metrics_tx.try_send(event);
+                let _ = state.metrics_tx.try_send(MetricEvent::Request(
+                    RequestMetric::success(
+                        Arc::clone(matched_route_key),
+                        status_code.as_u16(),
+                        duration,
+                        duration_upstream_ms,
+                        ctx.bytes_in,
+                        bytes_out,
+                        ctx.ip,
+                        ctx.method.clone(),
+                        Arc::clone(&upstream.pool.server_addr),
+                    ),
+                ));
 
                 return response.into_response();
             }
             let (res, body_schema) = cache::dynamic::try_save(
                 response,
-                &method,
+                &ctx.method,
                 &state.cache,
                 ck,
-                h_max_age,
+                c_policy.max_age,
                 config.cache.max_size,
             )
             .await;
 
             let _ = state.schema_tx.try_send(ReqResSchemaDTO {
-                full_path: Arc::clone(&path),
-                method: method.clone(),
-                query_params: query.as_ref().map(Arc::clone),
+                full_path: Arc::clone(&ctx.path),
+                method: ctx.method.clone(),
+                query_params: ctx.query.as_ref().map(Arc::clone),
                 status_code,
                 req_headers,
                 res_headers,
@@ -361,21 +247,19 @@ pub async fn reroute(
             });
 
             let duration = start.elapsed().as_millis() as u64;
-            let event = MetricEvent::Request(RequestMetric {
-                route: Arc::clone(matched_route_key),
-                status_code: res.status().as_u16(),
-                timestamp: Utc::now(),
-                duration_total_ms: duration,
-                duration_upstream_ms,
-                bytes_in,
-                bytes_out,
-                client_ip: ip,
-                method: method.clone(),
-                upstream_addr: Some(Arc::clone(&upstream.pool.server_addr)),
-                early_exit: None,
-            });
-
-            let _ = state.metrics_tx.try_send(event);
+            let _ = state.metrics_tx.try_send(MetricEvent::Request(
+                RequestMetric::success(
+                    Arc::clone(matched_route_key),
+                    res.status().as_u16(),
+                    duration,
+                    duration_upstream_ms,
+                    ctx.bytes_in,
+                    bytes_out,
+                    ctx.ip,
+                    ctx.method.clone(),
+                    Arc::clone(&upstream.pool.server_addr),
+                ),
+            ));
 
             res
         }
@@ -387,19 +271,16 @@ pub async fn reroute(
             };
             let duration = start.elapsed().as_millis() as u64;
             let _ = state.metrics_tx.try_send(MetricEvent::Request(
-                RequestMetric {
-                    route: Arc::clone(matched_route_key),
+                RequestMetric::upstream_error(
+                    Arc::clone(matched_route_key),
                     status_code,
-                    timestamp: Utc::now(),
-                    duration_total_ms: duration,
+                    duration,
                     duration_upstream_ms,
-                    bytes_in,
-                    bytes_out: 0,
-                    client_ip: ip,
-                    method,
-                    upstream_addr: Some(Arc::clone(&upstream.pool.server_addr)),
-                    early_exit: Some(EarlyExit::UpstreamError),
-                },
+                    ctx.bytes_in,
+                    ctx.ip,
+                    ctx.method,
+                    Arc::clone(&upstream.pool.server_addr),
+                ),
             ));
             e.into_response()
         }

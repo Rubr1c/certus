@@ -4,7 +4,7 @@ use crossbeam::queue::SegQueue;
 use dashmap::DashMap;
 use tracing::instrument;
 
-use crate::{config::types, upstream::server};
+use crate::{config::RouteConfig, upstream::server};
 
 use super::p2c;
 
@@ -12,7 +12,7 @@ use super::p2c;
 #[instrument(name = "lb", skip_all)]
 pub fn run<'a>(
     routes: &'a HashMap<String, Arc<server::UpstreamServer>>,
-    target: (&'a String, &'a types::RouteConfig),
+    target: (&'a String, &'a RouteConfig),
     default_server: &'a String,
     idle_queue: &'a DashMap<String, SegQueue<Arc<server::UpstreamServer>>>,
 ) -> &'a String {

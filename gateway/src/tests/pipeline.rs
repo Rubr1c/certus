@@ -7,7 +7,10 @@ use axum::response::IntoResponse;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 
-use crate::config::types;
+use crate::config::{
+    AuthConfig, AuthType, CacheConfig, Config, ConnectionConfig,
+    RateLimitConfig, RouteConfig, ServerConfig,
+};
 use crate::middleware::{pipeline, router};
 use crate::server::state::{app_state, routing_table};
 use crate::upstream::server;
@@ -35,37 +38,34 @@ async fn mock_upstream_ok(listener: TcpListener) {
 
 fn build_config(
     addr: &str,
-    auth: types::AuthConfig,
-    rate_limit: types::RateLimitConfig,
-) -> types::Config {
+    auth: AuthConfig,
+    rate_limit: RateLimitConfig,
+) -> Config {
     let mut routes = HashMap::new();
     routes.insert(
         "/api".to_string(),
-        types::RouteConfig {
+        RouteConfig {
             endpoints: vec![addr.to_string()],
-            needs_auth: auth.method != types::AuthType::None,
+            needs_auth: auth.method != AuthType::None,
             token_weight: 1.0,
-            ..types::RouteConfig::default()
+            ..RouteConfig::default()
         },
     );
 
-    types::Config {
-        server: types::ServerConfig::default(),
+    Config {
+        server: ServerConfig::default(),
         auth,
         rate_limit,
         routes,
         default_server: addr.to_string(),
-        connection: types::ConnectionConfig { connect_timeout: 5 },
-        cache: types::CacheConfig {
-            size: 100,
-            ..types::CacheConfig::default()
-        },
+        connection: ConnectionConfig { connect_timeout: 5 },
+        cache: CacheConfig { size: 100, ..CacheConfig::default() },
         tls: None,
     }
 }
 
 async fn build_state_with_upstream(
-    config: types::Config,
+    config: Config,
     addr: &str,
 ) -> Arc<app_state::AppState> {
     let state = Arc::new(
@@ -126,11 +126,8 @@ async fn reroute_forwards_to_upstream() {
     let addr = listener.local_addr().unwrap().to_string();
     tokio::spawn(mock_upstream_ok(listener));
 
-    let config = build_config(
-        &addr,
-        types::AuthConfig::default(),
-        types::RateLimitConfig::default(),
-    );
+    let config =
+        build_config(&addr, AuthConfig::default(), RateLimitConfig::default());
     let state = build_state_with_upstream(config, &addr).await;
 
     let res = call_reroute(state, "GET", "/api", None).await;
@@ -144,11 +141,8 @@ async fn reroute_returns_not_found_for_unknown_path() {
     let addr = listener.local_addr().unwrap().to_string();
     tokio::spawn(mock_upstream_ok(listener));
 
-    let config = build_config(
-        &addr,
-        types::AuthConfig::default(),
-        types::RateLimitConfig::default(),
-    );
+    let config =
+        build_config(&addr, AuthConfig::default(), RateLimitConfig::default());
     let state = build_state_with_upstream(config, &addr).await;
 
     let res = call_reroute(state, "GET", "/unknown", None).await;
@@ -164,11 +158,11 @@ async fn reroute_rate_limits() {
 
     let config = build_config(
         &addr,
-        types::AuthConfig::default(),
-        types::RateLimitConfig {
+        AuthConfig::default(),
+        RateLimitConfig {
             max_tokens: 1.0,
             refill_rate: 0.0,
-            ..types::RateLimitConfig::default()
+            ..RateLimitConfig::default()
         },
     );
     let state = build_state_with_upstream(config, &addr).await;
@@ -186,15 +180,15 @@ async fn reroute_rejects_unauthorized() {
     let addr = listener.local_addr().unwrap().to_string();
     tokio::spawn(mock_upstream_ok(listener));
 
-    let auth = types::AuthConfig {
-        method: types::AuthType::JWT {
+    let auth = AuthConfig {
+        method: AuthType::JWT {
             secret: "test-secret".to_string(),
             algorithm: jsonwebtoken::Algorithm::default(),
         },
         prefix: "Bearer".to_string(),
     };
 
-    let config = build_config(&addr, auth, types::RateLimitConfig::default());
+    let config = build_config(&addr, auth, RateLimitConfig::default());
     let state = build_state_with_upstream(config, &addr).await;
 
     let res = call_reroute(state, "GET", "/api", None).await;
@@ -227,11 +221,8 @@ async fn reroute_caches_get_response() {
         }
     });
 
-    let config = build_config(
-        &addr,
-        types::AuthConfig::default(),
-        types::RateLimitConfig::default(),
-    );
+    let config =
+        build_config(&addr, AuthConfig::default(), RateLimitConfig::default());
     let state = build_state_with_upstream(config, &addr).await;
 
     let first = call_reroute(state.clone(), "GET", "/api", None).await;

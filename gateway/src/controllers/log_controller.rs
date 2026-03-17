@@ -3,7 +3,9 @@ use std::sync::Arc;
 use axum::response::IntoResponse;
 use serde::Deserialize;
 
-use crate::{controllers, db::repository::log_repo, server::state::app_state};
+use crate::{
+    controllers, db, db::models::log::LogEntry, server::state::app_state,
+};
 
 #[derive(Deserialize)]
 pub struct LogQuery {
@@ -21,32 +23,26 @@ pub async fn get_logs(
     >,
     axum::extract::Query(filters): axum::extract::Query<LogQuery>,
 ) -> impl IntoResponse {
-    let conn = Arc::clone(&state.db_conn);
-
-    let result = tokio::task::spawn_blocking(move || {
-        let conn_guard = conn.lock();
-        log_repo::get_log_entries(
-            &conn_guard,
-            filters.from.as_deref(),
-            filters.to.as_deref(),
-            filters.level.as_deref(),
-            filters.target.as_deref(),
-            filters.search.as_deref(),
-            pagination.page,
-            pagination.per_page,
-        )
-    })
-    .await;
-
-    match result {
-        Ok(Ok(logs)) => axum::Json(logs).into_response(),
-        Ok(Err(e)) => {
-            tracing::error!(err = ?e, "Failed to get logs");
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR.into_response()
-        }
-        Err(e) => {
-            tracing::error!(err = ?e, "Log query task panicked");
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR.into_response()
-        }
+    match db::task::run(
+        Arc::clone(&state.db_conn),
+        move |conn| {
+            db::repository::log::get(
+                conn,
+                filters.from.as_deref(),
+                filters.to.as_deref(),
+                filters.level.as_deref(),
+                filters.target.as_deref(),
+                filters.search.as_deref(),
+                pagination.page,
+                pagination.per_page,
+            )
+        },
+        "Failed to get logs",
+        "Log query task panicked",
+    )
+    .await
+    {
+        Ok(logs) => axum::Json::<Vec<LogEntry>>(logs).into_response(),
+        Err(status) => status.into_response(),
     }
 }

@@ -1,6 +1,6 @@
 use tokio::fs;
 
-use super::{error::ConfigError, types::Config};
+use super::{Config, error::ConfigError};
 
 /// Reads a file and parses it to yaml for the config
 ///

@@ -2,7 +2,7 @@ use tokio::sync::mpsc;
 use tracing::Subscriber;
 use tracing_subscriber::Layer;
 
-use super::{types::LogEntryDTO, visitor::LogVisitor};
+use super::{LogEntryDTO, visitor::LogVisitor};
 
 /// Layer for tracing subscriber to get fields form events
 /// and send them to a channel to save to database

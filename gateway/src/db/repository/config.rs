@@ -1,4 +1,5 @@
-use crate::config::types;
+use crate::config::Config;
+use rusqlite::types::Type;
 
 /// Saves gateway config to sqlite database
 ///
@@ -16,9 +17,9 @@ use crate::config::types;
 ///
 /// Panics if:
 /// * Failed to parse config to json
-pub fn save_config(
+pub fn save(
     conn: &rusqlite::Connection,
-    config: &types::Config,
+    config: &Config,
 ) -> rusqlite::Result<()> {
     let json_str = serde_json::to_string(config)
         .expect("failed to serialize config to JSON");
@@ -47,15 +48,13 @@ pub fn save_config(
 /// Returns an error if:
 /// * Failed to get config row
 /// * Failed to parse json to config
-pub fn get_config(
-    conn: &rusqlite::Connection,
-) -> rusqlite::Result<types::Config> {
+pub fn get(conn: &rusqlite::Connection) -> rusqlite::Result<Config> {
     conn.query_row("SELECT config_data FROM config WHERE id = 1", [], |row| {
         let json_str: String = row.get(0)?;
         serde_json::from_str(&json_str).map_err(|e| {
             rusqlite::Error::FromSqlConversionFailure(
                 0,
-                rusqlite::types::Type::Text,
+                Type::Text,
                 Box::new(e),
             )
         })

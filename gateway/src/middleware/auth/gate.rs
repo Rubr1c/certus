@@ -1,5 +1,7 @@
+use hyper::header;
+
 use crate::{
-    config::types::{AuthType, Config},
+    config::{AuthType, Config},
     error::GatewayError,
 };
 
@@ -81,4 +83,19 @@ pub fn run(
         }
     }
     return Ok(());
+}
+
+#[inline]
+pub fn extract(
+    config: &Config,
+    headers: &hyper::HeaderMap<axum::http::HeaderValue>,
+) -> Option<String> {
+    headers
+        .get(header::AUTHORIZATION)
+        .and_then(|h| h.to_str().ok())
+        .and_then(|s| {
+            let prefix = &config.auth.prefix;
+            s.strip_prefix(prefix.as_str())?.strip_prefix(' ')
+        })
+        .map(str::to_owned)
 }

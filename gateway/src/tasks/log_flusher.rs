@@ -6,7 +6,7 @@ use tokio::{
     time,
 };
 
-use crate::{db, logging::types::LogEntryDTO};
+use crate::{db, logging::LogEntryDTO};
 
 #[inline]
 pub async fn run(

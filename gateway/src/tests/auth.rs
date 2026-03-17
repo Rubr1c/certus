@@ -1,5 +1,5 @@
 use crate::{
-    config::types::{AuthConfig, AuthType, Config},
+    config::{AuthConfig, AuthType, Config},
     middleware::auth::gate,
 };
 

@@ -6,7 +6,7 @@ use tokio::{
     time,
 };
 
-use crate::{db, metrics::types::MetricEvent};
+use crate::{db, metrics::MetricEvent};
 
 #[inline]
 pub async fn run(

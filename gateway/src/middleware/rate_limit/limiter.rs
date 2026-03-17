@@ -1,7 +1,7 @@
 use std::time::Instant;
 
 use crate::{
-    config::types::{Config, RouteConfig},
+    config::{Config, RouteConfig},
     error::GatewayError,
     middleware::rate_limit,
 };

@@ -3,7 +3,7 @@ use std::{sync::Arc, time::Duration};
 use parking_lot::Mutex;
 use tokio::{sync::mpsc, time};
 
-use crate::{db, schema::types::ReqResSchemaDTO};
+use crate::{db, schema::ReqResSchemaDTO};
 
 #[inline]
 pub async fn run(

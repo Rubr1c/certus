@@ -5,10 +5,28 @@ use super::{
     key::{OwnedTokenBucketKey, TokenBucketKey, redis_key},
     token_bucket::{SerializableTokenBucket, TokenBucket},
 };
+use crate::{
+    config::{RateLimitConfig, StorageType},
+    connection,
+};
 
 pub enum DynBackend {
     InMemory(Cache<OwnedTokenBucketKey, TokenBucket>),
     Redis(bb8::Pool<RedisConnectionManager>),
+}
+
+pub async fn build(config: &RateLimitConfig) -> DynBackend {
+    match &config.rl_type {
+        StorageType::InMemory => DynBackend::InMemory(
+            Cache::builder()
+                .time_to_idle(std::time::Duration::from_secs(3600))
+                .max_capacity(100000)
+                .build(),
+        ),
+        StorageType::Redis { url } => {
+            DynBackend::Redis(connection::redis::create_pool(url).await)
+        }
+    }
 }
 
 impl DynBackend {

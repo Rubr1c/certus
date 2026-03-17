@@ -22,9 +22,9 @@ use clap::Parser;
 use tokio::sync::mpsc;
 
 use crate::{
-    logging::types::LogEntryDTO,
-    metrics::types::MetricEvent,
-    schema::types::ReqResSchemaDTO,
+    logging::LogEntryDTO,
+    metrics::MetricEvent,
+    schema::ReqResSchemaDTO,
     server::state::{app_state::AppState, initializer},
 };
 
@@ -33,17 +33,17 @@ pub async fn run() {
     let (metrics_tx, metrics_rx) = mpsc::channel::<MetricEvent>(1024);
     let (schema_tx, schema_rx) = mpsc::channel::<ReqResSchemaDTO>(1024);
 
-    server::bootstrap::tracing(log_tx);
+    server::bootstrap::tracing::run(log_tx);
 
     let args = Arc::new(cli::CmdArgs::parse());
 
     let config_path = args.config.as_str();
 
-    let certus_routes = server::bootstrap::routes();
+    let certus_routes = server::bootstrap::routes::run();
     let (certus_routes, log_broadcast_tx, metrics_broadcast_tx) =
-        server::bootstrap::websocket(certus_routes, args.as_ref());
+        server::bootstrap::websocket::run(certus_routes, args.as_ref());
 
-    let (log_conn, metrics_conn, schema_conn) = server::bootstrap::db();
+    let (log_conn, metrics_conn, schema_conn) = server::bootstrap::db::run();
 
     let config = config::parser::reload_config(config_path).await.unwrap();
 
@@ -89,9 +89,9 @@ pub async fn run() {
     tracing::info!("Certus Gateway Running on port {}", port);
     println!("Config watcher started. Press Ctrl+C to exit.");
 
-    let app = server::bootstrap::router(certus_routes, state);
+    let app = server::bootstrap::router::run(certus_routes, state);
     let app = server::cors::setup(app, config.server.origins.clone());
 
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
-    server::bootstrap::app(app, addr, tls).await;
+    server::bootstrap::app::run(app, addr, tls).await;
 }

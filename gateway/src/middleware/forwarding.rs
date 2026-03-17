@@ -1,13 +1,14 @@
 use std::sync::atomic::Ordering;
 
-use hyper::body::Incoming;
+use hyper::{body::Incoming, header};
 use tracing::instrument;
 
 use crate::{
+    config::RouteConfig,
     connection::pool,
     error::GatewayError,
     upstream::{
-        protocol::PooledConnection,
+        protocol::{HttpVersion, PooledConnection},
         server::{HealthState, UpstreamServer},
     },
 };
@@ -47,6 +48,30 @@ async fn forward_request(
     tracing::info!("Request forwarded successfuly");
 
     Ok((res, sender))
+}
+
+#[inline]
+pub fn prepare(
+    config: &RouteConfig,
+    req: &mut hyper::Request<axum::body::Body>,
+    upstream: &UpstreamServer,
+) {
+    if matches!(config.http_version, HttpVersion::HTTP1) {
+        let pq =
+            req.uri().path_and_query().map(|pq| pq.as_str()).unwrap_or("/");
+        *req.uri_mut() = pq.parse().expect("valid path_and_query");
+
+        if !req.headers().contains_key(header::HOST) {
+            req.headers_mut().insert(
+                header::HOST,
+                upstream
+                    .pool
+                    .hostname
+                    .parse()
+                    .expect("upstream hostname is valid header value"),
+            );
+        }
+    }
 }
 
 /// Takes a server gets a connection to it and forwards it

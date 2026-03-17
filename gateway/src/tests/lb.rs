@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::{
-    config::types::RouteConfig,
+    config::RouteConfig,
     middleware::load_balance::p2c::p2c_pick,
     upstream::{protocol::HttpVersion, server::UpstreamServer},
 };

@@ -1,4 +1,5 @@
-use crate::{db::models::log, logging::types};
+use crate::{db::models::log::LogEntry, logging::LogEntryDTO};
+use rusqlite::types::ToSql;
 
 /// Saves a log to an sqlite database
 ///
@@ -11,9 +12,9 @@ use crate::{db::models::log, logging::types};
 ///
 /// Returns an error if:
 /// * Failed to execute query
-pub fn save_log(
+pub fn save_one(
     conn: &rusqlite::Connection,
-    entry: types::LogEntryDTO,
+    entry: LogEntryDTO,
 ) -> rusqlite::Result<()> {
     let fields_json = serde_json::to_string(&entry.fields)
         .unwrap_or_else(|_| "{}".to_string());
@@ -47,9 +48,9 @@ pub fn save_log(
 /// * Failed to prepare query
 /// * Failed to execute query
 /// * Failed to commit transaction
-pub fn save_logs(
+pub fn save(
     conn: &mut rusqlite::Connection,
-    entries: Vec<types::LogEntryDTO>,
+    entries: Vec<LogEntryDTO>,
 ) -> rusqlite::Result<()> {
     let tx = conn.transaction()?;
     {
@@ -87,15 +88,13 @@ pub fn save_logs(
 /// * Failed to prepare query
 /// * Failed to get element
 /// * Failed to map query
-pub fn get_logs(
-    conn: &rusqlite::Connection,
-) -> rusqlite::Result<Vec<log::LogEntry>> {
+pub fn all(conn: &rusqlite::Connection) -> rusqlite::Result<Vec<LogEntry>> {
     let mut stmt = conn.prepare(
         "SELECT id, timestamp, level, target, message, fields FROM logs",
     )?;
 
     let logs = stmt.query_map([], |row| {
-        Ok(log::LogEntry {
+        Ok(LogEntry {
             id: row.get(0)?,
             timestamp: row.get(1)?,
             level: row.get(2)?,
@@ -104,14 +103,14 @@ pub fn get_logs(
             fields: row.get(5)?,
         })
     })?;
-    let mut log_vec: Vec<log::LogEntry> = Vec::new();
+    let mut log_vec: Vec<LogEntry> = Vec::new();
     for log in logs {
         log_vec.push(log?);
     }
     Ok(log_vec)
 }
 
-pub fn get_log_entries(
+pub fn get(
     conn: &rusqlite::Connection,
     from: Option<&str>,
     to: Option<&str>,
@@ -120,13 +119,13 @@ pub fn get_log_entries(
     search: Option<&str>,
     page: u32,
     page_size: u32,
-) -> rusqlite::Result<Vec<log::LogEntry>> {
+) -> rusqlite::Result<Vec<LogEntry>> {
     let mut sql = String::from(
         "SELECT id, timestamp, level, target, message, fields FROM logs",
     );
 
     let mut conditions: Vec<String> = Vec::new();
-    let mut params: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
+    let mut params: Vec<Box<dyn ToSql>> = Vec::new();
 
     if let Some(v) = from {
         conditions.push(format!("timestamp >= ?{}", params.len() + 1));
@@ -163,12 +162,12 @@ pub fn get_log_entries(
     params.push(Box::new(page_size));
     params.push(Box::new(offset));
 
-    let param_refs: Vec<&dyn rusqlite::types::ToSql> =
+    let param_refs: Vec<&dyn ToSql> =
         params.iter().map(|p| p.as_ref()).collect();
 
     let mut stmt = conn.prepare(&sql)?;
     let rows = stmt.query_map(param_refs.as_slice(), |row| {
-        Ok(log::LogEntry {
+        Ok(LogEntry {
             id: row.get(0)?,
             timestamp: row.get(1)?,
             level: row.get(2)?,

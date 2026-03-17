@@ -1,6 +1,6 @@
 use std::net::IpAddr;
 
-use hyper::{HeaderMap, header};
+use hyper::header;
 
 // TODO: this wont work forwarded has many params in it
 //       so it needs to be parsed right now it will
@@ -12,7 +12,7 @@ use hyper::{HeaderMap, header};
 //       or user does not care about the ip and does not
 //       rate limit with it.
 #[inline]
-pub fn extract_ip(headers: &HeaderMap, sender_ip: IpAddr) -> IpAddr {
+pub fn extract(headers: &hyper::HeaderMap, sender_ip: IpAddr) -> IpAddr {
     headers
         .get(header::FORWARDED)
         .and_then(|h| h.to_str().ok())

@@ -7,7 +7,7 @@ use std::{
 use rand::{SeedableRng, rngs::SmallRng, seq::IndexedRandom};
 use tracing::instrument;
 
-use crate::{config::types::RouteConfig, upstream::server::UpstreamServer};
+use crate::{config::RouteConfig, upstream::server::UpstreamServer};
 
 thread_local! {
     /// Small random number generator that has one instance per thread
