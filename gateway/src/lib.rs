@@ -16,20 +16,13 @@ pub mod websocket;
 #[cfg(test)]
 mod tests;
 
-use std::{
-    net::SocketAddr,
-    sync::{Arc, atomic::Ordering},
-    time::Duration,
-};
+use std::{net::SocketAddr, sync::Arc};
 
 use axum::routing::{any, get, post};
 use axum_server::tls_rustls::RustlsConfig;
 use clap::Parser;
 use parking_lot::Mutex;
-use tokio::{
-    sync::{broadcast, mpsc},
-    time,
-};
+use tokio::sync::{broadcast, mpsc};
 use tower_http::cors::{self, CorsLayer};
 use tracing_subscriber::{
     EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt,
@@ -42,19 +35,16 @@ use crate::{
     },
     logging::{layer::LogChannelLayer, types::LogEntryDTO},
     metrics::types::MetricEvent,
-    middleware::{load_balance, pipeline, router},
+    middleware::{load_balance, pipeline},
     schema::types::ReqResSchemaDTO,
-    server::state::{
-        app_state::AppState, initializer, routing_table::RoutingTable,
-    },
-    upstream::{health, server::HealthState},
+    server::state::{app_state::AppState, initializer},
     websocket::{log_socket, metrics_socket},
 };
 
 pub async fn run() {
-    let (log_tx, mut log_rx) = mpsc::channel::<LogEntryDTO>(1024);
-    let (metrics_tx, mut metrics_rx) = mpsc::channel::<MetricEvent>(1024);
-    let (schema_tx, mut schema_rx) = mpsc::channel::<ReqResSchemaDTO>(1024);
+    let (log_tx, log_rx) = mpsc::channel::<LogEntryDTO>(1024);
+    let (metrics_tx, metrics_rx) = mpsc::channel::<MetricEvent>(1024);
+    let (schema_tx, schema_rx) = mpsc::channel::<ReqResSchemaDTO>(1024);
 
     let mut log_broadcast_tx: Option<broadcast::Sender<LogEntryDTO>> = None;
     let mut metrics_broadcast_tx: Option<broadcast::Sender<MetricEvent>> = None;
@@ -149,150 +139,18 @@ pub async fn run() {
         .await,
     );
 
-    // move all these tasks somewhere else
+    tasks::log_flusher::run(log_conn.clone(), log_rx, log_broadcast_tx).await;
 
-    let log_conn_clone = log_conn.clone();
-    tokio::spawn(async move {
-        let mut batch: Vec<LogEntryDTO> = Vec::with_capacity(100);
+    tasks::metric_flusher::run(
+        metrics_conn.clone(),
+        metrics_rx,
+        metrics_broadcast_tx,
+    )
+    .await;
 
-        let mut interval = time::interval(Duration::from_secs(1));
+    tasks::schema_flusher::run(schema_conn, schema_rx).await;
 
-        loop {
-            tokio::select! {
-                Some(entry) = log_rx.recv() => {
-                    batch.push(entry.clone());
-                    if let Some(tx) = &log_broadcast_tx {
-                        let _ = tx.send(entry);
-                    }
-
-                    if batch.len() >= 100 {
-                        db::flush::flush_log_batch(&log_conn_clone, &mut batch);
-                    }
-                }
-
-                _ = interval.tick() => {
-                    if !batch.is_empty() {
-                        db::flush::flush_log_batch(&log_conn_clone, &mut batch);
-                    }
-                }
-            }
-        }
-    });
-
-    let metrics_conn_clone = metrics_conn.clone();
-    tokio::spawn(async move {
-        let mut batch: Vec<MetricEvent> = Vec::with_capacity(100);
-
-        let mut interval = time::interval(Duration::from_secs(1));
-
-        loop {
-            tokio::select! {
-                Some(metric) = metrics_rx.recv() => {
-                   if let Some(tx) = &metrics_broadcast_tx {
-                       let _ = tx.send(metric.clone());
-                   }
-                   batch.push(metric);
-
-                   if batch.len() >= 100 {
-                        db::flush::flush_metric_batch(&metrics_conn_clone, &mut batch);
-                   }
-                },
-               _ = interval.tick() => {
-                   if !batch.is_empty() {
-                        db::flush::flush_metric_batch(&metrics_conn_clone, &mut batch);
-                   }
-                }
-            }
-        }
-    });
-
-    tokio::spawn(async move {
-        let mut batch: Vec<ReqResSchemaDTO> = Vec::with_capacity(100);
-
-        let mut interval = time::interval(Duration::from_secs(1));
-
-        loop {
-            tokio::select! {
-                Some(schema) = schema_rx.recv() => {
-                    batch.push(schema);
-
-                    if batch.len() >= 100 {
-                        db::flush::flush_req_res_schema_batch(&schema_conn, &mut batch);
-                    }
-                },
-                _ = interval.tick() => {
-                    if !batch.is_empty() {
-                        db::flush::flush_req_res_schema_batch(&schema_conn, &mut batch);
-                    }
-                }
-            }
-        }
-    });
-
-    let state_clone = state.clone();
-    tokio::spawn(async move {
-        loop {
-            //TODO: make configable
-            tokio::time::sleep(Duration::from_secs(5)).await;
-
-            let table = state_clone.routing_table.load();
-            let dead_addrs: Vec<String> = table
-                .routes
-                .iter()
-                .filter(|(_, upstream)| {
-                    upstream.health_state.load(Ordering::Acquire)
-                        == HealthState::Dead as u8
-                })
-                .map(|(addr, _)| addr.clone())
-                .collect();
-
-            if dead_addrs.is_empty() {
-                continue;
-            }
-
-            for addr in &dead_addrs {
-                tracing::warn!(server = %addr, "Removing dead upstream");
-            }
-
-            let mut new_routes = table.routes.clone();
-            for addr in &dead_addrs {
-                new_routes.remove(addr);
-            }
-
-            let new_router = router::build_tree(state_clone.clone());
-            let new_table =
-                RoutingTable { router: new_router, routes: new_routes };
-            state_clone.routing_table.store(Arc::new(new_table));
-
-            for entry in state_clone.idle_queue.iter_mut() {
-                let queue = entry.value();
-                let len = queue.len();
-                for _ in 0..len {
-                    if let Some(upstream) = queue.pop() {
-                        if upstream.health_state.load(Ordering::Acquire)
-                            != HealthState::Dead as u8
-                        {
-                            queue.push(upstream);
-                        }
-                    }
-                }
-            }
-        }
-    });
-
-    let state_clone = state.clone();
-    tokio::spawn(async move {
-        loop {
-            tokio::time::sleep(Duration::from_secs(60)).await;
-
-            let table = state_clone.routing_table.load();
-            for (addr, upstream) in &table.routes {
-                if !health::health_ok(upstream).await {
-                    tracing::warn!(server = %addr, "Health check failed");
-                }
-            }
-        }
-    });
+    tasks::health_reaper::run(state.clone()).await;
 
     let _watcher =
         match config::watcher::watch_config(config_path, state.clone()).await {
