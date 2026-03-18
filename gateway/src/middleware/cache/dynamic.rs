@@ -67,7 +67,7 @@ pub async fn try_save(
 
     let response = cached.clone().into_response();
 
-    tracing::info!("Saving to cache");
+    tracing::debug!("Saving to cache");
     match ttl {
         Some(secs) => cache.set_ex(ck, cached, &secs).await,
         _ => cache.set(ck, cached).await,
@@ -91,11 +91,11 @@ pub async fn try_find(
 ) -> Option<hyper::Response<axum::body::Body>> {
     match cache.get(ck).await {
         Some(res) => {
-            tracing::info!("Returning cached response to {}", path);
+            tracing::debug!("Returning cached response to {}", path);
             return Some(res.into_response());
         }
         _ => {
-            tracing::info!("Response not found in cache");
+            tracing::debug!("Response not found in cache");
             None
         }
     }

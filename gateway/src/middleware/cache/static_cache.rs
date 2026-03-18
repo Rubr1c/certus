@@ -21,7 +21,7 @@ pub async fn try_find(
 ) -> Option<hyper::Response<axum::body::Body>> {
     match cache.get(path).await {
         Some(res) => {
-            tracing::info!("Returning static cached response to {}", path);
+            tracing::debug!("Returning static cached response to {}", path);
             Some(res.clone().into_response())
         }
         None => {
@@ -99,7 +99,7 @@ pub async fn send_and_save(
             };
 
             cache.set(path.clone(), cached).await;
-            tracing::info!("Saved static path {} to cache", path);
+            tracing::debug!("Saved static path {} to cache", path);
         }
         Err(e) => {
             tracing::error!("Failed to fetch static path {}: {}", path, e)

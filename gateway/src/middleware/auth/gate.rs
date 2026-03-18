@@ -29,7 +29,7 @@ pub fn run(
     needs_auth: bool,
 ) -> Result<(), GatewayError> {
     if needs_auth {
-        tracing::info!("Authenticating user");
+        tracing::debug!("Authenticating user");
         match token {
             Some(t) => {
                 match &config.auth.method {
@@ -37,7 +37,7 @@ pub fn run(
                         match jwt::decode(t, secret, &algorithm) {
                             Ok(claims) => {
                                 //TODO: put claims in header
-                                tracing::info!("User authenticated");
+                                tracing::debug!("User authenticated");
 
                                 match claims.user_id {
                                     Some(id) => {
@@ -68,7 +68,7 @@ pub fn run(
                                 return Ok(());
                             }
                             Err(e) => {
-                                tracing::info!("User not authenticated");
+                                tracing::warn!("User not authenticated");
                                 return Err(e);
                             }
                         }
@@ -77,7 +77,7 @@ pub fn run(
                 }
             }
             _ => {
-                tracing::info!("User not authenticated");
+                tracing::warn!("User not authenticated");
                 return Err(GatewayError::Unauthorized);
             }
         }

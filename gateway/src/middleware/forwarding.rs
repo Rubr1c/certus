@@ -28,7 +28,7 @@ async fn forward_request(
     conn: PooledConnection,
     req: axum::extract::Request,
 ) -> Result<(hyper::Response<Incoming>, PooledConnection), GatewayError> {
-    tracing::info!("Atempting forward request");
+    tracing::debug!("Atempting forward request");
     let (res, sender) =
         match conn {
             PooledConnection::Http1(mut sender) => {
@@ -45,7 +45,7 @@ async fn forward_request(
             }
         };
 
-    tracing::info!("Request forwarded successfuly");
+    tracing::debug!("Request forwarded successfuly");
 
     Ok((res, sender))
 }

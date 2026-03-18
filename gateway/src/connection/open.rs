@@ -30,7 +30,7 @@ pub async fn open_connection(
     timeout: u64,
 ) -> Result<protocol::PooledConnection, Box<dyn std::error::Error + Send + Sync>>
 {
-    tracing::info!("Connecting to new upstream");
+    tracing::debug!("Connecting to new upstream");
     let connect_future = TcpStream::connect(upstream.pool.server_addr.as_ref());
     let stream =
         tokio::time::timeout(Duration::from_secs(timeout), connect_future)
@@ -104,7 +104,7 @@ pub async fn open_connection(
         }
     };
 
-    tracing::info!("Connetion made");
+    tracing::debug!("Connetion made");
 
     Ok(sender)
 }

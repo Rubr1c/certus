@@ -35,13 +35,13 @@ pub async fn set_idle(
                 let queue = state.idle_queue.get_mut(route);
                 match queue {
                     Some(q) => {
-                        tracing::info!("Server pushed to idle");
+                        tracing::debug!("Server pushed to idle");
                         q.push(server.clone());
                     }
                     _ => {
                         let q = SegQueue::<Arc<UpstreamServer>>::new();
                         q.push(server.clone());
-                        tracing::info!("Server pushed to idle");
+                        tracing::debug!("Server pushed to idle");
                         state.idle_queue.insert(route.clone(), q);
                     }
                 }

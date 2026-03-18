@@ -32,11 +32,11 @@ pub fn p2c_pick<'a>(
     target: &'a RouteConfig,
     default_server: &'a String,
 ) -> &'a String {
-    tracing::info!("Finding endpoint");
+    tracing::debug!("Finding endpoint");
     let endpoints = &target.endpoints;
     if endpoints.is_empty() {
         tracing::warn!("No endpoints found");
-        tracing::info!("returning default server");
+        tracing::debug!("returning default server");
         return default_server;
     }
 
@@ -53,7 +53,7 @@ pub fn p2c_pick<'a>(
         let (key1, upstream1) = routes.get_key_value(addr1.as_str()).unwrap();
         let (key2, upstream2) = routes.get_key_value(addr2.as_str()).unwrap();
 
-        tracing::info!("Selecting server with least load");
+        tracing::debug!("Selecting server with least load");
         if upstream1.active_connctions.load(Ordering::Acquire)
             <= upstream2.active_connctions.load(Ordering::Acquire)
         {

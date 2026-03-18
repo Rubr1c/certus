@@ -36,18 +36,18 @@ pub async fn run(
     bucket.tokens = (bucket.tokens + tokens_to_add).min(max_tokens);
     bucket.last_refill = now;
 
-    tracing::info!(remaining = bucket.tokens, "Checking Rate Limit");
+    tracing::debug!(remaining = bucket.tokens, "Checking Rate Limit");
 
     if bucket.tokens < target_route.token_weight {
-        tracing::info!(
+        tracing::warn!(
             target = target_route.token_weight,
-            "Checking Rate Exceeded"
+            "Rate limit exceeded"
         );
         backend.set(key, bucket).await;
         return Err(GatewayError::RateLimited);
     }
     bucket.tokens -= target_route.token_weight;
-    tracing::info!(
+    tracing::debug!(
         remaining = bucket.tokens,
         "Removed {} tokens from bucket",
         target_route.token_weight
