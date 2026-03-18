@@ -3,6 +3,10 @@ name = "gateway"
 version = "0.1.0-alpha.1"
 edition = "2024"
 
+[[bin]]
+name = "certus"
+path = "src/main.rs"
+
 [dependencies]
 arc-swap = "1.8.0"
 axum = { version = "0.8.7", features = ["ws"] }
