@@ -43,7 +43,7 @@ pub async fn watch(
         })?;
 
     watcher.watch(Path::new(path), RecursiveMode::NonRecursive)?;
-    println!("Watching config file: {}", path);
+    tracing::info!(config_path = path, "Watching config file");
 
     let path = Arc::new(path.to_string());
 
@@ -58,15 +58,19 @@ pub async fn watch(
                         // Drain any other events that occurred during the sleep
                         while rx.try_recv().is_ok() {}
 
-                        tracing::info!("Realoding config");
+                        tracing::info!(config_path = %path, "Realoding config");
                         match parser::reload(&path).await {
                             Ok(new_config) => {
                                 state.config.store(Arc::new(new_config));
                                 state::initializer::init(state.clone()).await;
-                                tracing::info!("Config hot-reloaded");
+                                tracing::info!(
+                                    config_path = %path,
+                                    "Config hot-reloaded"
+                                );
                             }
                             Err(e) => {
                                 tracing::error!(
+                                    config_path = %path,
                                     "Failed to reload config: {}",
                                     e
                                 );
@@ -75,7 +79,7 @@ pub async fn watch(
                     }
                 }
                 Err(e) => {
-                    tracing::error!("Watcher error: {}", e);
+                    tracing::error!(config_path = %path, "Watcher error: {}", e);
                 }
             }
         }

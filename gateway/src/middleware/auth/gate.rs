@@ -29,7 +29,11 @@ pub fn run(
     needs_auth: bool,
 ) -> Result<(), GatewayError> {
     if needs_auth {
-        tracing::debug!("Authenticating user");
+        tracing::debug!(
+            has_token = token.is_some(),
+            auth_method = ?config.auth.method,
+            "Authenticating user"
+        );
         match token {
             Some(t) => {
                 match &config.auth.method {
@@ -68,7 +72,11 @@ pub fn run(
                                 return Ok(());
                             }
                             Err(e) => {
-                                tracing::warn!("User not authenticated");
+                                tracing::debug!(
+                                    has_token = true,
+                                    auth_method = ?config.auth.method,
+                                    "User not authenticated"
+                                );
                                 return Err(e);
                             }
                         }
@@ -77,7 +85,11 @@ pub fn run(
                 }
             }
             _ => {
-                tracing::warn!("User not authenticated");
+                tracing::debug!(
+                    has_token = false,
+                    auth_method = ?config.auth.method,
+                    "User not authenticated"
+                );
                 return Err(GatewayError::Unauthorized);
             }
         }

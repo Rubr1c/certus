@@ -6,9 +6,24 @@ use crate::{config::TLSConfig, server::shutdown};
 
 #[inline]
 pub async fn load(config: TLSConfig) -> RustlsConfig {
-    RustlsConfig::from_pem_file(&config.cert_path, &config.key_path)
-        .await
-        .expect("Invalid TLS")
+    tracing::info!(
+        cert_path = %config.cert_path,
+        key_path = %config.key_path,
+        "Loading TLS certificate files"
+    );
+    match RustlsConfig::from_pem_file(&config.cert_path, &config.key_path).await
+    {
+        Ok(tls_config) => tls_config,
+        Err(err) => {
+            tracing::error!(
+                cert_path = %config.cert_path,
+                key_path = %config.key_path,
+                err = ?err,
+                "Failed to load TLS certificate files"
+            );
+            panic!("invalid tls configuration");
+        }
+    }
 }
 
 #[inline]
@@ -17,9 +32,13 @@ pub async fn serve(
     address: SocketAddr,
     tls_config: RustlsConfig,
 ) {
-    axum_server::bind_rustls(address, tls_config)
+    tracing::info!(address = %address, "Serving HTTPS traffic");
+    if let Err(err) = axum_server::bind_rustls(address, tls_config)
         .handle(shutdown::handle())
         .serve(app.into_make_service_with_connect_info::<SocketAddr>())
         .await
-        .unwrap()
+    {
+        tracing::error!(address = %address, err = ?err, "HTTPS server exited with error");
+        panic!("https server exited with error");
+    }
 }

@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{net::SocketAddr, sync::Arc};
 
 use axum::{
     extract::{
@@ -13,11 +13,14 @@ use crate::{logging::LogEntryDTO, server::state::app_state};
 
 pub async fn ws(
     ws: WebSocketUpgrade,
+    axum::extract::ConnectInfo(addr): axum::extract::ConnectInfo<SocketAddr>,
     State(state): State<Arc<app_state::AppState>>,
 ) -> Response {
+    tracing::info!(client_ip = %addr.ip(), "Log websocket client connected");
     ws.on_upgrade(move |socket| {
         run(
             socket,
+            addr,
             // has to exist to have reached here
             state.log_tx.as_ref().unwrap().clone(),
         )
@@ -26,6 +29,7 @@ pub async fn ws(
 
 pub async fn run(
     mut socket: WebSocket,
+    addr: SocketAddr,
     log_tx: broadcast::Sender<LogEntryDTO>,
 ) {
     let mut log_rx = log_tx.subscribe();
@@ -39,6 +43,10 @@ pub async fn run(
                         .await
                         .is_err()
                     {
+                        tracing::info!(
+                            client_ip = %addr.ip(),
+                            "Log websocket client disconnected"
+                        );
                         break;
                     }
                 }
@@ -47,9 +55,17 @@ pub async fn run(
                 }
             },
             Err(broadcast::error::RecvError::Lagged(skipped)) => {
-                tracing::error!("Warning: Client missed {} logs", skipped);
+                tracing::warn!(
+                    client_ip = %addr.ip(),
+                    skipped,
+                    "Log websocket client lagged"
+                );
             }
             Err(broadcast::error::RecvError::Closed) => {
+                tracing::info!(
+                    client_ip = %addr.ip(),
+                    "Log websocket broadcast closed"
+                );
                 break;
             }
         }

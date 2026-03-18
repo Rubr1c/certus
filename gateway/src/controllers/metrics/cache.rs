@@ -15,6 +15,14 @@ pub async fn get(
     >,
     axum::extract::Query(filters): axum::extract::Query<BaseMetricQuery>,
 ) -> impl IntoResponse {
+    tracing::debug!(
+        page = pagination.page,
+        per_page = pagination.per_page,
+        from = ?filters.from,
+        to = ?filters.to,
+        route = ?filters.route,
+        "Querying cache metrics"
+    );
     match db::task::run(
         Arc::clone(&state.db_conn),
         move |conn| {
@@ -45,10 +53,23 @@ pub async fn agg(
     let interval_secs = match interval(interval_str) {
         Some(seconds) => seconds,
         None => {
+            tracing::warn!(
+                interval = interval_str,
+                "Rejected invalid cache metrics interval"
+            );
             return (axum::http::StatusCode::BAD_REQUEST, INVALID_INTERVAL_MSG)
                 .into_response();
         }
     };
+
+    tracing::debug!(
+        from = ?filters.from,
+        to = ?filters.to,
+        route = ?filters.route,
+        interval = interval_str,
+        interval_secs,
+        "Querying aggregated cache metrics"
+    );
 
     match db::task::run(
         Arc::clone(&state.db_conn),

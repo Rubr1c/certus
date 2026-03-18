@@ -10,11 +10,34 @@ pub fn run() -> (
     Arc<Mutex<rusqlite::Connection>>,
     Arc<Mutex<rusqlite::Connection>>,
 ) {
-    let log_conn = db::connection::connect_db().expect("log db");
-    let metrics_conn = db::connection::connect_db().expect("metrics db");
-    let schema_conn = db::connection::connect_db().expect("schema db");
+    tracing::info!("Opening sqlite connections");
+    let log_conn = match db::connection::connect_db() {
+        Ok(conn) => conn,
+        Err(err) => {
+            tracing::error!(err = ?err, "Failed to open log database");
+            panic!("failed to open log database");
+        }
+    };
+    let metrics_conn = match db::connection::connect_db() {
+        Ok(conn) => conn,
+        Err(err) => {
+            tracing::error!(err = ?err, "Failed to open metrics database");
+            panic!("failed to open metrics database");
+        }
+    };
+    let schema_conn = match db::connection::connect_db() {
+        Ok(conn) => conn,
+        Err(err) => {
+            tracing::error!(err = ?err, "Failed to open schema database");
+            panic!("failed to open schema database");
+        }
+    };
 
-    db::migration::migrate(&log_conn).expect("migrate");
+    if let Err(err) = db::migration::migrate(&log_conn) {
+        tracing::error!(err = ?err, "Failed to apply sqlite migrations");
+        panic!("failed to apply sqlite migrations");
+    }
+    tracing::info!("Sqlite connections ready and migrations applied");
 
     let log_conn = Arc::new(Mutex::new(log_conn));
     let metrics_conn = Arc::new(Mutex::new(metrics_conn));

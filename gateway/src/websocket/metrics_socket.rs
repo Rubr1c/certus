@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{net::SocketAddr, sync::Arc};
 
 use axum::{
     extract::{
@@ -13,11 +13,14 @@ use crate::{metrics::MetricEvent, server::state::app_state};
 
 pub async fn ws(
     ws: WebSocketUpgrade,
+    axum::extract::ConnectInfo(addr): axum::extract::ConnectInfo<SocketAddr>,
     State(state): State<Arc<app_state::AppState>>,
 ) -> Response {
+    tracing::info!(client_ip = %addr.ip(), "Metrics websocket client connected");
     ws.on_upgrade(move |socket| {
         run(
             socket,
+            addr,
             // has to exist to have reached here
             state.metrics_broadcast_tx.as_ref().unwrap().clone(),
         )
@@ -26,6 +29,7 @@ pub async fn ws(
 
 pub async fn run(
     mut socket: WebSocket,
+    addr: SocketAddr,
     metrics_tx: broadcast::Sender<MetricEvent>,
 ) {
     let mut metrics_rx = metrics_tx.subscribe();
@@ -39,6 +43,10 @@ pub async fn run(
                         .await
                         .is_err()
                     {
+                        tracing::info!(
+                            client_ip = %addr.ip(),
+                            "Metrics websocket client disconnected"
+                        );
                         break;
                     }
                 }
@@ -47,9 +55,17 @@ pub async fn run(
                 }
             },
             Err(broadcast::error::RecvError::Lagged(skipped)) => {
-                tracing::error!("Warning: Client missed {} metrics", skipped);
+                tracing::warn!(
+                    client_ip = %addr.ip(),
+                    skipped,
+                    "Metrics websocket client lagged"
+                );
             }
             Err(broadcast::error::RecvError::Closed) => {
+                tracing::info!(
+                    client_ip = %addr.ip(),
+                    "Metrics websocket broadcast closed"
+                );
                 break;
             }
         }
