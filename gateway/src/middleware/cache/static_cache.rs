@@ -72,7 +72,7 @@ pub async fn send_and_save(
         }
     };
 
-    let res = forwarding::handle_request(&upstream, req, timeout).await;
+    let res = forwarding::handle_request(upstream, req, timeout).await;
 
     //TODO: remove reused code
     match res {

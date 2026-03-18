@@ -1,12 +1,10 @@
 use std::net::SocketAddr;
 
 #[inline(always)]
-pub fn signal() -> impl Future<Output = ()> {
-    async {
-        tokio::signal::ctrl_c().await.expect("Failed to listen for Ctrl+C");
+pub async fn signal() {
+    tokio::signal::ctrl_c().await.expect("Failed to listen for Ctrl+C");
 
-        tracing::info!("\nShutting down...");
-    }
+    tracing::info!("\nShutting down...");
 }
 
 #[inline(always)]

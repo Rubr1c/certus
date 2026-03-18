@@ -129,15 +129,12 @@ impl DynBackend {
                 {
                     return;
                 }
-                match ttl {
-                    Some(secs) => {
-                        let _: Result<(), _> = redis::cmd("EXPIRE")
-                            .arg(&redis_key)
-                            .arg(*secs)
-                            .query_async(&mut *conn)
-                            .await;
-                    }
-                    None => {}
+                if let Some(secs) = ttl {
+                    let _: Result<(), _> = redis::cmd("EXPIRE")
+                        .arg(&redis_key)
+                        .arg(*secs)
+                        .query_async(&mut *conn)
+                        .await;
                 }
             }
         }

@@ -104,7 +104,7 @@ pub async fn reroute(
         rate_limit::key::build(&config.rate_limit, &ctx, headers);
 
     match limiter::run(
-        &target_route.1,
+        target_route.1,
         token_bucket_key,
         &config,
         &state.user_tokens,
@@ -233,7 +233,7 @@ pub async fn reroute(
 
     let server = selector::run(
         &routing_table.routes,
-        (&target_route.0, &target_route.1),
+        (target_route.0, target_route.1),
         &config.default_server,
         &state.idle_queue,
     );

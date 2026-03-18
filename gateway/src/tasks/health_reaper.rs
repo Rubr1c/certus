@@ -77,12 +77,11 @@ pub async fn run(state: Arc<AppState>) {
                 let queue = entry.value();
                 let len = queue.len();
                 for _ in 0..len {
-                    if let Some(upstream) = queue.pop() {
-                        if upstream.health_state.load(Ordering::Acquire)
+                    if let Some(upstream) = queue.pop()
+                        && upstream.health_state.load(Ordering::Acquire)
                             != HealthState::Dead as u8
-                        {
-                            queue.push(upstream);
-                        }
+                    {
+                        queue.push(upstream);
                     }
                 }
             }

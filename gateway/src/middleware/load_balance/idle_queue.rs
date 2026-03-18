@@ -35,28 +35,28 @@ pub async fn set_idle(
     }
 
     for (route, route_config) in &config.routes {
-        if route_config.endpoints.contains(&body_string) {
-            if let Some(server) = &upstream {
-                let queue = state.idle_queue.get_mut(route);
-                match queue {
-                    Some(q) => {
-                        tracing::debug!(
-                            route = %route,
-                            server = %server.pool.server_addr,
-                            "Server pushed to idle queue"
-                        );
-                        q.push(server.clone());
-                    }
-                    _ => {
-                        let q = SegQueue::<Arc<UpstreamServer>>::new();
-                        q.push(server.clone());
-                        tracing::debug!(
-                            route = %route,
-                            server = %server.pool.server_addr,
-                            "Created idle queue and pushed server"
-                        );
-                        state.idle_queue.insert(route.clone(), q);
-                    }
+        if route_config.endpoints.contains(&body_string)
+            && let Some(server) = &upstream
+        {
+            let queue = state.idle_queue.get_mut(route);
+            match queue {
+                Some(q) => {
+                    tracing::debug!(
+                        route = %route,
+                        server = %server.pool.server_addr,
+                        "Server pushed to idle queue"
+                    );
+                    q.push(server.clone());
+                }
+                _ => {
+                    let q = SegQueue::<Arc<UpstreamServer>>::new();
+                    q.push(server.clone());
+                    tracing::debug!(
+                        route = %route,
+                        server = %server.pool.server_addr,
+                        "Created idle queue and pushed server"
+                    );
+                    state.idle_queue.insert(route.clone(), q);
                 }
             }
         }

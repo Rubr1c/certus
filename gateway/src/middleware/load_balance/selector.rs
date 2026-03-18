@@ -18,7 +18,7 @@ pub fn run<'a>(
 ) -> &'a String {
     if idle_queue.is_empty() {
         tracing::debug!("Idle Queue is empty");
-        return p2c::p2c_pick(&routes, &target.1, &default_server);
+        return p2c::p2c_pick(routes, target.1, default_server);
     }
 
     match idle_queue.get(target.0) {
@@ -28,13 +28,13 @@ pub fn run<'a>(
                 .map(|(key, _)| key)
                 .unwrap_or_else(|| {
                     tracing::debug!("Idle Queue is empty");
-                    p2c::p2c_pick(routes, &target.1, default_server)
+                    p2c::p2c_pick(routes, target.1, default_server)
                 }),
             _ => {
                 tracing::debug!("Idle Queue is empty");
-                p2c::p2c_pick(routes, &target.1, default_server)
+                p2c::p2c_pick(routes, target.1, default_server)
             }
         },
-        _ => p2c::p2c_pick(routes, &target.1, default_server),
+        _ => p2c::p2c_pick(routes, target.1, default_server),
     }
 }

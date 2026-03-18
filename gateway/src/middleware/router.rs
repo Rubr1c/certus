@@ -17,7 +17,7 @@ pub fn build_tree(
 
     let mut router = matchit::Router::new();
 
-    for (route, _) in route_conf {
+    for route in route_conf.keys() {
         if let Err(e) = router.insert(route, Arc::<str>::from(route.as_str())) {
             tracing::error!("Failed to insert route '{}': {}", route, e);
         }

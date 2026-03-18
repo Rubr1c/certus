@@ -96,7 +96,7 @@ pub async fn handle_request(
     req: axum::extract::Request,
     timeout: u64,
 ) -> Result<hyper::Response<Incoming>, GatewayError> {
-    let sender = pool::borrow_connection(&upstream, timeout).await?;
+    let sender = pool::borrow_connection(upstream, timeout).await?;
 
     let (res, sender) = match forward_request(sender, req).await {
         Ok((res, sender)) => (res, sender),
@@ -111,10 +111,9 @@ pub async fn handle_request(
         }
     };
 
-    let reusable =
-        !res.headers().get("connection").is_some_and(|v| v == "close");
+    let reusable = res.headers().get("connection").is_none_or(|v| v != "close");
 
-    pool::release_connection(&upstream, sender, reusable).await;
+    pool::release_connection(upstream, sender, reusable).await;
 
     Ok(res)
 }

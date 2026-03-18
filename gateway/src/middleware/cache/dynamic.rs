@@ -37,11 +37,11 @@ pub async fn try_save(
         .and_then(|h| h.to_str().ok())
         .and_then(|s| s.parse::<u64>().ok());
 
-    if let Some(len) = content_length {
-        if len > max_size {
-            tracing::debug!("Response too large to cache ({len} bytes)");
-            return (response.into_response(), None);
-        }
+    if let Some(len) = content_length
+        && len > max_size
+    {
+        tracing::debug!("Response too large to cache ({len} bytes)");
+        return (response.into_response(), None);
     }
 
     let (parts, body) = response.into_parts();
@@ -92,7 +92,7 @@ pub async fn try_find(
     match cache.get(ck).await {
         Some(res) => {
             tracing::debug!("Returning cached response to {}", path);
-            return Some(res.into_response());
+            Some(res.into_response())
         }
         _ => {
             tracing::debug!("Response not found in cache");

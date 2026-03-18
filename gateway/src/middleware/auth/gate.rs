@@ -38,35 +38,33 @@ pub fn run(
             Some(t) => {
                 match &config.auth.method {
                     AuthType::JWT { secret, algorithm } => {
-                        match jwt::decode(t, secret, &algorithm) {
+                        match jwt::decode(t, secret, algorithm) {
                             Ok(claims) => {
                                 //TODO: put claims in header
                                 tracing::debug!("User authenticated");
 
-                                match claims.user_id {
-                                    Some(id) => {
-                                        headers.insert(
+                                if let Some(id) = claims.user_id {
+                                    headers.insert(
                                         "X-User-Id",
                                         axum::http::HeaderValue::from_str(
                                             id.as_str(),
                                         )
-                                        .map_err(|_| GatewayError::InternalServerError)?
+                                        .map_err(|_| {
+                                            GatewayError::InternalServerError
+                                        })?,
                                     );
-                                    }
-                                    _ => {}
                                 }
 
-                                match claims.role {
-                                    Some(role) => {
-                                        headers.insert(
+                                if let Some(role) = claims.role {
+                                    headers.insert(
                                         "X-User-Role",
                                         axum::http::HeaderValue::from_str(
                                             role.as_str(),
                                         )
-                                        .map_err(|_| GatewayError::InternalServerError)?
+                                        .map_err(|_| {
+                                            GatewayError::InternalServerError
+                                        })?,
                                     );
-                                    }
-                                    _ => {}
                                 }
 
                                 return Ok(());
@@ -94,7 +92,7 @@ pub fn run(
             }
         }
     }
-    return Ok(());
+    Ok(())
 }
 
 #[inline(always)]

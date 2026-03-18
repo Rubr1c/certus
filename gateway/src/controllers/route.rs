@@ -87,7 +87,7 @@ pub async fn all(
     let mut results: Vec<UpstreamHealth> =
         Vec::with_capacity(table.routes.len());
 
-    for (_, upstream) in &table.routes {
+    for upstream in table.routes.values() {
         let ok = health::health_ok(upstream).await;
         results.push(UpstreamHealth {
             address: upstream.pool.server_addr.to_string(),
