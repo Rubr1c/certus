@@ -11,7 +11,7 @@ use crate::{
     websocket::{log_socket, metrics_socket},
 };
 
-#[inline]
+#[inline(always)]
 pub fn run(
     mut certus_routes: axum::Router<Arc<AppState>>,
     args: &cli::CmdArgs,
@@ -26,14 +26,14 @@ pub fn run(
     if args.ws.contains(&cli::WebSocketType::Logs) {
         certus_routes = certus_routes.route("/ws/logs", any(log_socket::ws));
         log_broadcast_tx = Some(broadcast::channel::<LogEntryDTO>(1024).0);
-        tracing::debug!("Running log ws server");
+        tracing::info!(path = "/ws/logs", "Enabled logs websocket");
     }
 
     if args.ws.contains(&cli::WebSocketType::Metrics) {
         certus_routes =
             certus_routes.route("/ws/metrics", any(metrics_socket::ws));
         metrics_broadcast_tx = Some(broadcast::channel::<MetricEvent>(1024).0);
-        tracing::debug!("Running metrics ws server");
+        tracing::info!(path = "/ws/metrics", "Enabled metrics websocket");
     }
 
     (certus_routes, log_broadcast_tx, metrics_broadcast_tx)

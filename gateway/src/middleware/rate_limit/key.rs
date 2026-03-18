@@ -28,7 +28,7 @@ impl TokenBucketKey<'_> {
     }
 }
 
-#[inline]
+#[inline(always)]
 pub fn redis_key(key: &TokenBucketKey<'_>) -> String {
     match key {
         TokenBucketKey::Ip(ip) => format!("rate_limit:ip:{}", ip),
@@ -39,7 +39,7 @@ pub fn redis_key(key: &TokenBucketKey<'_>) -> String {
     }
 }
 
-#[inline]
+#[inline(always)]
 pub fn build<'a>(
     config: &'a RateLimitConfig,
     ctx: &'a RequestContext,

@@ -10,6 +10,7 @@ use super::types::{
 
 impl Default for Config {
     /// Default config for certus (not recommended)
+    #[inline(always)]
     fn default() -> Self {
         Config {
             server: ServerConfig::default(),
@@ -25,12 +26,14 @@ impl Default for Config {
 }
 
 impl Default for ServerConfig {
+    #[inline(always)]
     fn default() -> Self {
         ServerConfig { port: default_port(), origins: Vec::new() }
     }
 }
 
 impl Default for RouteConfig {
+    #[inline(always)]
     fn default() -> Self {
         RouteConfig {
             endpoints: Vec::new(),
@@ -45,6 +48,7 @@ impl Default for RouteConfig {
 }
 
 impl Default for RateLimitConfig {
+    #[inline(always)]
     fn default() -> Self {
         RateLimitConfig {
             max_tokens: default_max_tokens(),
@@ -56,6 +60,7 @@ impl Default for RateLimitConfig {
 }
 
 impl Default for CacheConfig {
+    #[inline(always)]
     fn default() -> Self {
         CacheConfig {
             size: 1000,
@@ -69,18 +74,21 @@ impl Default for CacheConfig {
 }
 
 impl Default for StaticCacheConfig {
+    #[inline(always)]
     fn default() -> Self {
         StaticCacheConfig { cache_type: StorageType::default() }
     }
 }
 
 impl Default for ConnectionConfig {
+    #[inline(always)]
     fn default() -> Self {
         ConnectionConfig { connect_timeout: 2000 }
     }
 }
 
 impl Default for AuthConfig {
+    #[inline(always)]
     fn default() -> Self {
         AuthConfig {
             method: AuthType::default(),
@@ -89,34 +97,42 @@ impl Default for AuthConfig {
     }
 }
 
+#[inline(always)]
 pub fn default_port() -> u16 {
     8080
 }
 
+#[inline(always)]
 pub fn default_server_addr() -> String {
     "127.0.0.1:80".to_string()
 }
 
+#[inline(always)]
 pub fn default_max_connections() -> usize {
     100
 }
 
+#[inline(always)]
 pub fn default_max_tokens() -> f64 {
     100.0
 }
 
+#[inline(always)]
 pub fn default_refill_rate() -> f64 {
     1.0
 }
 
+#[inline(always)]
 pub fn default_auth_prefix() -> String {
     "Bearer".to_string()
 }
 
+#[inline(always)]
 pub fn default_cache_size() -> u64 {
     1000
 }
 
+#[inline(always)]
 pub fn default_cache_max_size() -> u64 {
     10_485_760
 }

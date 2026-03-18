@@ -2,6 +2,7 @@ use hyper::header::CONTENT_TYPE;
 
 use super::extractor;
 
+#[inline(always)]
 pub fn extract_body(headers: &hyper::HeaderMap, body: &[u8]) -> Option<String> {
     let is_json = headers
         .get(CONTENT_TYPE)

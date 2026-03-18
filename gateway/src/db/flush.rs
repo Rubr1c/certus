@@ -15,6 +15,7 @@ use crate::{
 ///
 /// * `conn` - arc mutex connection of a sqlite database
 /// * `batch` - mutable vector of logs to save
+#[inline(always)]
 pub fn log(
     conn: &Arc<Mutex<rusqlite::Connection>>,
     batch: &mut Vec<LogEntryDTO>,
@@ -31,6 +32,7 @@ pub fn log(
     });
 }
 
+#[inline(always)]
 pub fn metrics(
     conn: &Arc<Mutex<rusqlite::Connection>>,
     batch: &mut Vec<MetricEvent>,
@@ -47,6 +49,7 @@ pub fn metrics(
     });
 }
 
+#[inline(always)]
 pub fn schema(
     conn: &Arc<Mutex<rusqlite::Connection>>,
     batch: &mut Vec<ReqResSchemaDTO>,

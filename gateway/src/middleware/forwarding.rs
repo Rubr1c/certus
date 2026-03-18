@@ -24,11 +24,12 @@ use crate::{
 ///
 /// Returns an error if:
 /// * Failed to send request to server
+#[inline(always)]
 async fn forward_request(
     conn: PooledConnection,
     req: axum::extract::Request,
 ) -> Result<(hyper::Response<Incoming>, PooledConnection), GatewayError> {
-    tracing::info!("Atempting forward request");
+    tracing::debug!("Atempting forward request");
     let (res, sender) =
         match conn {
             PooledConnection::Http1(mut sender) => {
@@ -45,12 +46,12 @@ async fn forward_request(
             }
         };
 
-    tracing::info!("Request forwarded successfuly");
+    tracing::debug!("Request forwarded successfuly");
 
     Ok((res, sender))
 }
 
-#[inline]
+#[inline(always)]
 pub fn prepare(
     config: &RouteConfig,
     req: &mut hyper::Request<axum::body::Body>,
@@ -88,13 +89,14 @@ pub fn prepare(
 /// Returns an error if:
 /// * Failed to get or create a connection
 /// * Failed to forward the request
+#[inline(always)]
 #[instrument(name = "request", skip_all, fields(server = %upstream.pool.server_addr))]
 pub async fn handle_request(
     upstream: &UpstreamServer,
     req: axum::extract::Request,
     timeout: u64,
 ) -> Result<hyper::Response<Incoming>, GatewayError> {
-    let sender = pool::borrow_connection(&upstream, timeout).await?;
+    let sender = pool::borrow_connection(upstream, timeout).await?;
 
     let (res, sender) = match forward_request(sender, req).await {
         Ok((res, sender)) => (res, sender),
@@ -109,10 +111,9 @@ pub async fn handle_request(
         }
     };
 
-    let reusable =
-        !res.headers().get("connection").is_some_and(|v| v == "close");
+    let reusable = res.headers().get("connection").is_none_or(|v| v != "close");
 
-    pool::release_connection(&upstream, sender, reusable).await;
+    pool::release_connection(upstream, sender, reusable).await;
 
     Ok(res)
 }

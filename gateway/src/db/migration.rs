@@ -8,6 +8,7 @@
 ///
 /// Returns an error if:
 /// * query is failed to execute
+#[inline(always)]
 pub fn migrate(conn: &rusqlite::Connection) -> rusqlite::Result<()> {
     let querys = vec![
         "CREATE TABLE IF NOT EXISTS logs (

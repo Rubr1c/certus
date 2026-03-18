@@ -1,6 +1,7 @@
 use crate::db::models::request_metric::RequestMetricSummary;
 use rusqlite::types::ToSql;
 
+#[inline(always)]
 pub fn get(
     conn: &rusqlite::Connection,
     from: Option<&str>,

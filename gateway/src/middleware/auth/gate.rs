@@ -21,7 +21,7 @@ use super::jwt;
 /// Returns an error if:
 /// * Authentication is enabled and no token was provided
 /// * Token failed to be decoded [`decode`]
-#[inline]
+#[inline(always)]
 pub fn run(
     headers: &mut hyper::HeaderMap<axum::http::HeaderValue>,
     token: Option<&str>,
@@ -29,46 +29,52 @@ pub fn run(
     needs_auth: bool,
 ) -> Result<(), GatewayError> {
     if needs_auth {
-        tracing::info!("Authenticating user");
+        tracing::debug!(
+            has_token = token.is_some(),
+            auth_method = ?config.auth.method,
+            "Authenticating user"
+        );
         match token {
             Some(t) => {
                 match &config.auth.method {
                     AuthType::JWT { secret, algorithm } => {
-                        match jwt::decode(t, secret, &algorithm) {
+                        match jwt::decode(t, secret, algorithm) {
                             Ok(claims) => {
                                 //TODO: put claims in header
-                                tracing::info!("User authenticated");
+                                tracing::debug!("User authenticated");
 
-                                match claims.user_id {
-                                    Some(id) => {
-                                        headers.insert(
+                                if let Some(id) = claims.user_id {
+                                    headers.insert(
                                         "X-User-Id",
                                         axum::http::HeaderValue::from_str(
                                             id.as_str(),
                                         )
-                                        .map_err(|_| GatewayError::InternalServerError)?
+                                        .map_err(|_| {
+                                            GatewayError::InternalServerError
+                                        })?,
                                     );
-                                    }
-                                    _ => {}
                                 }
 
-                                match claims.role {
-                                    Some(role) => {
-                                        headers.insert(
+                                if let Some(role) = claims.role {
+                                    headers.insert(
                                         "X-User-Role",
                                         axum::http::HeaderValue::from_str(
                                             role.as_str(),
                                         )
-                                        .map_err(|_| GatewayError::InternalServerError)?
+                                        .map_err(|_| {
+                                            GatewayError::InternalServerError
+                                        })?,
                                     );
-                                    }
-                                    _ => {}
                                 }
 
                                 return Ok(());
                             }
                             Err(e) => {
-                                tracing::info!("User not authenticated");
+                                tracing::debug!(
+                                    has_token = true,
+                                    auth_method = ?config.auth.method,
+                                    "User not authenticated"
+                                );
                                 return Err(e);
                             }
                         }
@@ -77,15 +83,19 @@ pub fn run(
                 }
             }
             _ => {
-                tracing::info!("User not authenticated");
+                tracing::debug!(
+                    has_token = false,
+                    auth_method = ?config.auth.method,
+                    "User not authenticated"
+                );
                 return Err(GatewayError::Unauthorized);
             }
         }
     }
-    return Ok(());
+    Ok(())
 }
 
-#[inline]
+#[inline(always)]
 pub fn extract(
     config: &Config,
     headers: &hyper::HeaderMap<axum::http::HeaderValue>,

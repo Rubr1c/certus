@@ -14,14 +14,14 @@ use crate::{
 ///
 /// * `cache` - static cache to search in
 /// * `path` - full path of the request
-#[inline]
+#[inline(always)]
 pub async fn try_find(
     cache: &cache::backend::StaticBackend,
     path: &str,
 ) -> Option<hyper::Response<axum::body::Body>> {
     match cache.get(path).await {
         Some(res) => {
-            tracing::info!("Returning static cached response to {}", path);
+            tracing::debug!("Returning static cached response to {}", path);
             Some(res.clone().into_response())
         }
         None => {
@@ -72,7 +72,7 @@ pub async fn send_and_save(
         }
     };
 
-    let res = forwarding::handle_request(&upstream, req, timeout).await;
+    let res = forwarding::handle_request(upstream, req, timeout).await;
 
     //TODO: remove reused code
     match res {
@@ -99,7 +99,7 @@ pub async fn send_and_save(
             };
 
             cache.set(path.clone(), cached).await;
-            tracing::info!("Saved static path {} to cache", path);
+            tracing::debug!("Saved static path {} to cache", path);
         }
         Err(e) => {
             tracing::error!("Failed to fetch static path {}: {}", path, e)

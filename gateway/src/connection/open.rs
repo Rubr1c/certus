@@ -24,13 +24,14 @@ use super::tls;
 /// * Failed to connect to server
 /// * Timed out while trying to connect
 /// * Failed to perform handshake with server
+#[inline(always)]
 #[instrument(skip_all, fields(http_version = ?upstream.pool.http_version))]
 pub async fn open_connection(
     upstream: &server::UpstreamServer,
     timeout: u64,
 ) -> Result<protocol::PooledConnection, Box<dyn std::error::Error + Send + Sync>>
 {
-    tracing::info!("Connecting to new upstream");
+    tracing::debug!("Connecting to new upstream");
     let connect_future = TcpStream::connect(upstream.pool.server_addr.as_ref());
     let stream =
         tokio::time::timeout(Duration::from_secs(timeout), connect_future)
@@ -104,7 +105,7 @@ pub async fn open_connection(
         }
     };
 
-    tracing::info!("Connetion made");
+    tracing::debug!("Connetion made");
 
     Ok(sender)
 }

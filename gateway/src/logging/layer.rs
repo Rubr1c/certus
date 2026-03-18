@@ -39,6 +39,8 @@ where
             fields: visitor.fields,
         };
 
-        let _ = self.tx.try_send(entry);
+        if let Err(err) = self.tx.try_send(entry) {
+            eprintln!("failed to enqueue log entry for persistence: {err}");
+        }
     }
 }

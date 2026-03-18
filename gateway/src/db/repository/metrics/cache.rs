@@ -4,6 +4,7 @@ use crate::{
 };
 use rusqlite::types::ToSql;
 
+#[inline(always)]
 pub fn save(
     conn: &mut rusqlite::Connection,
     metrics: Vec<&CacheMetric>,
@@ -32,6 +33,7 @@ pub fn save(
     Ok(())
 }
 
+#[inline(always)]
 pub fn get(
     conn: &rusqlite::Connection,
     from: Option<&str>,
@@ -88,6 +90,7 @@ pub fn get(
     rows.collect()
 }
 
+#[inline(always)]
 pub fn agg(
     conn: &rusqlite::Connection,
     from: Option<&str>,

@@ -5,7 +5,7 @@ use crate::{
     server::{self, shutdown},
 };
 
-#[inline]
+#[inline(always)]
 pub async fn run(
     app: axum::Router,
     address: SocketAddr,
@@ -13,21 +13,38 @@ pub async fn run(
 ) {
     match tls_config {
         Some(conf) => {
+            tracing::info!(address = %address, "Starting HTTPS listener");
             server::tls::serve(app, address, server::tls::load(conf).await)
                 .await;
         }
         _ => {
-            let listener = tokio::net::TcpListener::bind(address)
-                .await
-                .expect("Failed to bind TCP listener");
+            tracing::info!(address = %address, "Starting HTTP listener");
+            let listener = match tokio::net::TcpListener::bind(address).await {
+                Ok(listener) => listener,
+                Err(err) => {
+                    tracing::error!(
+                        address = %address,
+                        err = ?err,
+                        "Failed to bind TCP listener"
+                    );
+                    panic!("failed to bind tcp listener");
+                }
+            };
 
-            axum::serve(
+            if let Err(err) = axum::serve(
                 listener,
                 app.into_make_service_with_connect_info::<SocketAddr>(),
             )
             .with_graceful_shutdown(shutdown::signal())
             .await
-            .unwrap();
+            {
+                tracing::error!(
+                    address = %address,
+                    err = ?err,
+                    "HTTP server exited with error"
+                );
+                panic!("http server exited with error");
+            }
         }
     }
 }

@@ -24,7 +24,7 @@ pub struct Claims {
 /// Returns an error if:
 /// * Failed to decode token
 /// * Token is expired
-#[inline]
+#[inline(always)]
 pub fn decode(
     token: &str,
     secret: &String,

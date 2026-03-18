@@ -17,6 +17,7 @@ use rusqlite::types::Type;
 ///
 /// Panics if:
 /// * Failed to parse config to json
+#[inline(always)]
 pub fn save(
     conn: &rusqlite::Connection,
     config: &Config,
@@ -48,6 +49,7 @@ pub fn save(
 /// Returns an error if:
 /// * Failed to get config row
 /// * Failed to parse json to config
+#[inline(always)]
 pub fn get(conn: &rusqlite::Connection) -> rusqlite::Result<Config> {
     conn.query_row("SELECT config_data FROM config WHERE id = 1", [], |row| {
         let json_str: String = row.get(0)?;

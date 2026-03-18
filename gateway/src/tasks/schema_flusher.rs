@@ -5,7 +5,7 @@ use tokio::{sync::mpsc, time};
 
 use crate::{db, schema::ReqResSchemaDTO};
 
-#[inline]
+#[inline(always)]
 pub async fn run(
     conn: Arc<Mutex<rusqlite::Connection>>,
     mut schema_rx: mpsc::Receiver<ReqResSchemaDTO>,

@@ -16,6 +16,7 @@ pub struct LogQuery {
     pub search: Option<String>,
 }
 
+#[inline(always)]
 pub async fn get(
     axum::extract::State(state): axum::extract::State<Arc<app_state::AppState>>,
     axum::extract::Query(pagination): axum::extract::Query<
@@ -23,6 +24,16 @@ pub async fn get(
     >,
     axum::extract::Query(filters): axum::extract::Query<LogQuery>,
 ) -> impl IntoResponse {
+    tracing::debug!(
+        page = pagination.page,
+        per_page = pagination.per_page,
+        from = ?filters.from,
+        to = ?filters.to,
+        level = ?filters.level,
+        target = ?filters.target,
+        search = ?filters.search,
+        "Querying stored logs"
+    );
     match db::task::run(
         Arc::clone(&state.db_conn),
         move |conn| {

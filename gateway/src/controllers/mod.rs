@@ -6,6 +6,7 @@ pub mod metrics;
 pub mod route;
 pub mod schema;
 
+#[inline(always)]
 fn default_per_page() -> u32 {
     20
 }

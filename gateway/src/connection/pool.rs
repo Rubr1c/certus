@@ -20,11 +20,12 @@ use super::open;
 /// Returns an error if:
 /// * Max connections to server reached
 /// * Failed to open new connection
+#[inline(always)]
 pub async fn borrow_connection(
     upstream: &server::UpstreamServer,
     timeout: u64,
 ) -> Result<protocol::PooledConnection, GatewayError> {
-    tracing::info!("Checking for idle connetions");
+    tracing::debug!("Checking for idle connetions");
     while let Some(sender) = upstream.pool.idle_connections.pop() {
         let alive = match &sender {
             protocol::PooledConnection::Http1(s) => s.is_ready(),
@@ -32,7 +33,7 @@ pub async fn borrow_connection(
         };
 
         if alive {
-            tracing::info!("Found idle connetion");
+            tracing::debug!("Found idle connetion");
             upstream.active_connctions.fetch_add(1, Ordering::AcqRel);
             return Ok(sender);
         }
@@ -41,11 +42,11 @@ pub async fn borrow_connection(
         tracing::warn!("Discarded dead idle connection");
     }
 
-    tracing::info!("No idle connetions found");
+    tracing::debug!("No idle connetions found");
 
     let total = upstream.pool.total_connections.load(Ordering::Acquire);
     if total >= upstream.pool.max_connections {
-        tracing::info!(total_cons = total, "Max connetions reached");
+        tracing::warn!(total_cons = total, "Max connetions reached");
         return Err(GatewayError::Overloaded);
     }
 
@@ -66,18 +67,19 @@ pub async fn borrow_connection(
 /// * `upstream` - target server to release
 /// * `sender` - connection to the server
 /// * `reusable` - if the connection can be reused and put in idle
+#[inline(always)]
 pub async fn release_connection(
     upstream: &server::UpstreamServer,
     sender: protocol::PooledConnection,
     reusable: bool,
 ) {
-    tracing::info!("Releasing connetion");
+    tracing::debug!("Releasing connetion");
     upstream.active_connctions.fetch_sub(1, Ordering::AcqRel);
 
     if reusable {
         upstream.pool.idle_connections.push(sender);
     } else {
-        tracing::info!("Connetion not reusable");
+        tracing::debug!("Connetion not reusable");
         upstream.pool.total_connections.fetch_sub(1, Ordering::AcqRel);
     }
 }

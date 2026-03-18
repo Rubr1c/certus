@@ -9,9 +9,11 @@ use crate::{
     upstream::{health, server::HealthState},
 };
 
-#[inline]
+#[inline(always)]
 pub async fn run(state: Arc<AppState>) {
     let state_clone = state.clone();
+
+    tracing::info!("Starting upstream health monitor");
 
     // check and mark
     tokio::spawn(async move {
@@ -22,6 +24,8 @@ pub async fn run(state: Arc<AppState>) {
             for (addr, upstream) in &table.routes {
                 if !health::health_ok(upstream).await {
                     tracing::warn!(server = %addr, "Health check failed");
+                } else {
+                    tracing::debug!(server = %addr, "Health check passed");
                 }
             }
         }
@@ -29,6 +33,7 @@ pub async fn run(state: Arc<AppState>) {
 
     // remove
     tokio::spawn(async move {
+        tracing::info!("Starting dead upstream reaper");
         loop {
             //TODO: make configable
             tokio::time::sleep(Duration::from_secs(5)).await;
@@ -61,17 +66,22 @@ pub async fn run(state: Arc<AppState>) {
             let new_table =
                 RoutingTable { router: new_router, routes: new_routes };
             state_clone.routing_table.store(Arc::new(new_table));
+            tracing::warn!(
+                removed_upstream_count = dead_addrs.len(),
+                remaining_upstream_count =
+                    state_clone.routing_table.load().routes.len(),
+                "Removed dead upstreams from routing table"
+            );
 
             for entry in state_clone.idle_queue.iter_mut() {
                 let queue = entry.value();
                 let len = queue.len();
                 for _ in 0..len {
-                    if let Some(upstream) = queue.pop() {
-                        if upstream.health_state.load(Ordering::Acquire)
+                    if let Some(upstream) = queue.pop()
+                        && upstream.health_state.load(Ordering::Acquire)
                             != HealthState::Dead as u8
-                        {
-                            queue.push(upstream);
-                        }
+                    {
+                        queue.push(upstream);
                     }
                 }
             }

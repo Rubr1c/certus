@@ -23,7 +23,7 @@ impl CacheKey<'_> {
     }
 }
 
-#[inline]
+#[inline(always)]
 pub fn build<'a>(ctx: &'a RequestContext) -> CacheKey<'a> {
     CacheKey {
         token: ctx.token.as_deref().map(Cow::Borrowed),

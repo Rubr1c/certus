@@ -2,8 +2,6 @@ name: Gateway Release
 
 on:
   push:
-    branches:
-      - main
     tags:
       - "v*"
 
@@ -69,17 +67,17 @@ jobs:
           - runner: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             asset_target: linux-x86_64
-            binary: gateway
+            binary: certus
             archive_ext: tar.gz
           - runner: macos-14
             target: aarch64-apple-darwin
             asset_target: macos-aarch64
-            binary: gateway
+            binary: certus
             archive_ext: tar.gz
           - runner: windows-latest
             target: x86_64-pc-windows-msvc
             asset_target: windows-x86_64
-            binary: gateway.exe
+            binary: certus.exe
             archive_ext: zip
     runs-on: ${{ matrix.runner }}
     steps:
@@ -97,7 +95,7 @@ jobs:
         shell: bash
         run: |
           VERSION="${{ needs.meta.outputs.version }}"
-          ASSET="gateway-v${VERSION}-${{ matrix.asset_target }}"
+          ASSET="certus-v${VERSION}-${{ matrix.asset_target }}"
 
           mkdir -p "$ASSET"
           cp "target/${{ matrix.target }}/release/${{ matrix.binary }}" "$ASSET/"
@@ -110,7 +108,7 @@ jobs:
         shell: pwsh
         run: |
           $version = "${{ needs.meta.outputs.version }}"
-          $asset = "gateway-v$version-${{ matrix.asset_target }}"
+          $asset = "certus-v$version-${{ matrix.asset_target }}"
 
           New-Item -ItemType Directory -Force -Path $asset | Out-Null
           Copy-Item "target/${{ matrix.target }}/release/${{ matrix.binary }}" "$asset/"
@@ -122,7 +120,7 @@ jobs:
         with:
           name: ${{ matrix.asset_target }}
           path: |
-            gateway-v${{ needs.meta.outputs.version }}-${{ matrix.asset_target }}.${{ matrix.archive_ext }}
+            certus-v${{ needs.meta.outputs.version }}-${{ matrix.asset_target }}.${{ matrix.archive_ext }}
 
   source:
     needs: meta
@@ -138,14 +136,14 @@ jobs:
           VERSION="${{ needs.meta.outputs.version }}"
           git archive \
             --format=zip \
-            --prefix="gateway-v${VERSION}-source/" \
-            --output="gateway-v${VERSION}-source.zip" \
+            --prefix="certus-v${VERSION}-source/" \
+            --output="certus-v${VERSION}-source.zip" \
             HEAD
 
       - uses: actions/upload-artifact@v4
         with:
           name: source
-          path: gateway-v${{ needs.meta.outputs.version }}-source.zip
+          path: certus-v${{ needs.meta.outputs.version }}-source.zip
 
   release:
     needs: [meta, build, source]
