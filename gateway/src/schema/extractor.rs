@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use serde_json::Value;
 
+#[inline(always)]
 pub fn extract_body_schema(body: &[u8]) -> Option<String> {
     let val: Value = serde_json::from_slice(body).ok()?;
     let obj = val.as_object()?;

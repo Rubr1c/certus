@@ -5,7 +5,7 @@ use tracing_subscriber::{
 
 use crate::logging::{LogEntryDTO, layer::LogChannelLayer};
 
-#[inline]
+#[inline(always)]
 pub fn run(log_tx: mpsc::Sender<LogEntryDTO>) {
     // maybe make custom writer for this to send to a channel too?
     // not sure that will make a different or not just a thought

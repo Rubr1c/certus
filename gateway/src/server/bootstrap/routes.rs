@@ -8,7 +8,7 @@ use crate::{
     server::state::app_state::AppState,
 };
 
-#[inline]
+#[inline(always)]
 pub fn run() -> axum::Router<Arc<AppState>> {
     axum::Router::new()
         .route("/idle", post(load_balance::idle_queue::set_idle))

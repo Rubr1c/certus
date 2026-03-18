@@ -3,6 +3,7 @@ use std::sync::Arc;
 use axum::http::StatusCode;
 use parking_lot::Mutex;
 
+#[inline(always)]
 pub async fn run<T, F>(
     conn: Arc<Mutex<rusqlite::Connection>>,
     task: F,

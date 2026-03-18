@@ -6,6 +6,7 @@ use super::protocol;
 /// - `https://domain.com` → (`domain.com:443`, `domain.com`, HTTPS)
 /// - `http://domain.com:8080` → (`domain.com:8080`, `domain.com`, HTTP)
 /// - `domain.com:3000` → (`domain.com:3000`, `domain.com`, HTTP)
+#[inline(always)]
 pub fn parse_address(address: &str) -> (String, String, protocol::Protocol) {
     let (protocol, rest) =
         if let Some(stripped) = address.strip_prefix("https://") {

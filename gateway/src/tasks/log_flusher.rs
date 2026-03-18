@@ -8,7 +8,7 @@ use tokio::{
 
 use crate::{db, logging::LogEntryDTO};
 
-#[inline]
+#[inline(always)]
 pub async fn run(
     conn: Arc<Mutex<rusqlite::Connection>>,
     mut log_rx: mpsc::Receiver<LogEntryDTO>,

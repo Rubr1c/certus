@@ -30,11 +30,18 @@ pub struct UpstreamHealth {
     pub healthy: bool,
 }
 
+#[inline(always)]
 pub async fn get(
     axum::extract::State(state): axum::extract::State<Arc<app_state::AppState>>,
 ) -> impl IntoResponse {
     let config = state.config.load();
     let table = state.routing_table.load();
+
+    tracing::debug!(
+        configured_route_count = config.routes.len(),
+        active_upstream_count = table.routes.len(),
+        "Serving route state snapshot"
+    );
 
     let routes: Vec<RouteInfo> = config
         .routes
@@ -67,15 +74,20 @@ pub async fn get(
     axum::Json(routes)
 }
 
+#[inline(always)]
 pub async fn all(
     axum::extract::State(state): axum::extract::State<Arc<app_state::AppState>>,
 ) -> impl IntoResponse {
     let table = state.routing_table.load();
+    tracing::debug!(
+        upstream_count = table.routes.len(),
+        "Running health checks for all upstreams"
+    );
 
     let mut results: Vec<UpstreamHealth> =
         Vec::with_capacity(table.routes.len());
 
-    for (_, upstream) in &table.routes {
+    for upstream in table.routes.values() {
         let ok = health::health_ok(upstream).await;
         results.push(UpstreamHealth {
             address: upstream.pool.server_addr.to_string(),
@@ -86,6 +98,7 @@ pub async fn all(
     axum::Json(results)
 }
 
+#[inline(always)]
 pub async fn one(
     axum::extract::State(state): axum::extract::State<Arc<app_state::AppState>>,
     axum::extract::Path(addr): axum::extract::Path<String>,
@@ -93,10 +106,14 @@ pub async fn one(
     let table = state.routing_table.load();
 
     let Some(upstream) = table.routes.get(&addr) else {
+        tracing::warn!(upstream = %addr, "Requested upstream health for missing upstream");
         return Err(axum::http::StatusCode::NOT_FOUND);
     };
 
+    tracing::debug!(upstream = %addr, "Running health check for upstream");
     let ok = health::health_ok(upstream).await;
+
+    tracing::debug!(upstream = %addr, healthy = ok, "Completed upstream health check");
 
     Ok(axum::Json(UpstreamHealth { address: addr, healthy: ok }))
 }

@@ -18,6 +18,7 @@ use crate::upstream::protocol;
 struct NoVerifier(Arc<CryptoProvider>);
 
 impl ServerCertVerifier for NoVerifier {
+    #[inline(always)]
     fn verify_server_cert(
         &self,
         _end_entity: &pki_types::CertificateDer<'_>,
@@ -29,6 +30,7 @@ impl ServerCertVerifier for NoVerifier {
         Ok(ServerCertVerified::assertion())
     }
 
+    #[inline(always)]
     fn verify_tls12_signature(
         &self,
         _message: &[u8],
@@ -38,6 +40,7 @@ impl ServerCertVerifier for NoVerifier {
         Ok(HandshakeSignatureValid::assertion())
     }
 
+    #[inline(always)]
     fn verify_tls13_signature(
         &self,
         _message: &[u8],
@@ -47,11 +50,13 @@ impl ServerCertVerifier for NoVerifier {
         Ok(HandshakeSignatureValid::assertion())
     }
 
+    #[inline(always)]
     fn supported_verify_schemes(&self) -> Vec<SignatureScheme> {
         self.0.signature_verification_algorithms.supported_schemes()
     }
 }
 
+#[inline(always)]
 pub fn tls_connector(http_version: protocol::HttpVersion) -> TlsConnector {
     let provider =
         CryptoProvider::get_default().cloned().unwrap_or_else(|| {

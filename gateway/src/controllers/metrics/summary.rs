@@ -6,6 +6,7 @@ use crate::{db, server::state::app_state};
 
 use super::queries::{INVALID_GROUP_BY_MSG, SummaryQuery, group_by};
 
+#[inline(always)]
 pub async fn get(
     axum::extract::State(state): axum::extract::State<Arc<app_state::AppState>>,
     axum::extract::Query(filters): axum::extract::Query<SummaryQuery>,
@@ -13,9 +14,20 @@ pub async fn get(
     let group = filters.group_by.as_deref().unwrap_or("route");
 
     if !group_by(group) {
+        tracing::warn!(
+            group_by = group,
+            "Rejected invalid metrics summary grouping"
+        );
         return (axum::http::StatusCode::BAD_REQUEST, INVALID_GROUP_BY_MSG)
             .into_response();
     }
+
+    tracing::debug!(
+        from = ?filters.from,
+        to = ?filters.to,
+        group_by = group,
+        "Querying request metrics summary"
+    );
 
     let group_by_owned = group.to_string();
 

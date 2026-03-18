@@ -1,5 +1,6 @@
 use crate::schema::ReqResSchema;
 
+#[inline(always)]
 pub fn save(
     conn: &mut rusqlite::Connection,
     req_res_schemas: Vec<ReqResSchema>,
@@ -28,6 +29,7 @@ pub fn save(
     Ok(())
 }
 
+#[inline(always)]
 pub fn get(
     conn: &rusqlite::Connection,
     page: u32,

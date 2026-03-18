@@ -14,7 +14,7 @@ use crate::schema;
 /// * `ck` - CacheKey for the request
 /// * `ttl` - optional ttl overide
 /// * `max_size` - max response body size (bytes) to cache
-#[inline]
+#[inline(always)]
 pub async fn try_save(
     response: hyper::Response<Incoming>,
     method: &hyper::Method,
@@ -37,11 +37,11 @@ pub async fn try_save(
         .and_then(|h| h.to_str().ok())
         .and_then(|s| s.parse::<u64>().ok());
 
-    if let Some(len) = content_length {
-        if len > max_size {
-            tracing::debug!("Response too large to cache ({len} bytes)");
-            return (response.into_response(), None);
-        }
+    if let Some(len) = content_length
+        && len > max_size
+    {
+        tracing::debug!("Response too large to cache ({len} bytes)");
+        return (response.into_response(), None);
     }
 
     let (parts, body) = response.into_parts();
@@ -67,7 +67,7 @@ pub async fn try_save(
 
     let response = cached.clone().into_response();
 
-    tracing::info!("Saving to cache");
+    tracing::debug!("Saving to cache");
     match ttl {
         Some(secs) => cache.set_ex(ck, cached, &secs).await,
         _ => cache.set(ck, cached).await,
@@ -83,7 +83,7 @@ pub async fn try_save(
 /// * `state` - gateway app state
 /// * `path` - full path of the request
 /// * `ck` - CacheKey for the request
-#[inline]
+#[inline(always)]
 pub async fn try_find(
     cache: &cache::backend::DynBackend,
     path: &str,
@@ -91,11 +91,11 @@ pub async fn try_find(
 ) -> Option<hyper::Response<axum::body::Body>> {
     match cache.get(ck).await {
         Some(res) => {
-            tracing::info!("Returning cached response to {}", path);
-            return Some(res.into_response());
+            tracing::debug!("Returning cached response to {}", path);
+            Some(res.into_response())
         }
         _ => {
-            tracing::info!("Response not found in cache");
+            tracing::debug!("Response not found in cache");
             None
         }
     }

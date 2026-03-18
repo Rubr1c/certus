@@ -6,6 +6,7 @@ use super::response;
 #[derive(Serialize, Deserialize)]
 struct SerializableHeaders(Vec<(String, String)>);
 
+#[inline(always)]
 fn headers_to_json(headers: &hyper::HeaderMap) -> Option<String> {
     let data = SerializableHeaders(
         headers
@@ -18,6 +19,7 @@ fn headers_to_json(headers: &hyper::HeaderMap) -> Option<String> {
     serde_json::to_string(&data).ok()
 }
 
+#[inline(always)]
 fn headers_from_json(json: &str) -> hyper::HeaderMap {
     let mut headers = hyper::HeaderMap::new();
     let Ok(data) = serde_json::from_str::<SerializableHeaders>(json) else {
@@ -34,6 +36,7 @@ fn headers_from_json(json: &str) -> hyper::HeaderMap {
     headers
 }
 
+#[inline(always)]
 pub async fn write_cached_response_hash(
     conn: &mut bb8::PooledConnection<'_, RedisConnectionManager>,
     redis_key: &str,
@@ -55,6 +58,7 @@ pub async fn write_cached_response_hash(
         .map_err(|_| ())
 }
 
+#[inline(always)]
 pub async fn read_cached_response_hash(
     conn: &mut bb8::PooledConnection<'_, RedisConnectionManager>,
     redis_key: &str,

@@ -8,7 +8,7 @@ use tokio::{
 
 use crate::{db, metrics::MetricEvent};
 
-#[inline]
+#[inline(always)]
 pub async fn run(
     conn: Arc<Mutex<rusqlite::Connection>>,
     mut metrics_rx: mpsc::Receiver<MetricEvent>,

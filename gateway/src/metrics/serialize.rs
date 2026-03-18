@@ -1,5 +1,6 @@
 use serde::Serializer;
 
+#[inline(always)]
 pub fn serialize_method<S: Serializer>(
     method: &hyper::Method,
     serializer: S,

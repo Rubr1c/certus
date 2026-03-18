@@ -22,7 +22,9 @@ use super::{Config, error::ConfigError};
 ///     Err(_) => Config::default(),
 /// };
 /// ```
+#[inline(always)]
 pub async fn reload(path: &str) -> Result<Config, ConfigError> {
+    tracing::debug!(config_path = path, "Reading config file");
     let contents = fs::read_to_string(path).await?;
 
     Ok(serde_yaml::from_str::<Config>(&contents)?)

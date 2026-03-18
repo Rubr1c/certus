@@ -13,6 +13,7 @@ pub enum EarlyExit {
 }
 
 impl EarlyExit {
+    #[inline(always)]
     pub fn as_str(&self) -> &'static str {
         match self {
             EarlyExit::RateLimited => "RateLimited",
@@ -41,6 +42,7 @@ pub struct RequestMetric {
 }
 
 impl RequestMetric {
+    #[inline(always)]
     fn new(
         route: Arc<str>,
         status_code: u16,
@@ -68,6 +70,7 @@ impl RequestMetric {
         }
     }
 
+    #[inline(always)]
     pub fn rate_limited(
         route: Arc<str>,
         duration_total_ms: u64,
@@ -89,6 +92,7 @@ impl RequestMetric {
         )
     }
 
+    #[inline(always)]
     pub fn unauthorized(
         route: Arc<str>,
         duration_total_ms: u64,
@@ -110,6 +114,7 @@ impl RequestMetric {
         )
     }
 
+    #[inline(always)]
     pub fn upstream_error(
         route: Arc<str>,
         status_code: u16,
@@ -134,6 +139,7 @@ impl RequestMetric {
         )
     }
 
+    #[inline(always)]
     pub fn success(
         route: Arc<str>,
         status_code: u16,
@@ -175,18 +181,22 @@ pub struct CacheMetric {
 }
 
 impl CacheMetric {
+    #[inline(always)]
     fn new(route: Arc<str>, result: CacheResult) -> Self {
         Self { route, timestamp: Utc::now(), result }
     }
 
+    #[inline(always)]
     pub fn hit(route: Arc<str>) -> Self {
         Self::new(route, CacheResult::Hit)
     }
 
+    #[inline(always)]
     pub fn miss(route: Arc<str>) -> Self {
         Self::new(route, CacheResult::Miss)
     }
 
+    #[inline(always)]
     pub fn bypass(route: Arc<str>) -> Self {
         Self::new(route, CacheResult::Bypass)
     }

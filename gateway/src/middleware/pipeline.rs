@@ -7,9 +7,9 @@ use tracing::{Level, instrument};
 use crate::{
     config::{Config, RouteConfig},
     error::GatewayError,
-    metrics::{CacheMetric, MetricEvent, RequestMetric},
+    metrics::{self, CacheMetric, MetricEvent, RequestMetric},
     middleware::{rate_limit, request_context::RequestContext},
-    schema::ReqResSchemaDTO,
+    schema::{self, ReqResSchemaDTO},
     server::state::{app_state::AppState, routing_table::RoutingTable},
 };
 
@@ -21,7 +21,7 @@ use super::{
     rate_limit::limiter,
 };
 
-#[inline]
+#[inline(always)]
 fn resolve_route<'a>(
     routing_table: &'a Arc<RoutingTable>,
     config: &'a Arc<Config>,
@@ -48,6 +48,7 @@ fn resolve_route<'a>(
 /// * `state` - app state injected by axum
 /// * `addr` - socket address of requester
 /// * `req` - request body
+#[inline(always)]
 #[instrument(name = "router", skip_all, fields(ip = %addr.ip()))]
 pub async fn reroute(
     axum::extract::State(state): axum::extract::State<Arc<AppState>>,
@@ -60,11 +61,40 @@ pub async fn reroute(
     let routing_table = state.routing_table.load();
     let ctx = RequestContext::extract(&req, addr, &config);
 
+    tracing::debug!(
+        method = %ctx.method,
+        path = %ctx.path,
+        query = ?ctx.query,
+        client_ip = %ctx.ip,
+        bytes_in = ctx.bytes_in,
+        has_token = ctx.token.is_some(),
+        "Received request"
+    );
+
     let (matched_route_key, target_route) =
         match resolve_route(&routing_table, &config, &ctx.path) {
             Ok(v) => v,
-            Err(e) => return e.into_response(),
+            Err(e) => {
+                tracing::debug!(
+                    method = %ctx.method,
+                    path = %ctx.path,
+                    client_ip = %ctx.ip,
+                    "No route matched request"
+                );
+                return e.into_response();
+            }
         };
+
+    tracing::debug!(
+        route = %matched_route_key,
+        method = %ctx.method,
+        path = %ctx.path,
+        client_ip = %ctx.ip,
+        needs_auth = target_route.1.needs_auth,
+        is_static = target_route.1.is_static,
+        no_cache = target_route.1.no_cache,
+        "Matched request to route"
+    );
 
     let span = tracing::span!(Level::INFO, "route");
     let _span_guard = span.enter();
@@ -74,7 +104,7 @@ pub async fn reroute(
         rate_limit::key::build(&config.rate_limit, &ctx, headers);
 
     match limiter::run(
-        &target_route.1,
+        target_route.1,
         token_bucket_key,
         &config,
         &state.user_tokens,
@@ -84,15 +114,27 @@ pub async fn reroute(
         Ok(_) => {}
         Err(err) => {
             let duration = start.elapsed().as_millis() as u64;
-            let _ = state.metrics_tx.try_send(MetricEvent::Request(
-                RequestMetric::rate_limited(
+            tracing::warn!(
+                route = %matched_route_key,
+                method = %ctx.method,
+                path = %ctx.path,
+                client_ip = %ctx.ip,
+                duration_ms = duration,
+                "Rate limited request"
+            );
+            metrics::try_send(
+                state.as_ref(),
+                MetricEvent::Request(RequestMetric::rate_limited(
                     Arc::clone(matched_route_key),
                     duration,
                     ctx.bytes_in,
                     ctx.ip,
                     ctx.method.clone(),
-                ),
-            ));
+                )),
+                matched_route_key,
+                &ctx.path,
+                &ctx.method,
+            );
             return err.into_response();
         }
     }
@@ -110,36 +152,88 @@ pub async fn reroute(
         if let Some(res) =
             static_cache::try_find(&state.static_cache, &ctx.path).await
         {
-            let _ = state.metrics_tx.try_send(MetricEvent::Cache(
-                CacheMetric::hit(Arc::clone(matched_route_key)),
-            ));
+            tracing::debug!(
+                route = %matched_route_key,
+                method = %ctx.method,
+                path = %ctx.path,
+                client_ip = %ctx.ip,
+                "Serving request from static cache"
+            );
+            metrics::try_send(
+                state.as_ref(),
+                MetricEvent::Cache(CacheMetric::hit(Arc::clone(
+                    matched_route_key,
+                ))),
+                matched_route_key,
+                &ctx.path,
+                &ctx.method,
+            );
 
             return res;
         }
 
         match cache::dynamic::try_find(&state.cache, &ctx.path, &ck).await {
             Some(res) => {
-                let _ = state.metrics_tx.try_send(MetricEvent::Cache(
-                    CacheMetric::hit(Arc::clone(matched_route_key)),
-                ));
+                tracing::debug!(
+                    route = %matched_route_key,
+                    method = %ctx.method,
+                    path = %ctx.path,
+                    client_ip = %ctx.ip,
+                    "Serving request from dynamic cache"
+                );
+                metrics::try_send(
+                    state.as_ref(),
+                    MetricEvent::Cache(CacheMetric::hit(Arc::clone(
+                        matched_route_key,
+                    ))),
+                    matched_route_key,
+                    &ctx.path,
+                    &ctx.method,
+                );
 
                 return res;
             }
             _ => {
-                let _ = state.metrics_tx.try_send(MetricEvent::Cache(
-                    CacheMetric::miss(Arc::clone(matched_route_key)),
-                ));
+                tracing::debug!(
+                    route = %matched_route_key,
+                    method = %ctx.method,
+                    path = %ctx.path,
+                    client_ip = %ctx.ip,
+                    "Cache miss for request"
+                );
+                metrics::try_send(
+                    state.as_ref(),
+                    MetricEvent::Cache(CacheMetric::miss(Arc::clone(
+                        matched_route_key,
+                    ))),
+                    matched_route_key,
+                    &ctx.path,
+                    &ctx.method,
+                );
             }
         }
     } else if c_policy.bypass {
-        let _ = state.metrics_tx.try_send(MetricEvent::Cache(
-            CacheMetric::bypass(Arc::clone(matched_route_key)),
-        ));
+        tracing::debug!(
+            route = %matched_route_key,
+            method = %ctx.method,
+            path = %ctx.path,
+            client_ip = %ctx.ip,
+            "Bypassing cache for request"
+        );
+        metrics::try_send(
+            state.as_ref(),
+            MetricEvent::Cache(CacheMetric::bypass(Arc::clone(
+                matched_route_key,
+            ))),
+            matched_route_key,
+            &ctx.path,
+            &ctx.method,
+        );
     }
 
     let server = selector::run(
         &routing_table.routes,
-        (&target_route.0, &target_route.1),
+        (target_route.0, target_route.1),
         &config.default_server,
         &state.idle_queue,
     );
@@ -150,6 +244,14 @@ pub async fn reroute(
         .expect("Upstream Should Exist")
         .clone();
 
+    tracing::debug!(
+        route = %matched_route_key,
+        method = %ctx.method,
+        path = %ctx.path,
+        upstream = %upstream.pool.server_addr,
+        "Selected upstream for request"
+    );
+
     match auth::gate::run(
         req.headers_mut(),
         ctx.token.as_deref(),
@@ -159,15 +261,27 @@ pub async fn reroute(
         Ok(_) => {}
         Err(e) => {
             let duration = start.elapsed().as_millis() as u64;
-            let _ = state.metrics_tx.try_send(MetricEvent::Request(
-                RequestMetric::unauthorized(
+            tracing::warn!(
+                route = %matched_route_key,
+                method = %ctx.method,
+                path = %ctx.path,
+                client_ip = %ctx.ip,
+                duration_ms = duration,
+                "Rejected unauthorized request"
+            );
+            metrics::try_send(
+                state.as_ref(),
+                MetricEvent::Request(RequestMetric::unauthorized(
                     Arc::clone(matched_route_key),
                     duration,
                     ctx.bytes_in,
                     ctx.ip,
                     ctx.method.clone(),
-                ),
-            ));
+                )),
+                matched_route_key,
+                &ctx.path,
+                &ctx.method,
+            );
             return e.into_response();
         }
     }
@@ -199,19 +313,37 @@ pub async fn reroute(
                 .and_then(|s| s.parse::<u64>().ok())
                 .unwrap_or(0);
             if c_policy.no_store {
-                let _ = state.schema_tx.try_send(ReqResSchemaDTO {
-                    full_path: Arc::clone(&ctx.path),
-                    method: ctx.method.clone(),
-                    query_params: ctx.query.as_ref().map(Arc::clone),
+                tracing::debug!(
+                    route = %matched_route_key,
+                    method = %ctx.method,
+                    path = %ctx.path,
+                    upstream = %upstream.pool.server_addr,
+                    status_code = status_code.as_u16(),
+                    duration_ms = start.elapsed().as_millis() as u64,
+                    upstream_duration_ms = duration_upstream_ms,
+                    bytes_out,
+                    "Completed uncached upstream request"
+                );
+                schema::try_send(
+                    state.as_ref(),
+                    ReqResSchemaDTO {
+                        full_path: Arc::clone(&ctx.path),
+                        method: ctx.method.clone(),
+                        query_params: ctx.query.as_ref().map(Arc::clone),
+                        status_code,
+                        req_headers,
+                        res_headers,
+                        body_schema: None,
+                    },
+                    &ctx.path,
+                    &ctx.method,
                     status_code,
-                    req_headers,
-                    res_headers,
-                    body_schema: None,
-                });
+                );
 
                 let duration = start.elapsed().as_millis() as u64;
-                let _ = state.metrics_tx.try_send(MetricEvent::Request(
-                    RequestMetric::success(
+                metrics::try_send(
+                    state.as_ref(),
+                    MetricEvent::Request(RequestMetric::success(
                         Arc::clone(matched_route_key),
                         status_code.as_u16(),
                         duration,
@@ -221,8 +353,11 @@ pub async fn reroute(
                         ctx.ip,
                         ctx.method.clone(),
                         Arc::clone(&upstream.pool.server_addr),
-                    ),
-                ));
+                    )),
+                    matched_route_key,
+                    &ctx.path,
+                    &ctx.method,
+                );
 
                 return response.into_response();
             }
@@ -236,19 +371,55 @@ pub async fn reroute(
             )
             .await;
 
-            let _ = state.schema_tx.try_send(ReqResSchemaDTO {
-                full_path: Arc::clone(&ctx.path),
-                method: ctx.method.clone(),
-                query_params: ctx.query.as_ref().map(Arc::clone),
+            schema::try_send(
+                state.as_ref(),
+                ReqResSchemaDTO {
+                    full_path: Arc::clone(&ctx.path),
+                    method: ctx.method.clone(),
+                    query_params: ctx.query.as_ref().map(Arc::clone),
+                    status_code,
+                    req_headers,
+                    res_headers,
+                    body_schema,
+                },
+                &ctx.path,
+                &ctx.method,
                 status_code,
-                req_headers,
-                res_headers,
-                body_schema,
-            });
+            );
 
             let duration = start.elapsed().as_millis() as u64;
-            let _ = state.metrics_tx.try_send(MetricEvent::Request(
-                RequestMetric::success(
+            if status_code.is_server_error() {
+                tracing::warn!(
+                    route = %matched_route_key,
+                    method = %ctx.method,
+                    path = %ctx.path,
+                    client_ip = %ctx.ip,
+                    upstream = %upstream.pool.server_addr,
+                    status_code = status_code.as_u16(),
+                    duration_ms = duration,
+                    upstream_duration_ms = duration_upstream_ms,
+                    bytes_in = ctx.bytes_in,
+                    bytes_out,
+                    "Upstream returned server error"
+                );
+            } else {
+                tracing::debug!(
+                    route = %matched_route_key,
+                    method = %ctx.method,
+                    path = %ctx.path,
+                    client_ip = %ctx.ip,
+                    upstream = %upstream.pool.server_addr,
+                    status_code = status_code.as_u16(),
+                    duration_ms = duration,
+                    upstream_duration_ms = duration_upstream_ms,
+                    bytes_in = ctx.bytes_in,
+                    bytes_out,
+                    "Completed request"
+                );
+            }
+            metrics::try_send(
+                state.as_ref(),
+                MetricEvent::Request(RequestMetric::success(
                     Arc::clone(matched_route_key),
                     res.status().as_u16(),
                     duration,
@@ -258,8 +429,11 @@ pub async fn reroute(
                     ctx.ip,
                     ctx.method.clone(),
                     Arc::clone(&upstream.pool.server_addr),
-                ),
-            ));
+                )),
+                matched_route_key,
+                &ctx.path,
+                &ctx.method,
+            );
 
             res
         }
@@ -270,18 +444,34 @@ pub async fn reroute(
                 _ => 500,
             };
             let duration = start.elapsed().as_millis() as u64;
-            let _ = state.metrics_tx.try_send(MetricEvent::Request(
-                RequestMetric::upstream_error(
+            tracing::warn!(
+                route = %matched_route_key,
+                method = %ctx.method,
+                path = %ctx.path,
+                client_ip = %ctx.ip,
+                upstream = %upstream.pool.server_addr,
+                status_code,
+                duration_ms = duration,
+                upstream_duration_ms = duration_upstream_ms,
+                err = ?e,
+                "Request failed while forwarding upstream"
+            );
+            metrics::try_send(
+                state.as_ref(),
+                MetricEvent::Request(RequestMetric::upstream_error(
                     Arc::clone(matched_route_key),
                     status_code,
                     duration,
                     duration_upstream_ms,
                     ctx.bytes_in,
                     ctx.ip,
-                    ctx.method,
+                    ctx.method.clone(),
                     Arc::clone(&upstream.pool.server_addr),
-                ),
-            ));
+                )),
+                matched_route_key,
+                &ctx.path,
+                &ctx.method,
+            );
             e.into_response()
         }
     }

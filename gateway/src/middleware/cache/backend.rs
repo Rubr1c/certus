@@ -20,6 +20,7 @@ pub enum StaticBackend {
     Redis(bb8::Pool<RedisConnectionManager>),
 }
 
+#[inline(always)]
 pub async fn build(config: &CacheConfig) -> DynBackend {
     match &config.cache_type {
         StorageType::InMemory => {
@@ -42,6 +43,7 @@ pub async fn build(config: &CacheConfig) -> DynBackend {
     }
 }
 
+#[inline(always)]
 pub async fn build_static(config: &CacheConfig) -> StaticBackend {
     match &config.cache_type {
         StorageType::InMemory => StaticBackend::InMemory(DashMap::new()),
@@ -127,15 +129,12 @@ impl DynBackend {
                 {
                     return;
                 }
-                match ttl {
-                    Some(secs) => {
-                        let _: Result<(), _> = redis::cmd("EXPIRE")
-                            .arg(&redis_key)
-                            .arg(*secs)
-                            .query_async(&mut *conn)
-                            .await;
-                    }
-                    None => {}
+                if let Some(secs) = ttl {
+                    let _: Result<(), _> = redis::cmd("EXPIRE")
+                        .arg(&redis_key)
+                        .arg(*secs)
+                        .query_async(&mut *conn)
+                        .await;
                 }
             }
         }

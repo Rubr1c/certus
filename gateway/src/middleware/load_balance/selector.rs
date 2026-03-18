@@ -8,7 +8,7 @@ use crate::{config::RouteConfig, upstream::server};
 
 use super::p2c;
 
-#[inline]
+#[inline(always)]
 #[instrument(name = "lb", skip_all)]
 pub fn run<'a>(
     routes: &'a HashMap<String, Arc<server::UpstreamServer>>,
@@ -17,8 +17,8 @@ pub fn run<'a>(
     idle_queue: &'a DashMap<String, SegQueue<Arc<server::UpstreamServer>>>,
 ) -> &'a String {
     if idle_queue.is_empty() {
-        tracing::info!("Idle Queue is empty");
-        return p2c::p2c_pick(&routes, &target.1, &default_server);
+        tracing::debug!("Idle Queue is empty");
+        return p2c::p2c_pick(routes, target.1, default_server);
     }
 
     match idle_queue.get(target.0) {
@@ -27,14 +27,14 @@ pub fn run<'a>(
                 .get_key_value(server.pool.server_addr.as_ref())
                 .map(|(key, _)| key)
                 .unwrap_or_else(|| {
-                    tracing::info!("Idle Queue is empty");
-                    p2c::p2c_pick(routes, &target.1, default_server)
+                    tracing::debug!("Idle Queue is empty");
+                    p2c::p2c_pick(routes, target.1, default_server)
                 }),
             _ => {
-                tracing::info!("Idle Queue is empty");
-                p2c::p2c_pick(routes, &target.1, default_server)
+                tracing::debug!("Idle Queue is empty");
+                p2c::p2c_pick(routes, target.1, default_server)
             }
         },
-        _ => p2c::p2c_pick(routes, &target.1, default_server),
+        _ => p2c::p2c_pick(routes, target.1, default_server),
     }
 }
