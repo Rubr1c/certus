@@ -1,6 +1,6 @@
 use tower_http::cors::{self, CorsLayer};
 
-#[inline]
+#[inline(always)]
 pub fn setup(mut app: axum::Router, origins: Vec<String>) -> axum::Router {
     app = if origins.is_empty() {
         tracing::warn!("No cors set allowing from all origins");

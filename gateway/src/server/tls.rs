@@ -4,7 +4,7 @@ use axum_server::tls_rustls::RustlsConfig;
 
 use crate::{config::TLSConfig, server::shutdown};
 
-#[inline]
+#[inline(always)]
 pub async fn load(config: TLSConfig) -> RustlsConfig {
     tracing::info!(
         cert_path = %config.cert_path,
@@ -26,7 +26,7 @@ pub async fn load(config: TLSConfig) -> RustlsConfig {
     }
 }
 
-#[inline]
+#[inline(always)]
 pub async fn serve(
     app: axum::Router,
     address: SocketAddr,

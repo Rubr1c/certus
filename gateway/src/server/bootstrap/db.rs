@@ -4,7 +4,7 @@ use parking_lot::Mutex;
 
 use crate::db;
 
-#[inline]
+#[inline(always)]
 pub fn run() -> (
     Arc<Mutex<rusqlite::Connection>>,
     Arc<Mutex<rusqlite::Connection>>,

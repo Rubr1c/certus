@@ -9,7 +9,7 @@ use crate::{
     upstream::{health, server::HealthState},
 };
 
-#[inline]
+#[inline(always)]
 pub async fn run(state: Arc<AppState>) {
     let state_clone = state.clone();
 

@@ -10,7 +10,7 @@ pub struct CachePolicy {
     pub bypass: bool,
 }
 
-#[inline]
+#[inline(always)]
 pub fn build(
     route: &RouteConfig,
     method: &hyper::Method,

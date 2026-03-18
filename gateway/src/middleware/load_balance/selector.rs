@@ -8,7 +8,7 @@ use crate::{config::RouteConfig, upstream::server};
 
 use super::p2c;
 
-#[inline]
+#[inline(always)]
 #[instrument(name = "lb", skip_all)]
 pub fn run<'a>(
     routes: &'a HashMap<String, Arc<server::UpstreamServer>>,

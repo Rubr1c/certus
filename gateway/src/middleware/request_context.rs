@@ -19,7 +19,7 @@ pub struct RequestContext {
 }
 
 impl RequestContext {
-    #[inline]
+    #[inline(always)]
     pub fn extract(
         req: &hyper::Request<axum::body::Body>,
         addr: SocketAddr,

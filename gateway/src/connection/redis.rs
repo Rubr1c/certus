@@ -1,5 +1,6 @@
 use bb8_redis::RedisConnectionManager;
 
+#[inline(always)]
 pub async fn create_pool(url: &String) -> bb8::Pool<RedisConnectionManager> {
     let manager = RedisConnectionManager::new(url.as_str())
         .expect("Failed to open redis client");

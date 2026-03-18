@@ -6,6 +6,7 @@ use crate::{db, server::state::app_state};
 
 use super::queries::{INVALID_GROUP_BY_MSG, SummaryQuery, group_by};
 
+#[inline(always)]
 pub async fn get(
     axum::extract::State(state): axum::extract::State<Arc<app_state::AppState>>,
     axum::extract::Query(filters): axum::extract::Query<SummaryQuery>,

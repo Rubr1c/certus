@@ -8,6 +8,7 @@ use super::queries::{
     AggregateRequestQuery, INVALID_INTERVAL_MSG, RequestMetricQuery, interval,
 };
 
+#[inline(always)]
 pub async fn get(
     axum::extract::State(state): axum::extract::State<Arc<app_state::AppState>>,
     axum::extract::Query(pagination): axum::extract::Query<
@@ -53,6 +54,7 @@ pub async fn get(
     }
 }
 
+#[inline(always)]
 pub async fn agg(
     axum::extract::State(state): axum::extract::State<Arc<app_state::AppState>>,
     axum::extract::Query(filters): axum::extract::Query<AggregateRequestQuery>,

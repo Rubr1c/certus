@@ -10,6 +10,7 @@ use crate::{
 
 use super::{app_state, routing_table};
 
+#[inline(always)]
 pub async fn init(state: Arc<app_state::AppState>) {
     let config = state.config.load();
 

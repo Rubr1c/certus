@@ -24,6 +24,7 @@ use super::tls;
 /// * Failed to connect to server
 /// * Timed out while trying to connect
 /// * Failed to perform handshake with server
+#[inline(always)]
 #[instrument(skip_all, fields(http_version = ?upstream.pool.http_version))]
 pub async fn open_connection(
     upstream: &server::UpstreamServer,

@@ -14,7 +14,7 @@ use crate::schema;
 /// * `ck` - CacheKey for the request
 /// * `ttl` - optional ttl overide
 /// * `max_size` - max response body size (bytes) to cache
-#[inline]
+#[inline(always)]
 pub async fn try_save(
     response: hyper::Response<Incoming>,
     method: &hyper::Method,
@@ -83,7 +83,7 @@ pub async fn try_save(
 /// * `state` - gateway app state
 /// * `path` - full path of the request
 /// * `ck` - CacheKey for the request
-#[inline]
+#[inline(always)]
 pub async fn try_find(
     cache: &cache::backend::DynBackend,
     path: &str,

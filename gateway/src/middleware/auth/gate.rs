@@ -21,7 +21,7 @@ use super::jwt;
 /// Returns an error if:
 /// * Authentication is enabled and no token was provided
 /// * Token failed to be decoded [`decode`]
-#[inline]
+#[inline(always)]
 pub fn run(
     headers: &mut hyper::HeaderMap<axum::http::HeaderValue>,
     token: Option<&str>,
@@ -97,7 +97,7 @@ pub fn run(
     return Ok(());
 }
 
-#[inline]
+#[inline(always)]
 pub fn extract(
     config: &Config,
     headers: &hyper::HeaderMap<axum::http::HeaderValue>,

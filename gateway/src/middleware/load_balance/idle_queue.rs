@@ -8,6 +8,7 @@ use crate::{
 };
 
 //TODO: make faster
+#[inline(always)]
 pub async fn set_idle(
     axum::extract::State(state): axum::extract::State<Arc<AppState>>,
     req: axum::extract::Request,

@@ -15,6 +15,7 @@ use rusqlite::types::ToSql;
 /// * Failed to prepare query
 /// * Failed to execute query
 /// * Failed to commit transaction
+#[inline(always)]
 pub fn save(
     conn: &mut rusqlite::Connection,
     entries: Vec<LogEntryDTO>,
@@ -55,6 +56,7 @@ pub fn save(
 /// * Failed to prepare query
 /// * Failed to get element
 /// * Failed to map query
+#[inline(always)]
 pub fn all(conn: &rusqlite::Connection) -> rusqlite::Result<Vec<LogEntry>> {
     let mut stmt = conn.prepare(
         "SELECT id, timestamp, level, target, message, fields FROM logs",
@@ -77,6 +79,7 @@ pub fn all(conn: &rusqlite::Connection) -> rusqlite::Result<Vec<LogEntry>> {
     Ok(log_vec)
 }
 
+#[inline(always)]
 pub fn get(
     conn: &rusqlite::Connection,
     from: Option<&str>,

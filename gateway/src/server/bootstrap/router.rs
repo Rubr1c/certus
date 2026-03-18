@@ -4,7 +4,7 @@ use axum::routing::any;
 
 use crate::{middleware::pipeline, server::state::app_state::AppState};
 
-#[inline]
+#[inline(always)]
 pub fn run(
     interal_routes: axum::Router<Arc<AppState>>,
     app_state: Arc<AppState>,

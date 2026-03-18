@@ -11,7 +11,7 @@ use crate::{
     websocket::{log_socket, metrics_socket},
 };
 
-#[inline]
+#[inline(always)]
 pub fn run(
     mut certus_routes: axum::Router<Arc<AppState>>,
     args: &cli::CmdArgs,

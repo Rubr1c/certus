@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+#[inline(always)]
 pub fn connect_db() -> rusqlite::Result<rusqlite::Connection> {
     //TODO: Change path and name
     let conn = rusqlite::Connection::open("dev.db")?;

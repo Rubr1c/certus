@@ -21,7 +21,7 @@ use super::{
     rate_limit::limiter,
 };
 
-#[inline]
+#[inline(always)]
 fn resolve_route<'a>(
     routing_table: &'a Arc<RoutingTable>,
     config: &'a Arc<Config>,
@@ -48,6 +48,7 @@ fn resolve_route<'a>(
 /// * `state` - app state injected by axum
 /// * `addr` - socket address of requester
 /// * `req` - request body
+#[inline(always)]
 #[instrument(name = "router", skip_all, fields(ip = %addr.ip()))]
 pub async fn reroute(
     axum::extract::State(state): axum::extract::State<Arc<AppState>>,

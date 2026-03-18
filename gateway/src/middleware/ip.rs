@@ -11,7 +11,7 @@ use hyper::header;
 //       is not needed each time if no proxy is involved
 //       or user does not care about the ip and does not
 //       rate limit with it.
-#[inline]
+#[inline(always)]
 pub fn extract(headers: &hyper::HeaderMap, sender_ip: IpAddr) -> IpAddr {
     headers
         .get(header::FORWARDED)

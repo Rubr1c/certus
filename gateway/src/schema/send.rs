@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::{ReqResSchemaDTO, server::state::app_state::AppState};
 
-#[inline]
+#[inline(always)]
 pub fn try_send(
     state: &AppState,
     schema: ReqResSchemaDTO,

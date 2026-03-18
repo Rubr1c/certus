@@ -14,7 +14,7 @@ use crate::{
 /// # Errors
 ///
 /// Returns an error if rate limit exceeded
-#[inline]
+#[inline(always)]
 pub async fn run(
     target_route: &RouteConfig,
     key: rate_limit::key::TokenBucketKey<'_>,

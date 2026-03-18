@@ -20,6 +20,7 @@ use super::open;
 /// Returns an error if:
 /// * Max connections to server reached
 /// * Failed to open new connection
+#[inline(always)]
 pub async fn borrow_connection(
     upstream: &server::UpstreamServer,
     timeout: u64,
@@ -66,6 +67,7 @@ pub async fn borrow_connection(
 /// * `upstream` - target server to release
 /// * `sender` - connection to the server
 /// * `reusable` - if the connection can be reused and put in idle
+#[inline(always)]
 pub async fn release_connection(
     upstream: &server::UpstreamServer,
     sender: protocol::PooledConnection,

@@ -1,5 +1,6 @@
 use crate::{db::repository::metrics, metrics::MetricEvent};
 
+#[inline(always)]
 pub fn save(
     conn: &mut rusqlite::Connection,
     metrics: Vec<MetricEvent>,

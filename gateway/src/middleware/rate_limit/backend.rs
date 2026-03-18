@@ -15,6 +15,7 @@ pub enum DynBackend {
     Redis(bb8::Pool<RedisConnectionManager>),
 }
 
+#[inline(always)]
 pub async fn build(config: &RateLimitConfig) -> DynBackend {
     match &config.rl_type {
         StorageType::InMemory => DynBackend::InMemory(

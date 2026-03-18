@@ -8,6 +8,7 @@ use crate::middleware::forwarding;
 /// # Arguments
 ///
 /// * `upstream` - target server trying to check
+#[inline(always)]
 pub async fn health_ok(upstream: &server::UpstreamServer) -> bool {
     tracing::debug!(
         upstream = %upstream.pool.server_addr,

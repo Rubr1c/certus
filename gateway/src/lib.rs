@@ -28,6 +28,7 @@ use crate::{
     server::state::{app_state::AppState, initializer},
 };
 
+#[inline(always)]
 pub async fn run() {
     let (log_tx, log_rx) = mpsc::channel::<LogEntryDTO>(1024);
     let (metrics_tx, metrics_rx) = mpsc::channel::<MetricEvent>(1024);

@@ -25,7 +25,7 @@ thread_local! {
 /// * `routes` - map of all addresses to servers
 /// * `target` - the config for the route targeted
 /// * `config` - gateway config
-#[inline]
+#[inline(always)]
 #[instrument(name = "p2c", skip_all)]
 pub fn p2c_pick<'a>(
     routes: &'a HashMap<String, Arc<UpstreamServer>>,

@@ -14,7 +14,7 @@ use crate::{
 ///
 /// * `cache` - static cache to search in
 /// * `path` - full path of the request
-#[inline]
+#[inline(always)]
 pub async fn try_find(
     cache: &cache::backend::StaticBackend,
     path: &str,

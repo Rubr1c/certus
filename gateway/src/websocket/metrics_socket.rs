@@ -11,6 +11,7 @@ use tokio::sync::broadcast;
 
 use crate::{metrics::MetricEvent, server::state::app_state};
 
+#[inline(always)]
 pub async fn ws(
     ws: WebSocketUpgrade,
     axum::extract::ConnectInfo(addr): axum::extract::ConnectInfo<SocketAddr>,
@@ -27,6 +28,7 @@ pub async fn ws(
     })
 }
 
+#[inline(always)]
 pub async fn run(
     mut socket: WebSocket,
     addr: SocketAddr,

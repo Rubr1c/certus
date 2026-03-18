@@ -30,6 +30,7 @@ use super::parser;
 ///     Err(_) => None
 /// };
 /// ```
+#[inline(always)]
 pub async fn watch(
     path: &str,
     state: Arc<AppState>,

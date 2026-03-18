@@ -5,7 +5,7 @@ use crate::{
     server::{self, shutdown},
 };
 
-#[inline]
+#[inline(always)]
 pub async fn run(
     app: axum::Router,
     address: SocketAddr,

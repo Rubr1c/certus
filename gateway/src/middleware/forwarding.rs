@@ -24,6 +24,7 @@ use crate::{
 ///
 /// Returns an error if:
 /// * Failed to send request to server
+#[inline(always)]
 async fn forward_request(
     conn: PooledConnection,
     req: axum::extract::Request,
@@ -50,7 +51,7 @@ async fn forward_request(
     Ok((res, sender))
 }
 
-#[inline]
+#[inline(always)]
 pub fn prepare(
     config: &RouteConfig,
     req: &mut hyper::Request<axum::body::Body>,
@@ -88,6 +89,7 @@ pub fn prepare(
 /// Returns an error if:
 /// * Failed to get or create a connection
 /// * Failed to forward the request
+#[inline(always)]
 #[instrument(name = "request", skip_all, fields(server = %upstream.pool.server_addr))]
 pub async fn handle_request(
     upstream: &UpstreamServer,
