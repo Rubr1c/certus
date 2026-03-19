@@ -13,9 +13,44 @@
   --color-status-warning: #f59e0b;
   --color-status-error: #ef4444;
 
+  --color-badge-error-bg: #fef2f2;
+  --color-badge-error-text: #dc2626;
+  --color-badge-warn-bg: #fffbeb;
+  --color-badge-warn-text: #d97706;
+  --color-badge-info-bg: #ecfdf5;
+  --color-badge-info-text: #059669;
+  --color-badge-neutral-bg: #f1f5f9;
+  --color-badge-neutral-text: #64748b;
+
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-mono), ui-monospace, "JetBrains Mono", monospace;
 
   --shadow-soft: 0 4px 20px -2px rgba(0, 0, 0, 0.04);
   --shadow-soft-lg: 0 10px 30px -3px rgba(0, 0, 0, 0.06);
+}
+
+@layer components {
+  .badge {
+    @apply rounded-full border px-2.5 py-0.5 text-xs font-medium;
+  }
+  .badge-error {
+    background-color: var(--color-badge-error-bg);
+    color: var(--color-badge-error-text);
+    border-color: #fecaca;
+  }
+  .badge-warn {
+    background-color: var(--color-badge-warn-bg);
+    color: var(--color-badge-warn-text);
+    border-color: #fde68a;
+  }
+  .badge-info {
+    background-color: var(--color-badge-info-bg);
+    color: var(--color-badge-info-text);
+    border-color: #a7f3d0;
+  }
+  .badge-neutral {
+    background-color: var(--color-badge-neutral-bg);
+    color: var(--color-badge-neutral-text);
+    border-color: #e2e8f0;
+  }
 }

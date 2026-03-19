@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { Header } from "@/components/Header";
+import { Providers } from "@/components/providers";
 import { Sidebar } from "@/components/Sidebar";
 import "./globals.css";
 
@@ -25,6 +26,7 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased`}
       >
+        <Providers>
         <div className="flex min-h-screen">
           <Sidebar />
 
@@ -36,6 +38,7 @@ export default function RootLayout({
             </main>
           </div>
         </div>
+        </Providers>
       </body>
     </html>
   );
