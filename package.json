@@ -5,9 +5,9 @@
     "dev:dashboard": "bun run --cwd dashboard dev",
     "format:rs": "cargo fmt --all",
     "dev:config": "cargo run -p gateway -- -c examples/dev.certus.config.yaml",
-    "dev:servers": "bun run --cwd test dev --http1 3000,3001,3002,3005,3006 --http2 3003,3004 --https1 3007,3008 --https2 3009,3010 --jiq 3005,3006",
+    "dev:servers": "bun run --cwd test dev --http1 3100,3101,3102,3105,3106 --http2 3103,3104 --https1 3107,3108 --https2 3109,3110 --jiq 3105,3106",
     "dev:test": "bun dev:config & bun dev:servers & wait",
-    "dev": "bun dev:config & bun dev:dashboard & wait",
+    "dev": "bun dev:test & bun dev:dashboard & wait",
     "bench": "cargo bench -p gateway"
   },
   "devDependencies": {

@@ -1,7 +1,7 @@
 server:
   port: 8080
 
-default_server: '127.0.0.1:3000'
+default_server: '127.0.0.1:3100'
 
 # tls:
 #   cert_path: 'examples/certs/cert.pem'
@@ -26,20 +26,20 @@ cache:
 
 routes:
   /users:
-    endpoints: ['127.0.0.1:3001', '127.0.0.1:3002']
+    endpoints: ['127.0.0.1:3101', '127.0.0.1:3102']
     needs_auth: true
 
   /test:
-    endpoints: ['127.0.0.1:3003', '127.0.0.1:3004']
+    endpoints: ['127.0.0.1:3103', '127.0.0.1:3104']
     token_weight: 0
     http_version: HTTP2
 
   /test/best:
-    endpoints: ['127.0.0.1:3005', '127.0.0.1:3006']
+    endpoints: ['127.0.0.1:3105', '127.0.0.1:3106']
     token_weight: 25
 
   /_static:
-    endpoints: ['127.0.0.1:3004']
+    endpoints: ['127.0.0.1:3104']
     is_static: true
     max_connections: 5
     http_version: HTTP2
