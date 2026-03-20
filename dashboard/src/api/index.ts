@@ -1,3 +1,4 @@
+import { argsApi } from "./args"
 import { configApi } from "./config"
 import { logsApi } from "./logs"
 import { metricsApi } from "./metrics"
@@ -8,4 +9,5 @@ export const api = {
   logs: logsApi,
   metrics: metricsApi,
   schemas: schemasApi,
+  args: argsApi,
 }
