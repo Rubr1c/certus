@@ -5,6 +5,7 @@ pub mod log;
 pub mod metrics;
 pub mod route;
 pub mod schema;
+pub mod args;
 
 #[inline(always)]
 fn default_per_page() -> u32 {

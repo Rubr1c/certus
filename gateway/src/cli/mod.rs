@@ -1,13 +1,15 @@
 use clap::{Parser, ValueEnum};
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+use serde::Serialize;
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Serialize)]
 pub enum WebSocketType {
     Logs,
     Metrics,
 }
 
 /// Certus
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Serialize)]
 #[command(version, about, long_about = None)]
 pub struct CmdArgs {
     /// YAML config path for certus

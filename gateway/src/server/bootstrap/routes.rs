@@ -3,7 +3,7 @@ use std::sync::Arc;
 use axum::routing::{get, post};
 
 use crate::{
-    controllers::{config, log, metrics, route, schema},
+    controllers::{args, config, log, metrics, route, schema},
     middleware::load_balance,
     server::state::app_state::AppState,
 };
@@ -23,4 +23,5 @@ pub fn run() -> axum::Router<Arc<AppState>> {
         .route("/upstreams/health", get(route::all))
         .route("/upstreams/{addr}/health", get(route::one))
         .route("/config", get(config::get).put(config::update))
+        .route("/args", get(args::get))
 }
