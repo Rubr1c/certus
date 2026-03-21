@@ -5,6 +5,9 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "@/api";
 import type { LogEntry } from "@/lib/log";
 import type { LogQuery as LibLogQuery } from "@/lib/query";
+import { useArgs } from "@/hooks/use-args";
+import { LiveSwitch } from "@/components/LiveSwitch";
+import { WEB_SOCKET_TYPE } from "@/lib/args";
 
 interface LogQuery extends LibLogQuery {
   page: number;
@@ -17,7 +20,7 @@ const PER_PAGE = 20;
 const META_LOG_MESSAGE = "Querying stored logs";
 
 const inputBase =
-  "rounded-lg border border-slate-200 px-3 py-2 text-sm text-text-main placeholder-text-muted focus:border-ocean-500 focus:outline-none focus:ring-1 focus:ring-ocean-500";
+  "h-10 rounded-lg border border-slate-200 px-3 py-2 text-sm text-text-main placeholder-text-muted focus:border-ocean-500 focus:outline-none focus:ring-1 focus:ring-ocean-500";
 
 const LEVEL_BADGE: Record<string, string> = {
   ERROR: "badge badge-error",
@@ -62,6 +65,7 @@ export default function LogsPage() {
     per_page: PER_PAGE,
   });
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [isLive, setIsLive] = useState(false);
 
   const { data: rawLogs = [], isLoading, error } = useQuery({
     queryKey: ["logs", query],
@@ -80,22 +84,27 @@ export default function LogsPage() {
     });
   };
 
+  const { data: args } = useArgs();
+
+  const logsWsEnabled = args?.ws?.includes(WEB_SOCKET_TYPE.Logs);
+  console.log(args);
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold text-text-main">Logs</h1>
-      <div className="flex flex-col gap-4 rounded-2xl border border-slate-50 bg-surface p-6 shadow-soft">
-        <div className="flex flex-wrap items-center gap-3">
+      <div className="overflow-hidden rounded-2xl border border-slate-50 bg-surface shadow-soft">
+        <div className="flex flex-wrap items-center gap-3 border-b border-slate-100 bg-slate-50/30 px-4 py-4 md:gap-4">
           <input
             type="text"
             placeholder="Search logs..."
             value={query.search ?? ""}
             onChange={(e) => handleFilter("search", e.target.value)}
-            className={`${inputBase} w-48`}
+            className={`${inputBase} w-full min-w-[140px] md:w-48`}
           />
           <select
             value={query.level ?? "All"}
             onChange={(e) => handleFilter("level", e.target.value)}
-            className={inputBase}
+            className={`${inputBase} w-full min-w-[100px] md:w-auto`}
           >
             {LOG_LEVELS.map((l) => (
               <option key={l} value={l}>
@@ -108,124 +117,138 @@ export default function LogsPage() {
             placeholder="Target (module)"
             value={query.target ?? ""}
             onChange={(e) => handleFilter("target", e.target.value)}
-            className={`${inputBase} w-40`}
+            className={`${inputBase} w-full min-w-[120px] md:w-40`}
           />
           <input
             type="datetime-local"
             value={query.from ?? ""}
             onChange={(e) => handleFilter("from", e.target.value)}
-            className={`${inputBase} font-mono`}
+            className={`${inputBase} font-mono min-w-[160px] ${isLive ? "pointer-events-none opacity-50" : ""}`}
           />
           <input
             type="datetime-local"
             value={query.to ?? ""}
             onChange={(e) => handleFilter("to", e.target.value)}
-            className={`${inputBase} font-mono`}
+            className={`${inputBase} font-mono min-w-[160px] ${isLive ? "pointer-events-none opacity-50" : ""}`}
           />
+          <div className="ml-auto flex items-center md:border-l md:border-slate-200 md:pl-4">
+            <LiveSwitch
+              isActive={Boolean(logsWsEnabled && isLive)}
+              onToggle={setIsLive}
+              disabled={!logsWsEnabled}
+              tooltipMessage={
+                logsWsEnabled
+                  ? undefined
+                  : "Enable logs WebSocket in the gateway configuration"
+              }
+            />
+          </div>
         </div>
 
-        {error && (
-          <div className="rounded-lg border border-red-100 bg-red-50 px-4 py-2 text-sm text-red-600">
-            {error instanceof Error ? error.message : "Failed to load logs"}
-          </div>
-        )}
+        <div className="p-4">
+          {error && (
+            <div className="mb-4 rounded-lg border border-red-100 bg-red-50 px-4 py-2 text-sm text-red-600">
+              {error instanceof Error ? error.message : "Failed to load logs"}
+            </div>
+          )}
 
-        <div className="min-h-[300px] overflow-x-auto">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12 text-sm text-text-muted">
-              Loading logs...
-            </div>
-          ) : logs.length === 0 ? (
-            <div className="py-12 text-center text-sm text-text-muted">
-              No logs found
-            </div>
-          ) : (
-            <table className="w-full min-w-[500px]">
-              <thead>
-                <tr className="border-b border-slate-200">
-                  <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wider text-text-muted">
-                    Timestamp
-                  </th>
-                  <th className="w-24 px-4 py-2 text-left text-xs font-semibold uppercase tracking-wider text-text-muted">
-                    Level
-                  </th>
-                  <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wider text-text-muted">
-                    Message
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {logs.map((log) => (
-                  <Fragment key={log.id}>
-                    <tr
-                      onClick={() =>
-                        setExpandedId(expandedId === log.id ? null : log.id)
-                      }
-                      className="cursor-pointer select-none border-b border-slate-50 transition-colors hover:bg-ocean-50"
-                    >
-                      <td className="whitespace-nowrap px-4 py-2 font-mono text-sm text-text-main">
-                        {log.timestamp}
-                      </td>
-                      <td className="px-4 py-2">
-                        <span className={getLevelBadgeClass(log.level)}>
-                          {log.level}
-                        </span>
-                      </td>
-                      <td className="px-4 py-2 font-mono text-sm text-text-main">
-                        {log.message}
-                      </td>
-                    </tr>
-                    {expandedId === log.id && (
-                      <tr className="bg-ocean-50/30">
-                        <td colSpan={3} className="px-4 py-3">
-                          <div
-                            className="select-none space-y-2"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {log.target && (
-                              <div className="font-mono text-sm text-text-main">
-                                Module: {log.target}
-                              </div>
-                            )}
-                            {(log.fields || "{}") !== "{}" && (
-                              <div className="overflow-x-auto rounded-lg bg-slate-900 p-4 font-mono text-xs text-slate-300">
-                                <pre className="whitespace-pre-wrap break-words">
-                                  {formatFieldsJson(log.fields || "{}")}
-                                </pre>
-                              </div>
-                            )}
-                          </div>
+          <div className="min-h-[300px] overflow-x-auto">
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12 text-sm text-text-muted">
+                Loading logs...
+              </div>
+            ) : logs.length === 0 ? (
+              <div className="py-12 text-center text-sm text-text-muted">
+                No logs found
+              </div>
+            ) : (
+              <table className="w-full min-w-[500px]">
+                <thead>
+                  <tr className="border-b border-slate-200">
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-text-muted">
+                      Timestamp
+                    </th>
+                    <th className="w-24 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-text-muted">
+                      Level
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-text-muted">
+                      Message
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {logs.map((log) => (
+                    <Fragment key={log.id}>
+                      <tr
+                        onClick={() =>
+                          setExpandedId(expandedId === log.id ? null : log.id)
+                        }
+                        className="cursor-pointer select-none border-b border-slate-50 transition-colors hover:bg-ocean-50"
+                      >
+                        <td className="whitespace-nowrap px-4 py-2 font-mono text-sm text-text-main">
+                          {log.timestamp}
+                        </td>
+                        <td className="px-4 py-2">
+                          <span className={getLevelBadgeClass(log.level)}>
+                            {log.level}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2 font-mono text-sm text-text-main">
+                          {log.message}
                         </td>
                       </tr>
-                    )}
-                  </Fragment>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
+                      {expandedId === log.id && (
+                        <tr className="bg-ocean-50/30">
+                          <td colSpan={3} className="px-4 py-3">
+                            <div
+                              className="select-none space-y-2"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {log.target && (
+                                <div className="font-mono text-sm text-text-main">
+                                  Module: {log.target}
+                                </div>
+                              )}
+                              {(log.fields || "{}") !== "{}" && (
+                                <div className="overflow-x-auto rounded-lg bg-slate-900 p-4 font-mono text-xs text-slate-300">
+                                  <pre className="whitespace-pre-wrap break-words">
+                                    {formatFieldsJson(log.fields || "{}")}
+                                  </pre>
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
 
-        <div className="flex items-center justify-between border-t border-slate-100 pt-4">
-          <span className="text-sm text-text-muted">Page {query.page}</span>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() =>
-                setQuery((q) => ({ ...q, page: Math.max(1, q.page - 1) }))
-              }
-              disabled={query.page <= 1 || isLoading}
-              className="cursor-pointer rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-text-main transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Previous
-            </button>
-            <button
-              type="button"
-              onClick={() => setQuery((q) => ({ ...q, page: q.page + 1 }))}
-              disabled={logs.length < PER_PAGE || isLoading}
-              className="cursor-pointer rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-text-main transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Next
-            </button>
+          <div className="flex items-center justify-between border-t border-slate-100 pt-4">
+            <span className="text-sm text-text-muted">Page {query.page}</span>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() =>
+                  setQuery((q) => ({ ...q, page: Math.max(1, q.page - 1) }))
+                }
+                disabled={query.page <= 1 || isLoading}
+                className="cursor-pointer rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-text-main transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Previous
+              </button>
+              <button
+                type="button"
+                onClick={() => setQuery((q) => ({ ...q, page: q.page + 1 }))}
+                disabled={logs.length < PER_PAGE || isLoading}
+                className="cursor-pointer rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-text-main transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Next
+              </button>
+            </div>
           </div>
         </div>
       </div>

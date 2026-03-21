@@ -1,10 +1,10 @@
 
-export const WEB_SOCKET_TYPES = {
-  Logs: "logs",
-  Metrics: "metrics",
+export const WEB_SOCKET_TYPE = {
+  Logs: "Logs",
+  Metrics: "Metrics",
 } as const;
 
-export type WebSocketType = (typeof WEB_SOCKET_TYPES)[keyof typeof WEB_SOCKET_TYPES];
+export type WebSocketType = (typeof WEB_SOCKET_TYPE)[keyof typeof WEB_SOCKET_TYPE];
 
 
 export interface CmdArgs {
