@@ -8,6 +8,7 @@ import type { LogQuery as LibLogQuery } from "@/lib/query";
 import { useArgs } from "@/hooks/use-args";
 import { LiveSwitch } from "@/components/LiveSwitch";
 import { WEB_SOCKET_TYPE } from "@/lib/args";
+import { useWS } from "@/hooks/use-ws";
 
 interface LogQuery extends LibLogQuery {
   page: number;
@@ -16,8 +17,6 @@ interface LogQuery extends LibLogQuery {
 
 const LOG_LEVELS = ["All", "DEBUG", "INFO", "WARN", "ERROR"] as const;
 const PER_PAGE = 20;
-
-const META_LOG_MESSAGE = "Querying stored logs";
 
 const inputBase =
   "h-10 rounded-lg border border-slate-200 px-3 py-2 text-sm text-text-main placeholder-text-muted focus:border-ocean-500 focus:outline-none focus:ring-1 focus:ring-ocean-500";
@@ -44,7 +43,7 @@ function formatFieldsJson(fields: string): string {
 
 function buildParams(query: LogQuery): Record<string, string | number> {
   const params: Record<string, string | number> = {
-    page: query.page,
+    page: Math.max(0, (query.page ?? 1) - 1),
     per_page: query.per_page,
   };
   if (query.from) params.from = query.from;
@@ -55,8 +54,40 @@ function buildParams(query: LogQuery): Record<string, string | number> {
   return params;
 }
 
-function filterMetaLogs(logs: LogEntry[]): LogEntry[] {
-  return logs.filter((log) => log.message !== META_LOG_MESSAGE);
+function applyClientFilters(
+  logs: LogEntry[],
+  query: LogQuery
+): LogEntry[] {
+  let result = logs;
+  if (query.level && query.level !== "All") {
+    result = result.filter((log) => log.level === query.level);
+  }
+  if (query.search && query.search.trim()) {
+    const term = query.search.toLowerCase().trim();
+    result = result.filter(
+      (log) =>
+        log.message.toLowerCase().includes(term) ||
+        log.target.toLowerCase().includes(term)
+    );
+  }
+  if (query.target && query.target.trim()) {
+    const term = query.target.toLowerCase().trim();
+    result = result.filter((log) =>
+      log.target.toLowerCase().includes(term)
+    );
+  }
+  return result;
+}
+
+function toLogEntries(wsLogs: Omit<LogEntry, "id">[]): LogEntry[] {
+  return wsLogs.map((log, i) => ({
+    ...log,
+    id: -(i + 1),
+    fields:
+      typeof log.fields === "string"
+        ? log.fields
+        : JSON.stringify(log.fields ?? {}),
+  }));
 }
 
 export default function LogsPage() {
@@ -67,12 +98,24 @@ export default function LogsPage() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [isLive, setIsLive] = useState(false);
 
+  const { data: args } = useArgs();
+  const logsWsEnabled = args?.ws?.includes(WEB_SOCKET_TYPE.Logs);
+
   const { data: rawLogs = [], isLoading, error } = useQuery({
     queryKey: ["logs", query],
     queryFn: () => api.logs.get(buildParams(query)),
+    enabled: !isLive,
   });
 
-  const logs = filterMetaLogs(rawLogs);
+  const wsLogs = useWS<Omit<LogEntry, "id">>(
+    WEB_SOCKET_TYPE.Logs.toLowerCase(),
+    logsWsEnabled && isLive
+  );
+
+  const baseLogs = isLive
+    ? [...toLogEntries(wsLogs).reverse(), ...rawLogs]
+    : rawLogs;
+  const logs = applyClientFilters(baseLogs, query);
 
   const handleFilter = (key: keyof LogQuery, value: string | number) => {
     setQuery((q) => {
@@ -83,11 +126,6 @@ export default function LogsPage() {
       return next;
     });
   };
-
-  const { data: args } = useArgs();
-
-  const logsWsEnabled = args?.ws?.includes(WEB_SOCKET_TYPE.Logs);
-  console.log(args);
 
   return (
     <div className="space-y-6">
@@ -153,13 +191,13 @@ export default function LogsPage() {
           )}
 
           <div className="min-h-[300px] overflow-x-auto">
-            {isLoading ? (
+            {!isLive && isLoading ? (
               <div className="flex items-center justify-center py-12 text-sm text-text-muted">
                 Loading logs...
               </div>
             ) : logs.length === 0 ? (
               <div className="py-12 text-center text-sm text-text-muted">
-                No logs found
+                {isLive ? "Listening for logs..." : "No logs found"}
               </div>
             ) : (
               <table className="w-full min-w-[500px]">
@@ -228,27 +266,42 @@ export default function LogsPage() {
           </div>
 
           <div className="flex items-center justify-between border-t border-slate-100 pt-4">
-            <span className="text-sm text-text-muted">Page {query.page}</span>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() =>
-                  setQuery((q) => ({ ...q, page: Math.max(1, q.page - 1) }))
-                }
-                disabled={query.page <= 1 || isLoading}
-                className="cursor-pointer rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-text-main transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Previous
-              </button>
-              <button
-                type="button"
-                onClick={() => setQuery((q) => ({ ...q, page: q.page + 1 }))}
-                disabled={logs.length < PER_PAGE || isLoading}
-                className="cursor-pointer rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-text-main transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Next
-              </button>
-            </div>
+            {isLive ? (
+              <span className="text-sm text-text-muted">
+                Live stream · {logs.length} log{logs.length === 1 ? "" : "s"}
+              </span>
+            ) : (
+              <>
+                <span className="text-sm text-text-muted">
+                  Page {query.page}
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setQuery((q) => ({
+                        ...q,
+                        page: Math.max(1, q.page - 1),
+                      }))
+                    }
+                    disabled={query.page <= 1 || isLoading}
+                    className="cursor-pointer rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-text-main transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setQuery((q) => ({ ...q, page: q.page + 1 }))
+                    }
+                    disabled={logs.length < PER_PAGE || isLoading}
+                    className="cursor-pointer rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-text-main transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Next
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
