@@ -11,7 +11,7 @@ pub async fn get(
         controllers::Pagination,
     >,
 ) -> impl IntoResponse {
-    tracing::debug!(
+    tracing::trace!(
         page = pagination.page,
         per_page = pagination.per_page,
         "Querying stored schemas"
