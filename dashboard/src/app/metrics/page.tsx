@@ -6,8 +6,9 @@ import { StatusCodesChart } from "@/components/charts/StatusCodesChart";
 import { LatencyExtremesChart } from "@/components/charts/LatencyExtremesChart";
 import { BandwidthChart } from "@/components/charts/BandwidthChart";
 import { HttpMethodsChart } from "@/components/charts/HttpMethodsChart";
+import { Suspense } from "react";
 
-export default function MetricsPage() {
+function MetricsContent() {
   const { filter, updateFilter } = useMetricFilter();
 
   return (
@@ -43,5 +44,13 @@ export default function MetricsPage() {
         <BandwidthChart />
       </div>
     </div>
+  );
+}
+
+export default function MetricsPage() {
+  return (
+    <Suspense fallback={<div className="animate-pulse bg-slate-100 h-96 rounded-xl" />}>
+      <MetricsContent />
+    </Suspense>
   );
 }

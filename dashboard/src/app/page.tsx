@@ -6,8 +6,9 @@ import { TopRoutesChart } from "@/components/charts/TopRoutesChart";
 import { CacheHitRateKPI } from "@/components/charts/CacheHitRateKPI";
 import { useMetricFilter } from "@/hooks/use-metric-filter";
 import { VALID_INTERVALS } from "@/lib/types";
+import { Suspense } from "react";
 
-export default function Home() {
+function HomeContent() {
   const { filter, updateFilter } = useMetricFilter();
 
   return (
@@ -41,5 +42,13 @@ export default function Home() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={<div className="animate-pulse bg-slate-100 h-96 rounded-xl" />}>
+      <HomeContent />
+    </Suspense>
   );
 }

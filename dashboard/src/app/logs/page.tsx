@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Fragment } from "react";
+import { useState, Fragment, Suspense } from "react";
 import { useQueryStates, parseAsInteger, parseAsString } from "nuqs";
 import { useArgs } from "@/hooks/use-args";
 import { useLogs } from "@/hooks/use-logs";
@@ -23,7 +23,7 @@ const logQuerySchema = {
   to: parseAsString.withDefault(""),
 };
 
-export default function LogsPage() {
+function LogsContent() {
   const [query, setQuery] = useQueryStates(logQuerySchema, {
     shallow: false,
     history: "push",
@@ -282,5 +282,13 @@ export default function LogsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LogsPage() {
+  return (
+    <Suspense fallback={<div className="animate-pulse bg-slate-100 h-96 rounded-xl" />}>
+      <LogsContent />
+    </Suspense>
   );
 }

@@ -5,8 +5,9 @@ import { VALID_INTERVALS } from "@/lib/types";
 import { CacheOperationsChart } from "@/components/charts/CacheOperationsChart";
 import { HitRateTrendChart } from "@/components/charts/HitRateTrendChart";
 import { CacheHitRateKPI } from "@/components/charts/CacheHitRateKPI";
+import { Suspense } from "react";
 
-export default function CacheMetricsPage() {
+function CacheMetricsContent() {
   const { filter, updateFilter } = useMetricFilter();
 
   return (
@@ -45,5 +46,13 @@ export default function CacheMetricsPage() {
         <CacheOperationsChart />
       </div>
     </div>
+  );
+}
+
+export default function CacheMetricsPage() {
+  return (
+    <Suspense fallback={<div className="animate-pulse bg-slate-100 h-96 rounded-xl" />}>
+      <CacheMetricsContent />
+    </Suspense>
   );
 }

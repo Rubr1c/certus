@@ -62,7 +62,10 @@ export function TopRoutesChart() {
           <Tooltip
             {...defaultTooltip}
             cursor={{ fill: chartColors.slateLight, opacity: 0.4 }}
-            formatter={(value: number) => [`${value.toLocaleString()}`, "Requests"]}
+            formatter={(value: number | string | ReadonlyArray<number | string> | undefined) => [
+              `${(Number(value) || 0).toLocaleString()}`,
+              "Requests",
+            ]}
             labelFormatter={() => ""} // Hide the label since the row name is enough context
           />
           <Bar

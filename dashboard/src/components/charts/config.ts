@@ -14,7 +14,7 @@ export const chartColors = {
 
 export const defaultXAxis: XAxisProps = {
   stroke: chartColors.slateLight,
-  tick: { fill: chartColors.slate, fontSize: 12, userSelect: "none" },
+  tick: { fill: chartColors.slate, fontSize: 12 },
   tickLine: false,
   axisLine: false,
   dy: 10,
@@ -22,7 +22,7 @@ export const defaultXAxis: XAxisProps = {
 
 export const defaultYAxis: YAxisProps = {
   stroke: chartColors.slateLight,
-  tick: { fill: chartColors.slate, fontSize: 12, userSelect: "none" },
+  tick: { fill: chartColors.slate, fontSize: 12 },
   tickLine: false,
   axisLine: false,
   dx: -10,
@@ -43,13 +43,10 @@ export const defaultTooltip: TooltipProps<any, any> = {
     fontSize: "0.875rem",
     color: "#0f172a",
     padding: "8px 12px",
-    userSelect: "none",
-    cursor: "default",
   },
   itemStyle: {
     color: "#0f172a",
     fontWeight: 500,
-    userSelect: "none",
   },
   cursor: {
     stroke: chartColors.slateLight,

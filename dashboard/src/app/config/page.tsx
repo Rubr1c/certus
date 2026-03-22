@@ -16,7 +16,8 @@ import {
   Plus,
   X,
   ChevronDown,
-  Trash2
+  Trash2,
+  type LucideIcon
 } from "lucide-react";
 import { api } from "@/api";
 import { useState, useEffect } from "react";
@@ -503,14 +504,27 @@ export default function ConfigPage() {
   );
 }
 
-function SectionCard({ title, icon: Icon, children }: { title: string; icon: any; children: React.ReactNode }) {
+function SectionCard({ 
+  title, 
+  icon: Icon, 
+  children,
+  action 
+}: { 
+  title: string; 
+  icon: LucideIcon; 
+  children: React.ReactNode;
+  action?: React.ReactNode;
+}) {
   return (
     <section className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200">
       <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center gap-3">
-        <div className="p-2 bg-white rounded-lg shadow-sm">
-          <Icon className="w-4 h-4 text-ocean-500" />
+        <div className="flex-1 flex items-center gap-3">
+          <div className="p-2 bg-white rounded-lg shadow-sm">
+            <Icon className="w-4 h-4 text-ocean-500" />
+          </div>
+          <h2 className="font-semibold text-text-main">{title}</h2>
         </div>
-        <h2 className="font-semibold text-text-main">{title}</h2>
+        {action && <div>{action}</div>}
       </div>
       <div className="p-6">
         {children}
@@ -531,7 +545,7 @@ function ConfigInput({
   value: string | number; 
   type?: "text" | "number" | "password";
   placeholder?: string;
-  icon?: any;
+  icon?: LucideIcon;
   onChange: (v: string | number) => void;
 }) {
   return (
@@ -568,7 +582,7 @@ function ConfigSelect({
   label: string; 
   value: string; 
   options: (string | { label: string, value: string })[];
-  icon?: any;
+  icon?: LucideIcon;
   onChange: (v: string) => void;
 }) {
   return (
@@ -609,7 +623,7 @@ function ConfigToggle({
 }: { 
   label: string; 
   value: boolean; 
-  icon?: any;
+  icon?: LucideIcon;
   onChange: (v: boolean) => void;
 }) {
   return (

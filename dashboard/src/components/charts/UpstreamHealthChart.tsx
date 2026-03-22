@@ -59,7 +59,10 @@ export function UpstreamHealthChart() {
           <Tooltip
             {...defaultTooltip}
             cursor={{ fill: chartColors.slateLight, opacity: 0.4 }}
-            formatter={(value: number) => [`${value} ms`, "Avg Latency"]}
+            formatter={(value: number | string | ReadonlyArray<number | string> | undefined) => [
+              `${value || 0} ms`,
+              "Avg Latency",
+            ]}
             labelFormatter={() => ""} 
           />
           <Bar

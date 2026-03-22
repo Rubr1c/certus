@@ -68,7 +68,10 @@ export function BandwidthChart() {
           <Tooltip
             {...defaultTooltip}
             labelFormatter={(label) => `Time: ${label}`}
-            formatter={(value: number) => [formatBytes(value), undefined]}
+            formatter={(value: number | string | ReadonlyArray<number | string> | undefined) => [
+              formatBytes(Number(value || 0)),
+              undefined,
+            ]}
           />
           <Legend wrapperStyle={{ paddingTop: "20px", fontSize: "12px" }} />
           <Area

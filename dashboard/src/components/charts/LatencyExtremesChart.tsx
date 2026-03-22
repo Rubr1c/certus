@@ -55,11 +55,11 @@ export function LatencyExtremesChart() {
           <Tooltip
             {...defaultTooltip}
             labelFormatter={(label) => `Time: ${label}`}
-            formatter={(value: any, name: string) => {
-              if (name === "Min/Max Range") {
+            formatter={(value: number | string | ReadonlyArray<number | string> | undefined, name: number | string | undefined) => {
+              if (name === "Min/Max Range" && Array.isArray(value)) {
                 return [`${value[0]}ms - ${value[1]}ms`, undefined];
               }
-              return [`${value} ms`, undefined];
+              return [`${value || 0} ms`, undefined];
             }}
           />
           <Legend wrapperStyle={{ paddingTop: "20px", fontSize: "12px" }} />

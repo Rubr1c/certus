@@ -59,7 +59,10 @@ export function UpstreamLoadChart() {
           </Pie>
           <Tooltip
             {...defaultTooltip}
-            formatter={(value: number) => [`${value.toLocaleString()}`, "Requests"]}
+            formatter={(value: number | string | ReadonlyArray<number | string> | undefined) => [
+              `${(Number(value) || 0).toLocaleString()}`,
+              "Requests",
+            ]}
           />
           <Legend
             verticalAlign="bottom"

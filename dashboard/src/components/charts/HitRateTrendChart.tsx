@@ -50,7 +50,10 @@ export function HitRateTrendChart() {
           <Tooltip
             {...defaultTooltip}
             labelFormatter={(label) => `Time: ${label}`}
-            formatter={(value: number) => [`${value}%`, "Hit Rate"]}
+            formatter={(value: number | string | ReadonlyArray<number | string> | undefined) => [
+              `${value || 0}%`,
+              "Hit Rate",
+            ]}
           />
           <Line
             type="monotone"

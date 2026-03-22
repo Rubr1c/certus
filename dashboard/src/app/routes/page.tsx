@@ -1,21 +1,22 @@
 "use client";
 
 import { useMetricFilter } from "@/hooks/use-metric-filter";
-import { VALID_INTERVALS } from "@/lib/types";
 import { UpstreamLoadChart } from "@/components/charts/UpstreamLoadChart";
 import { UpstreamHealthChart } from "@/components/charts/UpstreamHealthChart";
+import { VALID_INTERVALS } from "@/lib/types";
+import { Suspense } from "react";
 
-export default function RoutesPage() {
+function RoutesMetricsContent() {
   const { filter, updateFilter } = useMetricFilter();
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-text-main">Traffic Management</h1>
-          <p className="text-sm text-text-muted mt-1">Monitor backend upstream server load and health</p>
+          <h1 className="text-2xl font-semibold text-text-main">Route Performance</h1>
+          <p className="text-sm text-text-muted mt-1">Monitor upstream load and health per route</p>
         </div>
-        
+
         <div className="flex items-center gap-3">
           <select
             value={filter.interval}
@@ -38,3 +39,12 @@ export default function RoutesPage() {
     </div>
   );
 }
+
+export default function RoutesMetricsPage() {
+  return (
+    <Suspense fallback={<div className="animate-pulse bg-slate-100 h-96 rounded-xl" />}>
+      <RoutesMetricsContent />
+    </Suspense>
+  );
+}
+

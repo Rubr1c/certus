@@ -53,7 +53,10 @@ export function GlobalLatencyChart() {
           <Tooltip
             {...defaultTooltip}
             labelFormatter={(label) => `Time: ${label}`}
-            formatter={(value: number) => [`${value} ms`, undefined]}
+            formatter={(value: number | string | ReadonlyArray<number | string> | undefined) => [
+              `${value || 0} ms`,
+              undefined,
+            ]}
           />
           <Legend wrapperStyle={{ paddingTop: "20px", fontSize: "12px" }} />
           <Line
