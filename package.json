@@ -8,7 +8,8 @@
     "dev:servers": "bun run --cwd test dev --http1 3100,3101,3102,3105,3106 --http2 3103,3104 --https1 3107,3108 --https2 3109,3110 --jiq 3105,3106",
     "dev:test": "bun dev:config & bun dev:servers & wait",
     "dev": "bun dev:test & bun dev:dashboard & wait",
-    "bench": "cargo bench -p gateway"
+    "bench": "cargo bench -p gateway",
+    "cloc": "cloc gateway dashboard/src"
   },
   "devDependencies": {
     "husky": "^9.1.7",
