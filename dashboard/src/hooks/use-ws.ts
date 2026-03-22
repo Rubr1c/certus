@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 const WS_BASE = "ws://localhost:8080/_certus/api/v1/ws";
 
-export function useWS<T>(url: string, enabled?: boolean) {
+export function useWS<T>(url: string, enabled?: boolean, limit = 100) {
   const [data, setData] = useState<T[]>([]);
 
   useEffect(() => {
@@ -16,7 +16,11 @@ export function useWS<T>(url: string, enabled?: boolean) {
       if (!mounted) return;
       try {
         const parsed = JSON.parse(e.data) as T;
-        setData((p) => [...p, parsed]);
+        setData((p) => {
+          const next = [...p, parsed];
+          if (next.length > limit) return next.slice(next.length - limit);
+          return next;
+        });
       } catch {
         // ignore malformed messages
       }

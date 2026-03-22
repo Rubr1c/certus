@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronRight, Calendar } from "lucide-react";
 
+import { useArgs } from "@/hooks/use-args";
+
 const CHEVRON_SIZE = 14;
 
 function formatSegment(segment: string): string {
@@ -30,6 +32,9 @@ function getBreadcrumbs(pathname: string): { label: string; href: string; isLast
 export function Header() {
   const pathname = usePathname();
   const breadcrumbs = getBreadcrumbs(pathname);
+  const { isSuccess, isLoading } = useArgs();
+
+  const isOnline = isSuccess;
 
   return (
     <header className="fixed top-0 right-0 left-64 z-40 flex h-16 items-center justify-between border-b border-slate-100 bg-white/80 px-8 backdrop-blur-md">
@@ -61,11 +66,17 @@ export function Header() {
 
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2 rounded-full border border-slate-100 bg-white px-3 py-1.5 shadow-sm">
-          <span
-            className="h-2 w-2 shrink-0 rounded-full bg-emerald-500 animate-pulse"
-            aria-hidden
-          />
-          <span className="text-xs font-medium text-slate-600">Gateway Online</span>
+          {isLoading ? (
+            <div className="h-2 w-2 shrink-0 rounded-full bg-slate-300" />
+          ) : (
+            <span
+              className={`h-2 w-2 shrink-0 rounded-full ${isOnline ? "bg-emerald-500 animate-pulse" : "bg-red-500"}`}
+              aria-hidden
+            />
+          )}
+          <span className="text-xs font-medium text-slate-600">
+            {isLoading ? "Checking..." : isOnline ? "Gateway Online" : "Gateway Offline"}
+          </span>
         </div>
 
         <button
