@@ -2,7 +2,9 @@ use clap::{Parser, ValueEnum};
 
 use serde::Serialize;
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Serialize)]
+#[derive(
+    Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Serialize,
+)]
 pub enum WebSocketType {
     Logs,
     Metrics,
