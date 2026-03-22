@@ -2,10 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { api } from "@/api";
 import { useWS } from "./use-ws";
-import { WEB_SOCKET_TYPE } from "@/lib/args";
-import { normalizeWSLog } from "@/lib/log/utils";
-import type { LogEntry } from "@/lib/log";
-import type { LogQuery } from "@/lib/query";
+import { WEB_SOCKET_TYPE, type LogQuery } from "@/lib/types";
 
 interface UseLogsProps {
   query: LogQuery & { page: number; per_page: number };

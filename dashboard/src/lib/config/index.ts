@@ -1,4 +1,4 @@
-import { HttpVersion } from "@/lib/http/index"
+import { HttpVersion } from "@/lib/types"
 
 /** Mirrors gateway/src/config/types.rs */
 

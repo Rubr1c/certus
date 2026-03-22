@@ -5,7 +5,7 @@ import { useQueryStates, parseAsInteger, parseAsString } from "nuqs";
 import { useArgs } from "@/hooks/use-args";
 import { useLogs } from "@/hooks/use-logs";
 import { LiveSwitch } from "@/components/LiveSwitch";
-import { WEB_SOCKET_TYPE } from "@/lib/args";
+import { WEB_SOCKET_TYPE } from "@/lib/types";
 import {
   LOG_LEVELS,
   getLevelBadgeClass,
@@ -13,9 +13,6 @@ import {
 } from "@/lib/log/utils";
 
 const PER_PAGE = 25;
-
-const inputBase =
-  "h-10 rounded-lg border border-slate-200 px-3 py-2 text-sm text-text-main placeholder-text-muted focus:border-ocean-500 focus:outline-none focus:ring-1 focus:ring-ocean-500 transition-all bg-white hover:border-slate-300";
 
 const logQuerySchema = {
   page: parseAsInteger.withDefault(1),
@@ -72,15 +69,15 @@ export default function LogsPage() {
               })
             }
             disabled={!hasFilters}
-            className={`flex h-8 items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold transition-all ${
+            className={`btn-ghost-sm gap-1.5 px-3 transition-all ${
               hasFilters
-                ? "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 shadow-sm"
-                : "border-transparent bg-transparent text-slate-300 opacity-0 pointer-events-none"
+                ? "opacity-100"
+                : "pointer-events-none opacity-0"
             }`}
           >
             Clear Filters
           </button>
-          <div className="h-6 w-px bg-slate-100 mx-1" />
+          <div className="mx-1 h-6 w-px bg-slate-100" />
           <LiveSwitch
             isActive={isLive && wsEnabled}
             onToggle={(val) => {
@@ -97,19 +94,19 @@ export default function LogsPage() {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-slate-100 bg-surface shadow-soft">
+      <div className="card-container">
         <div className="grid grid-cols-1 gap-3 border-b border-slate-100 bg-slate-50/30 px-4 py-4 sm:grid-cols-2 lg:grid-cols-5 lg:gap-4">
           <input
             type="text"
             placeholder="Search messages..."
             value={query.search}
             onChange={(e) => updateFilter({ search: e.target.value })}
-            className={inputBase}
+            className="input-base"
           />
           <select
             value={query.level}
             onChange={(e) => updateFilter({ level: e.target.value })}
-            className={inputBase}
+            className="input-base"
           >
             {LOG_LEVELS.map((l) => (
               <option key={l} value={l}>
@@ -122,21 +119,21 @@ export default function LogsPage() {
             placeholder="Target (module)"
             value={query.target}
             onChange={(e) => updateFilter({ target: e.target.value })}
-            className={inputBase}
+            className="input-base"
           />
           <input
             type="datetime-local"
             value={query.from}
             onChange={(e) => updateFilter({ from: e.target.value })}
             disabled={isLive}
-            className={`${inputBase} font-mono disabled:opacity-50`}
+            className="input-base font-mono"
           />
           <input
             type="datetime-local"
             value={query.to}
             onChange={(e) => updateFilter({ to: e.target.value })}
             disabled={isLive}
-            className={`${inputBase} font-mono disabled:opacity-50`}
+            className="input-base font-mono"
           />
         </div>
 
@@ -255,7 +252,7 @@ export default function LogsPage() {
                   type="button"
                   onClick={() => setQuery({ page: Math.max(1, query.page - 1) })}
                   disabled={query.page <= 1 || isLoading}
-                  className="inline-flex h-8 cursor-pointer items-center rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-600 transition-all hover:bg-slate-50 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="btn-ghost-sm"
                 >
                   Previous
                 </button>
@@ -263,7 +260,7 @@ export default function LogsPage() {
                   type="button"
                   onClick={() => setQuery({ page: query.page + 1 })}
                   disabled={logs.length < PER_PAGE || isLoading}
-                  className="inline-flex h-8 cursor-pointer items-center rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-600 transition-all hover:bg-slate-50 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="btn-ghost-sm"
                 >
                   Next
                 </button>

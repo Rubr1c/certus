@@ -1,4 +1,4 @@
-import { CmdArgs } from "@/lib/args";
+import { CmdArgs } from "@/lib/types";
 import { request } from "../client";
 
 export const argsApi = {

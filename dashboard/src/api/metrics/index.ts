@@ -13,7 +13,7 @@ import type {
   RequestMetricQuery,
   AggregateRequestQuery,
   SummaryQuery,
-} from "@/lib/query"
+} from "@/lib/types"
 
 export const metricsApi = {
   cache: {

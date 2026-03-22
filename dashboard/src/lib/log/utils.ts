@@ -31,9 +31,16 @@ export function formatFieldsJson(fields: string | Record<string, any>): string {
  * to match the DB LogEntry structure used in the UI.
  */
 export function normalizeWSLog(log: any, index: number): LogEntry {
+  let fields = "{}";
+  if (typeof log.fields === "object") {
+    fields = JSON.stringify(log.fields || {});
+  } else if (typeof log.fields === "string") {
+    fields = log.fields;
+  }
+
   return {
     ...log,
     id: -(index + 1), // Temporary negative ID for unique keys
-    fields: typeof log.fields === "string" ? log.fields : JSON.stringify(log.fields || {}),
+    fields,
   };
 }

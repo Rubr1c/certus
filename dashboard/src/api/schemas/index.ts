@@ -1,6 +1,5 @@
 import { request } from "../client"
-import type { ReqResSchema } from "@/lib/schema"
-import type { Pagination } from "@/lib/query"
+import type { ReqResSchema, Pagination } from "@/lib/types"
 
 export const schemasApi = {
   get: (props?: Pagination) =>

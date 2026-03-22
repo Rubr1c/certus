@@ -1,15 +1,17 @@
-import { type HttpMethod } from "@/lib/http/index"
+import { type HttpMethod } from "@/lib/types"
 
 const BASE_URL = "http://localhost:8080/_certus/api/v1"
 
-interface RequestProps<TBody, TQuery = object> {
+interface RequestProps<TBody, TQuery> {
   path: string
   method?: HttpMethod
   body?: TBody
   query?: TQuery
 }
 
-function toSearchParams(query: object): URLSearchParams {
+type Query = Record<string, string | number | boolean | null | undefined>;
+
+function toSearchParams(query: Query): URLSearchParams {
   const params = new URLSearchParams()
   for (const [k, v] of Object.entries(query)) {
     if (v !== undefined && v !== null) {
@@ -20,8 +22,9 @@ function toSearchParams(query: object): URLSearchParams {
 }
 
 export async function request<
-  TResponse, TBody = undefined, 
-  TQuery extends object = object
+  TResponse,
+  TBody = undefined,
+  TQuery extends Record<string, any> = Record<string, any>
 >(
   props: RequestProps<TBody, TQuery>
 ): Promise<TResponse> {
@@ -29,7 +32,8 @@ export async function request<
 
   if (props.query && Object.keys(props.query).length > 0) {
     const params = toSearchParams(props.query)
-    if (params.toString()) url += `?${params.toString()}`
+    const search = params.toString()
+    if (search) url += `?${search}`
   }
 
   const res = await fetch(url, {
