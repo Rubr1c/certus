@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { 
   Settings, 
   Server, 
@@ -22,10 +22,12 @@ import {
 import { api } from "@/api";
 import { useState, useEffect } from "react";
 import { Config, AuthType, RateLimitKey, StorageType, RouteConfig } from "@/lib/config";
+import { toast } from "sonner";
 
 type Section = "general" | "routes" | "security" | "cache";
 
 export default function ConfigPage() {
+  const queryClient = useQueryClient();
   const { data: initialConfig, isLoading, error } = useQuery({
     queryKey: ["config"],
     queryFn: () => api.config.get(),
@@ -33,6 +35,17 @@ export default function ConfigPage() {
 
   const [config, setConfig] = useState<Config | null>(null);
   const [activeSection, setActiveSection] = useState<Section>("general");
+
+  const saveMutation = useMutation({
+    mutationFn: (newConfig: Config) => api.config.update(newConfig),
+    onSuccess: () => {
+      toast.success("Configuration saved successfully!");
+      queryClient.invalidateQueries({ queryKey: ["config"] });
+    },
+    onError: (err) => {
+      toast.error("Failed to save configuration: " + (err instanceof Error ? err.message : "Unknown error"));
+    },
+  });
 
   useEffect(() => {
     if (initialConfig && !config) {
@@ -104,6 +117,12 @@ export default function ConfigPage() {
     });
   };
 
+  const handleSave = () => {
+    if (config) {
+      saveMutation.mutate(config);
+    }
+  };
+
   return (
     <div className="max-w-6xl mx-auto">
       <header className="mb-8 flex items-center justify-between">
@@ -118,13 +137,19 @@ export default function ConfigPage() {
         </div>
         <div className="flex gap-3">
           <button 
-            className="px-4 py-2 text-sm font-semibold text-text-muted hover:text-text-main transition-colors"
+            className="px-4 py-2 text-sm font-semibold text-text-muted hover:text-text-main transition-colors disabled:opacity-50"
             onClick={() => setConfig(initialConfig || null)}
+            disabled={saveMutation.isPending}
           >
             Reset Changes
           </button>
-          <button className="px-6 py-2 bg-ocean-500 text-white text-sm font-semibold rounded-lg hover:bg-ocean-600 transition-colors shadow-sm shadow-ocean-200">
-            Save Config
+          <button 
+            className="px-6 py-2 bg-ocean-500 text-white text-sm font-semibold rounded-lg hover:bg-ocean-600 transition-colors shadow-sm shadow-ocean-200 disabled:opacity-50 flex items-center gap-2"
+            onClick={handleSave}
+            disabled={saveMutation.isPending || !config}
+          >
+            {saveMutation.isPending && <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>}
+            {saveMutation.isPending ? "Saving..." : "Save Config"}
           </button>
         </div>
       </header>
