@@ -26,7 +26,6 @@ export function GlobalTrafficChart() {
 
   const chartData = data.map((d) => ({
     ...d,
-    // Format timestamp for display (e.g., "HH:mm" or "MMM dd, HH:mm")
     displayTime: format(new Date(d.bucket), "HH:mm"),
   }));
 

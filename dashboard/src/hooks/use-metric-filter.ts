@@ -4,7 +4,7 @@ import type { BaseMetricQuery, Interval } from "@/lib/types";
 const metricFilterSchema = {
   from: parseAsString.withDefault(""),
   to: parseAsString.withDefault(""),
-  interval: parseAsString.withDefault("15m"), // Default to 15-minute buckets
+  interval: parseAsString.withDefault("15m"), 
 };
 
 export function useMetricFilter() {
@@ -17,7 +17,6 @@ export function useMetricFilter() {
     setFilter(updates);
   };
 
-  // Helper to extract just the values needed for API calls
   const queryParams: BaseMetricQuery & { interval?: Interval } = {};
   if (filter.from) queryParams.from = filter.from;
   if (filter.to) queryParams.to = filter.to;

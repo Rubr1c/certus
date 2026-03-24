@@ -54,7 +54,7 @@ export function StatusCodesChart() {
             stackId="a"
             name="2xx Success"
             fill={chartColors.emerald}
-            radius={[0, 0, 4, 4]} // bottom rounded
+            radius={[0, 0, 4, 4]} 
           />
           <Bar
             dataKey="status_3xx"
@@ -73,7 +73,7 @@ export function StatusCodesChart() {
             stackId="a"
             name="5xx Server Error"
             fill={chartColors.rose}
-            radius={[4, 4, 0, 0]} // top rounded
+            radius={[4, 4, 0, 0]} 
           />
         </BarChart>
       </ResponsiveContainer>

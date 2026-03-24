@@ -1,5 +1,3 @@
-/** Mirroring gateway types */
-
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 export type HttpVersion = "HTTP1" | "HTTP2";
 
@@ -30,17 +28,6 @@ export interface RouteInfo {
 export interface UpstreamHealth {
   address: string;
   healthy: boolean;
-}
-
-export interface ReqResSchema {
-  full_path: string;
-  method: string;
-  query_params: string | null;
-  status_code: number;
-  has_auth: boolean;
-  req_headers: string;
-  res_headers: string;
-  body_schema: string | null;
 }
 
 export interface Pagination {

@@ -29,9 +29,7 @@ export function LatencyExtremesChart() {
   const chartData = data.map((d) => ({
     ...d,
     displayTime: format(new Date(d.bucket), "HH:mm"),
-    // Format to 2 decimal places
     avg_duration_ms: Number(d.avg_duration_ms.toFixed(2)),
-    // Recharts Area needs an array [min, max] to shade a region
     range: [d.min_duration_ms, d.max_duration_ms],
   }));
 

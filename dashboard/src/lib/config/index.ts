@@ -1,7 +1,5 @@
 import { HttpVersion } from "@/lib/types"
 
-/** Mirrors gateway/src/config/types.rs */
-
 export interface ServerConfig {
   port: number
   origins: string[]

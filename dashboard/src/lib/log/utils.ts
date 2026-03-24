@@ -26,10 +26,6 @@ export function formatFieldsJson(fields: string | Record<string, any>): string {
   }
 }
 
-/**
- * Normalizes log entries coming from WebSocket (LogEntryDTO)
- * to match the DB LogEntry structure used in the UI.
- */
 export function normalizeWSLog(log: any, index: number): LogEntry {
   let fields = "{}";
   if (typeof log.fields === "object") {
@@ -40,7 +36,7 @@ export function normalizeWSLog(log: any, index: number): LogEntry {
 
   return {
     ...log,
-    id: -(index + 1), // Temporary negative ID for unique keys
+    id: -(index + 1), 
     fields,
   };
 }

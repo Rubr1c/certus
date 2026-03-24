@@ -24,13 +24,11 @@ export function TopRoutesChart() {
     queryFn: () => api.metrics.request.summary({ ...queryParams, group_by: "route" }),
   });
 
-  // Sort by count descending and take top 5
   const chartData = [...data]
     .sort((a, b) => b.count - a.count)
     .slice(0, 5)
     .map(d => ({
       ...d,
-      // Truncate very long route names for the Y-axis
       shortRoute: d.key.length > 25 ? d.key.substring(0, 25) + "..." : d.key
     }));
 
@@ -66,7 +64,7 @@ export function TopRoutesChart() {
               `${(Number(value) || 0).toLocaleString()}`,
               "Requests",
             ]}
-            labelFormatter={() => ""} // Hide the label since the row name is enough context
+            labelFormatter={() => ""} 
           />
           <Bar
             dataKey="count"

@@ -14,7 +14,6 @@ import { ChartCard } from "./ChartCard";
 import { useMetricFilter } from "@/hooks/use-metric-filter";
 import { chartColors, defaultTooltip } from "./config";
 
-// Consistent colors for common HTTP methods
 const METHOD_COLORS: Record<string, string> = {
   GET: chartColors.ocean,
   POST: chartColors.emerald,

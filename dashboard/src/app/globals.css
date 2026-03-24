@@ -28,11 +28,11 @@
   --shadow-soft: 0 4px 20px -2px rgba(0, 0, 0, 0.04);
   --shadow-soft-lg: 0 10px 30px -3px rgba(0, 0, 0, 0.06);
 }
-
 @layer components {
   .badge {
-    @apply rounded-full border px-2.5 py-0.5 text-xs font-medium select-none;
+    @apply rounded-full border px-2.5 py-0.5 text-xs font-medium;
   }
+
   .badge-error {
     background-color: var(--color-badge-error-bg);
     color: var(--color-badge-error-text);
@@ -64,9 +64,9 @@
 }
 
 @utility btn-ghost {
-  @apply inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-600 transition-all hover:bg-slate-50 hover:text-slate-900 active:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40;
+  @apply inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-600 transition-all hover:bg-slate-50 hover:text-slate-900 active:bg-slate-100 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40;
 }
 
 @utility btn-ghost-sm {
-  @apply inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-3 h-8 text-xs font-semibold text-slate-600 transition-all hover:bg-slate-50 hover:text-slate-900 active:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40;
+  @apply inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-3 h-8 text-xs font-semibold text-slate-600 transition-all hover:bg-slate-50 hover:text-slate-900 active:bg-slate-100 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40;
 }

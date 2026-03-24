@@ -50,7 +50,6 @@ export async function request<
     throw new Error(`Request failed: ${res.status} ${res.statusText}`)
   }
 
-  // Handle empty responses (like 204 No Content or empty 200 OK)
   const text = await res.text()
   if (!text) {
     return null as TResponse

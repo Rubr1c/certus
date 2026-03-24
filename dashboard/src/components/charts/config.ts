@@ -1,13 +1,13 @@
 import { CartesianGridProps, TooltipProps, XAxisProps, YAxisProps } from "recharts";
 
 export const chartColors = {
-  ocean: "#0ea5e9", // ocean-500
-  oceanLight: "#e0f2fe", // ocean-100
-  emerald: "#10b981", // status-success
-  amber: "#f59e0b", // status-warning
-  rose: "#ef4444", // status-error
-  slate: "#64748b", // text-muted
-  slateLight: "#e2e8f0", // border
+  ocean: "#0ea5e9", 
+  oceanLight: "#e0f2fe", 
+  emerald: "#10b981", 
+  amber: "#f59e0b", 
+  rose: "#ef4444", 
+  slate: "#64748b", 
+  slateLight: "#e2e8f0", 
   indigo: "#6366f1",
   violet: "#8b5cf6",
 };

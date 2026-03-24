@@ -25,7 +25,7 @@ export function UpstreamHealthChart() {
   });
 
   const chartData = data
-    .filter(d => d.key !== "None") // Filter out early exits/cache hits
+    .filter(d => d.key !== "None") 
     .map((d) => ({
       name: d.key,
       avg_upstream_ms: Number(d.avg_upstream_ms.toFixed(2)),
@@ -72,7 +72,6 @@ export function UpstreamHealthChart() {
             barSize={24}
           >
             {chartData.map((entry, index) => {
-              // Highlight the slowest server in amber/red if we have multiple
               const isSlowest = chartData.length > 1 && entry.avg_upstream_ms === Math.max(...chartData.map(d => d.avg_upstream_ms));
               return (
                 <Cell 

@@ -33,10 +33,10 @@ export function useLogs({ query, isLive, wsEnabled }: UseLogsProps) {
     placeholderData: (previousData) => previousData,
   });
 
-  const wsLogs = useWS<Omit<LogEntry, "id">>(
+  const { data: wsLogs, status: wsStatus } = useWS<Omit<LogEntry, "id">>(
     WEB_SOCKET_TYPE.Logs.toLowerCase(),
     wsEnabled && isLive,
-    100
+    200
   );
 
   const logs = useMemo(() => {
@@ -48,7 +48,6 @@ export function useLogs({ query, isLive, wsEnabled }: UseLogsProps) {
 
     let combined = [...normalizedWs, ...rawLogs];
 
-    // Client-side filtering for live stream
     if (query.level && query.level !== "All") {
       combined = combined.filter((l) => l.level === query.level);
     }
@@ -65,12 +64,13 @@ export function useLogs({ query, isLive, wsEnabled }: UseLogsProps) {
       combined = combined.filter((l) => l.target.toLowerCase().includes(term));
     }
 
-    return combined;
+    return combined.slice(0, 100); 
   }, [isLive, rawLogs, wsLogs, query.level, query.search, query.target]);
 
   return {
     logs,
     isLoading,
     error,
+    wsStatus,
   };
 }

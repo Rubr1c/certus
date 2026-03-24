@@ -23,7 +23,7 @@ export function UpstreamLoadChart() {
   });
 
   const chartData = data
-    .filter(d => d.key !== "None") // Filter out early exits/cache hits that didn't hit an upstream
+    .filter(d => d.key !== "None") 
     .map((d) => ({
       name: d.key,
       value: d.count,

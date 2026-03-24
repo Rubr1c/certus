@@ -1,5 +1,3 @@
-/** Mirrors gateway/src/db/models/request_metric.rs and cache_metric.rs */
-
 export interface RequestMetricRow {
   timestamp: string
   route: string

@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Route,
-  FileJson,
+  FileText,
   BarChart3,
   ScrollText,
   Settings,
@@ -32,7 +32,7 @@ const NAV_STRUCTURE: NavCategory[] = [
     label: "Traffic Management",
     items: [
       { href: "/routes", label: "Routes", icon: Route },
-      { href: "/schemas", label: "Schema", icon: FileJson },
+      { href: "/docs", label: "Docs", icon: FileText },
     ],
   },
   {

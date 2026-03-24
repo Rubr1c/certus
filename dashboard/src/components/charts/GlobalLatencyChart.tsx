@@ -28,7 +28,6 @@ export function GlobalLatencyChart() {
   const chartData = data.map((d) => ({
     ...d,
     displayTime: format(new Date(d.bucket), "HH:mm"),
-    // Format to 2 decimal places for cleaner tooltips
     avg_duration_ms: Number(d.avg_duration_ms.toFixed(2)),
     avg_upstream_ms: Number(d.avg_upstream_ms.toFixed(2)),
   }));

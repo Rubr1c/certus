@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronRight, Calendar } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 
 import { useArgs } from "@/hooks/use-args";
 
@@ -10,7 +10,9 @@ const CHEVRON_SIZE = 14;
 
 function formatSegment(segment: string): string {
   if (!segment) return "Dashboard";
-  return segment.charAt(0).toUpperCase() + segment.slice(1).toLowerCase();
+  const label = segment.charAt(0).toUpperCase() + segment.slice(1).toLowerCase();
+  if (label === "Config") return "Configuration";
+  return label;
 }
 
 function getBreadcrumbs(pathname: string): { label: string; href: string; isLast: boolean }[] {
@@ -49,13 +51,13 @@ export function Header() {
               />
             )}
             {crumb.isLast ? (
-              <span className="text-sm font-semibold text-slate-900">
+              <span className="text-sm font-bold text-slate-900 uppercase tracking-tight">
                 {crumb.label}
               </span>
             ) : (
               <Link
                 href={crumb.href}
-                className="text-sm font-medium text-slate-500 transition-colors hover:text-slate-700"
+                className="text-sm font-bold text-slate-400 transition-colors hover:text-slate-600 uppercase tracking-tight"
               >
                 {crumb.label}
               </Link>
@@ -65,27 +67,23 @@ export function Header() {
       </nav>
 
       <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2 rounded-full border border-slate-100 bg-white px-3 py-1.5 shadow-sm">
+        <div className={`flex items-center gap-2 rounded-full border px-3 py-1.5 shadow-sm transition-colors ${
+          isLoading ? "bg-slate-50 border-slate-100" : isOnline ? "bg-emerald-50 border-emerald-100" : "bg-red-50 border-red-100"
+        }`}>
           {isLoading ? (
-            <div className="h-2 w-2 shrink-0 rounded-full bg-slate-300" />
+            <div className="h-2 w-2 shrink-0 rounded-full bg-slate-300 animate-pulse" />
           ) : (
             <span
-              className={`h-2 w-2 shrink-0 rounded-full ${isOnline ? "bg-emerald-500 animate-pulse" : "bg-red-500"}`}
+              className={`h-2 w-2 shrink-0 rounded-full ${isOnline ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-red-500"}`}
               aria-hidden
             />
           )}
-          <span className="text-xs font-medium text-slate-600">
+          <span className={`text-[10px] font-bold uppercase tracking-widest ${
+            isLoading ? "text-slate-400" : isOnline ? "text-emerald-600" : "text-red-600"
+          }`}>
             {isLoading ? "Checking..." : isOnline ? "Gateway Online" : "Gateway Offline"}
           </span>
         </div>
-
-        <button
-          type="button"
-          className="btn-ghost gap-2 shadow-sm"
-        >
-          <Calendar size={16} className="text-slate-500" aria-hidden />
-          Last 24 Hours
-        </button>
       </div>
     </header>
   );

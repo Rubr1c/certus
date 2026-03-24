@@ -1,18 +1,15 @@
 "use client";
 
-import { useState, Fragment, Suspense } from "react";
+import { useState, Fragment } from "react";
 import { useQueryStates, parseAsInteger, parseAsString } from "nuqs";
 import { useArgs } from "@/hooks/use-args";
 import { useLogs } from "@/hooks/use-logs";
-import { LiveSwitch } from "@/components/LiveSwitch";
 import { WEB_SOCKET_TYPE } from "@/lib/types";
-import {
-  LOG_LEVELS,
-  getLevelBadgeClass,
-  formatFieldsJson,
-} from "@/lib/log/utils";
+import { getLevelBadgeClass, formatFieldsJson } from "@/lib/log/utils";
+import { LogToolbar } from "./LogToolbar";
+import { ChevronRight, ChevronDown } from "lucide-react";
 
-const PER_PAGE = 25;
+const PER_PAGE = 50;
 
 const logQuerySchema = {
   page: parseAsInteger.withDefault(1),
@@ -23,19 +20,19 @@ const logQuerySchema = {
   to: parseAsString.withDefault(""),
 };
 
-function LogsContent() {
+export default function LogsPage() {
   const [query, setQuery] = useQueryStates(logQuerySchema, {
     shallow: false,
     history: "push",
   });
 
-  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [expandedId, setExpandedId] = useState<string | number | null>(null);
   const [isLive, setIsLive] = useState(false);
 
   const { data: args } = useArgs();
   const wsEnabled = Boolean(args?.ws?.includes(WEB_SOCKET_TYPE.Logs));
 
-  const { logs, isLoading, error } = useLogs({
+  const { logs, isLoading, error, wsStatus } = useLogs({
     query: { ...query, per_page: PER_PAGE },
     isLive,
     wsEnabled,
@@ -54,241 +51,135 @@ function LogsContent() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-text-main">Logs</h1>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() =>
-              setQuery({
-                page: 1,
-                level: "All",
-                search: "",
-                target: "",
-                from: "",
-                to: "",
-              })
-            }
-            disabled={!hasFilters}
-            className={`btn-ghost-sm gap-1.5 px-3 transition-all ${
-              hasFilters
-                ? "opacity-100"
-                : "pointer-events-none opacity-0"
-            }`}
-          >
-            Clear Filters
-          </button>
-          <div className="mx-1 h-6 w-px bg-slate-100" />
-          <LiveSwitch
-            isActive={isLive && wsEnabled}
-            onToggle={(val) => {
-              setIsLive(val);
-              if (val) setExpandedId(null);
-            }}
-            disabled={!wsEnabled}
-            tooltipMessage={
-              wsEnabled
-                ? undefined
-                : "Enable logs WebSocket in the gateway configuration"
-            }
-          />
-        </div>
-      </div>
+      <LogToolbar 
+        query={query}
+        updateFilter={updateFilter}
+        hasFilters={hasFilters}
+        isLive={isLive}
+        setIsLive={(val) => {
+           setIsLive(val);
+           if (val) setExpandedId(null);
+        }}
+        wsEnabled={wsEnabled}
+        wsStatus={wsStatus}
+      />
 
-      <div className="card-container">
-        <div className="grid grid-cols-1 gap-3 border-b border-slate-100 bg-slate-50/30 px-4 py-4 sm:grid-cols-2 lg:grid-cols-5 lg:gap-4">
-          <input
-            type="text"
-            placeholder="Search messages..."
-            value={query.search}
-            onChange={(e) => updateFilter({ search: e.target.value })}
-            className="input-base"
-          />
-          <select
-            value={query.level}
-            onChange={(e) => updateFilter({ level: e.target.value })}
-            className="input-base"
-          >
-            {LOG_LEVELS.map((l) => (
-              <option key={l} value={l}>
-                {l}
-              </option>
-            ))}
-          </select>
-          <input
-            type="text"
-            placeholder="Target (module)"
-            value={query.target}
-            onChange={(e) => updateFilter({ target: e.target.value })}
-            className="input-base"
-          />
-          <input
-            type="datetime-local"
-            value={query.from}
-            onChange={(e) => updateFilter({ from: e.target.value })}
-            disabled={isLive}
-            className="input-base font-mono"
-          />
-          <input
-            type="datetime-local"
-            value={query.to}
-            onChange={(e) => updateFilter({ to: e.target.value })}
-            disabled={isLive}
-            className="input-base font-mono"
-          />
-        </div>
-
-        <div className="p-0">
-          {error && (
-            <div className="m-4 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
-              {error instanceof Error ? error.message : "Failed to load logs"}
-            </div>
-          )}
-
-          <div className="min-h-[400px] overflow-x-auto">
-            {!isLive && isLoading ? (
-              <div className="flex h-[400px] items-center justify-center text-sm text-text-muted">
-                <div className="flex flex-col items-center gap-2">
-                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-ocean-500 border-t-transparent" />
-                  Loading logs...
-                </div>
-              </div>
-            ) : logs.length === 0 ? (
-              <div className="flex h-[400px] flex-col items-center justify-center text-center text-sm text-text-muted">
-                <div className="mb-2 text-slate-300">
-                  <svg
-                    className="h-12 w-12"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={1}
-                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                    />
-                  </svg>
-                </div>
-                {isLive ? "Listening for logs..." : "No logs found"}
-              </div>
-            ) : (
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="border-b border-slate-100 bg-slate-50/30">
-                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">
-                      Timestamp
-                    </th>
-                    <th className="w-24 px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">
-                      Level
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">
-                      Message
-                    </th>
+      <div className="card-container overflow-hidden shadow-sm border border-slate-200 bg-white">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm border-collapse">
+            <thead className="bg-slate-50/50 border-b border-slate-100">
+              <tr>
+                <th className="w-12 px-4 py-4"></th>
+                <th className="px-4 py-4 font-bold text-slate-500 uppercase tracking-wider text-[11px]">Level</th>
+                <th className="px-4 py-4 font-bold text-slate-500 uppercase tracking-wider text-[10px]">Time</th>
+                <th className="px-4 py-4 font-bold text-slate-500 uppercase tracking-wider text-[11px]">Target</th>
+                <th className="px-4 py-4 font-bold text-slate-500 uppercase tracking-wider text-[11px]">Message</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {isLoading ? (
+                [1, 2, 3, 4, 5].map((i) => (
+                  <tr key={i} className="animate-pulse">
+                    <td colSpan={5} className="h-14 bg-slate-50/30"></td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {logs.map((log) => (
-                    <Fragment key={log.id}>
-                      <tr
-                        onClick={() =>
-                          setExpandedId(expandedId === log.id ? null : log.id)
-                        }
-                        className={`group cursor-pointer select-none transition-colors hover:bg-slate-50/80 ${
-                          expandedId === log.id ? "bg-ocean-50/50" : ""
-                        }`}
-                      >
-                        <td className="whitespace-nowrap px-6 py-3 font-mono text-xs text-text-muted">
-                          {log.timestamp}
-                        </td>
-                        <td className="px-6 py-3">
-                          <span className={getLevelBadgeClass(log.level)}>
-                            {log.level}
-                          </span>
-                        </td>
-                        <td className="px-6 py-3 font-mono text-sm text-text-main group-hover:text-ocean-600">
-                          {log.message}
+                ))
+              ) : logs.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-20 text-center text-slate-400">
+                    No logs found matching your criteria.
+                  </td>
+                </tr>
+              ) : (
+                logs.map((log) => (
+                  <Fragment key={log.id}>
+                    <tr
+                      className={`group cursor-pointer transition-colors hover:bg-slate-50/50 ${
+                        expandedId === log.id ? "bg-slate-50 shadow-inner" : ""
+                      }`}
+                      onClick={() =>
+                        setExpandedId(expandedId === log.id ? null : log.id)
+                      }
+                    >
+                      <td className="px-4 py-4">
+                        {expandedId === log.id ? (
+                          <ChevronDown className="h-4.5 w-4.5 text-slate-400 mx-auto" />
+                        ) : (
+                          <ChevronRight className="h-4.5 w-4.5 text-slate-400 group-hover:text-ocean-500 mx-auto transition-transform" />
+                        )}
+                      </td>
+                      <td>
+                        <span className={`badge text-[11px] uppercase font-bold tracking-tight px-3 py-1 ${getLevelBadgeClass(log.level)}`}>
+                          {log.level}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 text-slate-400 font-mono text-xs whitespace-nowrap">
+                        {log.timestamp.split('T')[1].split('.')[0]}
+                      </td>
+                      <td className="px-4 py-4">
+                        <span className="rounded-md bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-600 border border-slate-200/60 uppercase tracking-wide">
+                          {log.target}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 text-slate-900 text-sm font-semibold truncate max-w-xl">
+                        {log.message}
+                      </td>
+                    </tr>
+                    {expandedId === log.id && (
+                      <tr className="bg-slate-50/80 border-y border-slate-200/50">
+                        <td colSpan={5} className="px-16 py-6">
+                          <div className="space-y-6">
+                             {log.fields && Object.keys(log.fields).length > 0 ? (
+                               <div>
+                                  <h4 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-3">Structured Metadata</h4>
+                                  <div className="rounded-xl bg-slate-900 border border-slate-800 p-5 shadow-lg">
+                                     <pre className="text-xs text-slate-300 font-mono whitespace-pre-wrap overflow-x-auto">
+                                       {formatFieldsJson(log.fields)}
+                                     </pre>
+                                  </div>
+                               </div>
+                             ) : (
+                               <div className="py-4 text-center text-slate-400 text-xs font-medium">
+                                 No additional metadata for this entry.
+                               </div>
+                             )}
+                             <div className="text-[11px] text-slate-400 font-mono border-t border-slate-200 pt-4">
+                                Full Precision Timestamp: {log.timestamp}
+                             </div>
+                          </div>
                         </td>
                       </tr>
-                      {expandedId === log.id && (
-                        <tr className="bg-slate-50/30">
-                          <td colSpan={3} className="px-6 py-4">
-                            <div
-                              className="animate-in fade-in slide-in-from-top-1 select-none space-y-3 duration-200"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
-                                <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono">
-                                  {log.target}
-                                </span>
-                              </div>
-                              {(log.fields || "{}") !== "{}" && (
-                                <div className="overflow-hidden rounded-xl bg-slate-900 shadow-lg">
-                                  <div className="border-b border-slate-800 bg-slate-800/50 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">
-                                    Fields
-                                  </div>
-                                  <pre className="overflow-x-auto p-4 font-mono text-xs leading-relaxed text-slate-300">
-                                    {formatFieldsJson(log.fields || "{}")}
-                                  </pre>
-                                </div>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </Fragment>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-
-          {!isLive && logs.length > 0 && (
-            <div className="flex items-center justify-between border-t border-slate-100 px-6 py-4 bg-white/50">
-              <span className="text-xs font-medium text-slate-500">
-                Page <span className="text-slate-900">{query.page}</span>
-              </span>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setQuery({ page: Math.max(1, query.page - 1) })}
-                  disabled={query.page <= 1 || isLoading}
-                  className="btn-ghost-sm"
-                >
-                  Previous
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setQuery({ page: query.page + 1 })}
-                  disabled={logs.length < PER_PAGE || isLoading}
-                  className="btn-ghost-sm"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          )}
-
-          {isLive && (
-            <div className="border-t border-slate-100 px-6 py-3 bg-emerald-50/30">
-              <div className="flex items-center gap-2 text-xs font-medium text-emerald-700">
-                <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
-                </span>
-                Live stream · {logs.length} logs buffered
-              </div>
-            </div>
-          )}
+                    )}
+                  </Fragment>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
+        
+        {!isLive && !isLoading && logs.length > 0 && (
+          <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50/30 px-6 py-4">
+            <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">
+              Page {query.page}
+            </span>
+            <div className="flex gap-3">
+              <button
+                disabled={query.page <= 1}
+                onClick={() => setQuery({ page: query.page - 1 })}
+                className="btn-ghost-sm h-9 px-4 font-bold uppercase tracking-tight"
+              >
+                Previous
+              </button>
+              <button
+                disabled={logs.length < PER_PAGE}
+                onClick={() => setQuery({ page: query.page + 1 })}
+                className="btn-ghost-sm h-9 px-4 font-bold uppercase tracking-tight"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
-  );
-}
-
-export default function LogsPage() {
-  return (
-    <Suspense fallback={<div className="animate-pulse bg-slate-100 h-96 rounded-xl" />}>
-      <LogsContent />
-    </Suspense>
   );
 }

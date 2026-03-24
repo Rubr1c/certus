@@ -1,5 +1,3 @@
-/** Mirrors gateway/src/db/models/log.rs */
-
 export interface LogEntry {
   id: number
   timestamp: string

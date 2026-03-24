@@ -9,4 +9,3 @@ export const configApi = {
     body: config,
   })
 }
-

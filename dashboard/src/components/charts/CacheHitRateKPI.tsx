@@ -13,7 +13,6 @@ export function CacheHitRateKPI() {
     queryFn: () => api.metrics.cache.aggregate(queryParams),
   });
 
-  // Calculate the global hit rate for the selected time period
   const total = data.reduce((acc, curr) => acc + curr.total, 0);
   const hits = data.reduce((acc, curr) => acc + curr.hits, 0);
   
@@ -26,7 +25,7 @@ export function CacheHitRateKPI() {
       description="Global hit rate for the selected period"
       isLoading={isLoading}
       error={error}
-      height={150} // Smaller height for a KPI card
+      height={150} 
     >
       <div className="flex h-full flex-col items-center justify-center pt-4">
         <div className="text-5xl font-bold text-ocean-600 font-mono tracking-tight">
