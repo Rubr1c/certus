@@ -1,6 +1,12 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, startTransition } from "react";
 
-const WS_BASE = "ws://localhost:8080/_certus/api/v1/ws";
+function wsBaseUrl(): string {
+  if (typeof window === "undefined") {
+    return "ws://127.0.0.1:8080/_certus/api/v1/ws";
+  }
+  const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+  return `${proto}//${window.location.host}/_certus/api/v1/ws`;
+}
 
 export type WSStatus = "connecting" | "open" | "error" | "closed";
 
@@ -10,12 +16,13 @@ export function useWS<T>(url: string, enabled?: boolean, limit = 100) {
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const mountedRef = useRef(true);
+  const connectRef = useRef<(() => void) | undefined>(undefined);
 
   const connect = useCallback(() => {
     if (!enabled || !mountedRef.current) return;
 
     setStatus("connecting");
-    const sock = new WebSocket(`${WS_BASE}/${url}`);
+    const sock = new WebSocket(`${wsBaseUrl()}/${url}`);
     socketRef.current = sock;
 
     sock.onopen = () => {
@@ -43,16 +50,22 @@ export function useWS<T>(url: string, enabled?: boolean, limit = 100) {
       if (mountedRef.current) {
         setStatus("closed");
         reconnectTimeoutRef.current = setTimeout(() => {
-          connect();
+          connectRef.current?.();
         }, 3000);
       }
     };
   }, [url, enabled, limit]);
 
   useEffect(() => {
+    connectRef.current = connect;
+  }, [connect]);
+
+  useEffect(() => {
     mountedRef.current = true;
     if (enabled) {
-      setData([]);
+      startTransition(() => setData([]));
+      // WebSocket `connect` updates `status`/`data`; must run when `enabled` flips.
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional subscription on toggle
       connect();
     }
 

@@ -6,6 +6,7 @@ const nextConfig: NextConfig = {
     root: path.resolve(process.cwd(), '..'),
   },
   output: 'export',
+  basePath: '/_certus',
 }
 
 export default nextConfig

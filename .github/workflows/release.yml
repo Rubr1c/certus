@@ -87,6 +87,14 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Build dashboard (static export for embed)
+        run: bun install && bun run build
+        working-directory: dashboard
+
       - name: Build gateway
         run: cargo build --release --target ${{ matrix.target }} -p gateway
 

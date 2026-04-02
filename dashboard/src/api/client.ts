@@ -1,6 +1,7 @@
 import { type HttpMethod } from "@/lib/types"
 
-const BASE_URL = "http://localhost:8080/_certus/api/v1"
+/** Same-origin API (embedded via gateway `/_certus`). */
+const BASE_URL = "/_certus/api/v1"
 
 interface RequestProps<TBody, TQuery> {
   path: string
@@ -9,9 +10,7 @@ interface RequestProps<TBody, TQuery> {
   query?: TQuery
 }
 
-type Query = Record<string, string | number | boolean | null | undefined>;
-
-function toSearchParams(query: Query): URLSearchParams {
+function toSearchParams(query: object): URLSearchParams {
   const params = new URLSearchParams()
   for (const [k, v] of Object.entries(query)) {
     if (v !== undefined && v !== null) {
@@ -24,7 +23,7 @@ function toSearchParams(query: Query): URLSearchParams {
 export async function request<
   TResponse,
   TBody = undefined,
-  TQuery extends Record<string, any> = Record<string, any>
+  TQuery extends object = object
 >(
   props: RequestProps<TBody, TQuery>
 ): Promise<TResponse> {
