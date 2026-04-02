@@ -31,14 +31,19 @@ interface ConfigInputProps {
   icon?: LucideIcon;
   placeholder?: string;
   className?: string;
+  /** Short helper under the label (not shown on the input). */
+  description?: string;
 }
 
-export function ConfigInput({ label, value, onChange, type = "text", icon: Icon, placeholder, className }: ConfigInputProps) {
+export function ConfigInput({ label, value, onChange, type = "text", icon: Icon, placeholder, className, description }: ConfigInputProps) {
   return (
     <div className={className}>
       <label className="block text-sm font-medium text-text-muted mb-2">
         {label}
       </label>
+      {description ? (
+        <p className="text-xs text-text-muted mb-2 -mt-1">{description}</p>
+      ) : null}
       <div className="relative">
         {Icon && <Icon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />}
         <input 

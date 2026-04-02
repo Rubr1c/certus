@@ -1,6 +1,5 @@
 "use client";
 
-import { LogLevel } from "@/lib/log";
 import { Search, Filter, Trash2, Wifi, WifiOff } from "lucide-react";
 import { LOG_LEVELS } from "@/lib/log/utils";
 import { LiveSwitch } from "@/components/LiveSwitch";
