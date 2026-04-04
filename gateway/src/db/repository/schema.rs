@@ -59,3 +59,32 @@ pub fn get(
 
     rows.collect()
 }
+
+/// Reads the most recent rows (newest first) for AI documentation prompts.
+#[inline(always)]
+pub fn get_recent(
+    conn: &rusqlite::Connection,
+    limit: u32,
+) -> rusqlite::Result<Vec<ReqResSchema>> {
+    let mut stmt = conn.prepare(
+        "SELECT full_path, method, query_params, status_code, has_auth, req_headers, res_headers, body_schema
+         FROM req_res_schemas
+         ORDER BY id DESC
+         LIMIT ?1",
+    )?;
+
+    let rows = stmt.query_map(rusqlite::params![limit], |row| {
+        Ok(ReqResSchema {
+            full_path: row.get(0)?,
+            method: row.get(1)?,
+            query_params: row.get(2)?,
+            status_code: row.get(3)?,
+            has_auth: row.get(4)?,
+            req_headers: row.get(5)?,
+            res_headers: row.get(6)?,
+            body_schema: row.get(7)?,
+        })
+    })?;
+
+    rows.collect()
+}

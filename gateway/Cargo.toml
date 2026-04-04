@@ -47,6 +47,7 @@ bb8 = "0.9.1"
 bb8-redis = "0.26.0"
 rust-embed = "8.11.0"
 mime_guess = "2.0.5"
+reqwest = { version = "0.13.2", default-features = false, features = ["json", "query", "rustls"] }
 
 [dev-dependencies]
 criterion = { version = "0.8.1", features = ["async_tokio"] }

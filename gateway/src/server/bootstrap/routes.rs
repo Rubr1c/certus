@@ -3,7 +3,7 @@ use std::sync::Arc;
 use axum::routing::{get, post};
 
 use crate::{
-    controllers::{args, config, log, metrics, route, schema},
+    controllers::{args, config, docs, log, metrics, route, schema},
     middleware::load_balance,
     server::state::app_state::AppState,
 };
@@ -13,6 +13,7 @@ pub fn run() -> axum::Router<Arc<AppState>> {
     axum::Router::new()
         .route("/idle", post(load_balance::idle_queue::set_idle))
         .route("/schemas", get(schema::get))
+        .route("/docs/generate", post(docs::generate))
         .route("/logs", get(log::get))
         .route("/metrics/requests", get(metrics::request::get))
         .route("/metrics/cache", get(metrics::cache::get))
