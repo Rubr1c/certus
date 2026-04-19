@@ -2,8 +2,15 @@
 
 import { api } from "@/api";
 import type { EndpointDoc, GeneratedApiDocs } from "@/lib/docs/types";
-import { BookOpen, Loader2, Sparkles } from "lucide-react";
-import { useCallback, useState } from "react";
+import {
+  BookOpen,
+  CircleCheckBig,
+  FileText,
+  Loader2,
+  Sparkles,
+  TriangleAlert,
+} from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
 import type { Components } from "react-markdown";
@@ -77,28 +84,104 @@ function MethodBadge({ method }: { method: string }) {
   );
 }
 
-function EndpointCard({ ep }: { ep: EndpointDoc }) {
+function ObservationList({
+  title,
+  items,
+  empty,
+  icon,
+}: {
+  title: string;
+  items: string[];
+  empty: string;
+  icon: React.ReactNode;
+}) {
   return (
-    <article className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="flex flex-wrap items-center gap-2 gap-y-2">
+    <section className="rounded-xl border border-slate-200 bg-white p-4">
+      <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
+        {icon}
+        {title}
+      </h3>
+      {items.length === 0 ? (
+        <p className="mt-3 text-sm leading-relaxed text-slate-500">{empty}</p>
+      ) : (
+        <ul className="mt-3 space-y-2 text-sm text-slate-700">
+          {items.map((item, idx) => (
+            <li key={`${title}-${idx}`} className="flex gap-2 leading-relaxed">
+              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-ocean-500" />
+              <span>{item}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function EndpointCard({ ep }: { ep: EndpointDoc }) {
+  const hasMarkdown = ep.markdown.trim().length > 0;
+
+  return (
+    <article className="rounded-2xl border border-slate-200 bg-gradient-to-b from-white to-slate-50/40 p-6 shadow-sm">
+      <div className="flex flex-wrap items-start gap-2 gap-y-2">
         <MethodBadge method={ep.method} />
-        <span className="font-mono text-sm font-medium text-slate-900">
+        <span className="break-all font-mono text-sm font-medium text-slate-900">
           {ep.path}
         </span>
         <span className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-xs text-slate-600">
           {ep.status_code}
         </span>
       </div>
+
       <h2 className="mt-4 text-lg font-semibold text-slate-900">{ep.title}</h2>
-      <p className="mt-1 text-sm text-slate-600">{ep.summary}</p>
-      <div className="mt-4 border-t border-slate-100 pt-4">
-        <ReactMarkdown components={markdownComponents}>{ep.markdown}</ReactMarkdown>
+
+      {ep.summary.trim().length > 0 ? (
+        <p className="mt-2 text-sm leading-relaxed text-slate-700">{ep.summary}</p>
+      ) : null}
+
+      <div className="mt-5 grid gap-4 lg:grid-cols-2">
+        <ObservationList
+          title="Observed Request"
+          items={ep.observed_request}
+          empty="No request-level details were confidently observed in the captured rows."
+          icon={<FileText className="h-3.5 w-3.5 text-ocean-500" aria-hidden />}
+        />
+
+        <ObservationList
+          title="Observed Response"
+          items={ep.observed_response}
+          empty="No response body details were captured for this endpoint in the sampled traffic."
+          icon={<CircleCheckBig className="h-3.5 w-3.5 text-emerald-500" aria-hidden />}
+        />
       </div>
-      {ep.limitations.trim().length > 0 ? (
-        <p className="mt-4 rounded-lg border border-amber-100 bg-amber-50/80 px-3 py-2 text-xs leading-relaxed text-amber-900">
-          <span className="font-semibold">Limitations: </span>
-          {ep.limitations}
-        </p>
+
+      {ep.limitations.length > 0 ? (
+        <section className="mt-4 rounded-xl border border-amber-100 bg-amber-50/80 p-4">
+          <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-900">
+            <TriangleAlert className="h-3.5 w-3.5" aria-hidden />
+            Limitations
+          </h3>
+          <ul className="mt-3 space-y-2 text-sm leading-relaxed text-amber-900">
+            {ep.limitations.map((item, idx) => (
+              <li key={`limitation-${idx}`} className="flex gap-2">
+                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-700" />
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {hasMarkdown ? (
+        <details className="mt-5 rounded-xl border border-slate-200 bg-white">
+          <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+            Legacy Markdown Notes
+          </summary>
+          <div className="border-t border-slate-100 px-4 pb-4 pt-3">
+            <ReactMarkdown components={markdownComponents}>
+              {ep.markdown}
+            </ReactMarkdown>
+          </div>
+        </details>
       ) : null}
     </article>
   );
@@ -107,6 +190,32 @@ function EndpointCard({ ep }: { ep: EndpointDoc }) {
 export default function DocsPage() {
   const [docs, setDocs] = useState<GeneratedApiDocs | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadLatest() {
+      try {
+        const latest = await api.docs.latest();
+        if (!mounted) {
+          return;
+        }
+        setDocs(latest);
+      } catch (e) {
+        if (!mounted) {
+          return;
+        }
+        const message = e instanceof Error ? e.message : "Failed to load docs";
+        toast.error(message);
+      }
+    }
+
+    loadLatest();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const handleGenerate = useCallback(async () => {
     setLoading(true);
@@ -153,7 +262,7 @@ export default function DocsPage() {
       </div>
 
       {!docs ? (
-        <div className="flex h-64 flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white text-slate-400">
+        <div className="flex h-64 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-gradient-to-b from-white to-slate-50 text-slate-400">
           <BookOpen className="mb-2 h-10 w-10 text-slate-300" aria-hidden />
           <p className="text-sm font-medium text-slate-500">
             Click Generate to build documentation from stored schemas.
@@ -161,13 +270,34 @@ export default function DocsPage() {
         </div>
       ) : (
         <div className="space-y-8">
-          <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-bold text-slate-900">{docs.title}</h2>
-            <div className="mt-3 text-sm leading-relaxed text-slate-700">
-              <ReactMarkdown components={markdownComponents}>
-                {docs.introduction}
-              </ReactMarkdown>
-            </div>
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="text-xl font-bold text-slate-900 break-words">
+              {docs.title}
+            </h2>
+
+            {docs.introduction.trim().length > 0 ? (
+              <div className="mt-3 text-sm leading-relaxed text-slate-700">
+                <ReactMarkdown components={markdownComponents}>
+                  {docs.introduction}
+                </ReactMarkdown>
+              </div>
+            ) : null}
+
+            {docs.highlights.length > 0 ? (
+              <div className="mt-5 rounded-xl border border-ocean-100 bg-ocean-50/60 p-4">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-ocean-800">
+                  Run Highlights
+                </h3>
+                <ul className="mt-3 space-y-2 text-sm text-ocean-900">
+                  {docs.highlights.map((item, idx) => (
+                    <li key={`highlight-${idx}`} className="flex gap-2 leading-relaxed">
+                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-ocean-600" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </section>
 
           {docs.endpoints.length === 0 ? (

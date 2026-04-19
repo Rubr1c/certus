@@ -13,6 +13,7 @@ pub fn run() -> axum::Router<Arc<AppState>> {
     axum::Router::new()
         .route("/idle", post(load_balance::idle_queue::set_idle))
         .route("/schemas", get(schema::get))
+        .route("/docs", get(docs::latest))
         .route("/docs/generate", post(docs::generate))
         .route("/logs", get(log::get))
         .route("/metrics/requests", get(metrics::request::get))
