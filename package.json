@@ -5,8 +5,10 @@
     "dev:dashboard": "bun run --cwd dashboard dev",
     "format:rs": "cargo fmt --all",
     "dev:config": "cargo run -p gateway -- -c examples/dev.certus.config.yaml --ws logs",
+    "dev:config:test": "cargo run -p gateway -- -c examples/test.certus.config.yaml --ws logs,metrics",
     "dev:servers": "bun run --cwd test dev --http1 3100,3101,3102,3105,3106 --http2 3103,3104 --https1 3107,3108 --https2 3109,3110 --jiq 3105,3106",
-    "dev:test": "bun dev:config & bun dev:servers & wait",
+    "dev:test": "bun dev:config:test & bun dev:servers & wait",
+    "dev:seed": "bun run --cwd test seed",
     "dev": "bun dev:test & bun dev:dashboard & wait",
     "bench": "cargo bench -p gateway",
     "cloc": "cloc gateway dashboard/src"

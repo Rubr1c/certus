@@ -23,7 +23,7 @@ export function UpstreamLoadChart() {
   });
 
   const chartData = data
-    .filter(d => d.key !== "None") 
+    .filter((d) => d.key.trim().toLowerCase() !== "none")
     .map((d) => ({
       name: d.key,
       value: d.count,

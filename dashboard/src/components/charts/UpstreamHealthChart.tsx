@@ -10,6 +10,7 @@ import {
   Tooltip,
   ResponsiveContainer,
   Cell,
+  LabelList,
 } from "recharts";
 import { api } from "@/api";
 import { ChartCard } from "./ChartCard";
@@ -25,10 +26,15 @@ export function UpstreamHealthChart() {
   });
 
   const chartData = data
-    .filter(d => d.key !== "None") 
+    .filter((d) => d.key.trim().toLowerCase() !== "none")
     .map((d) => ({
       name: d.key,
-      avg_upstream_ms: Number(d.avg_upstream_ms.toFixed(2)),
+      avg_upstream_ms_raw: Number(d.avg_upstream_ms.toFixed(2)),
+      avg_upstream_ms: d.avg_upstream_ms > 0 && d.avg_upstream_ms < 1 ? 0.4 : Number(d.avg_upstream_ms.toFixed(2)),
+      avg_upstream_label:
+        d.avg_upstream_ms > 0 && d.avg_upstream_ms < 1
+          ? "<1 ms"
+          : `${Number(d.avg_upstream_ms.toFixed(2))} ms`,
     }));
 
   return (
@@ -59,10 +65,14 @@ export function UpstreamHealthChart() {
           <Tooltip
             {...defaultTooltip}
             cursor={{ fill: chartColors.slateLight, opacity: 0.4 }}
-            formatter={(value: number | string | ReadonlyArray<number | string> | undefined) => [
-              `${value || 0} ms`,
-              "Avg Latency",
-            ]}
+            formatter={(
+              _value: number | string | ReadonlyArray<number | string> | undefined,
+              _name,
+              item,
+            ) => {
+              const payload = item?.payload as { avg_upstream_label?: string } | undefined;
+              return [payload?.avg_upstream_label ?? "0 ms", "Avg Latency"];
+            }}
             labelFormatter={() => ""} 
           />
           <Bar
@@ -70,9 +80,16 @@ export function UpstreamHealthChart() {
             name="Latency"
             radius={[0, 4, 4, 0]}
             barSize={24}
+            minPointSize={3}
           >
+            <LabelList
+              dataKey="avg_upstream_label"
+              position="right"
+              fill={chartColors.slate}
+              fontSize={11}
+            />
             {chartData.map((entry, index) => {
-              const isSlowest = chartData.length > 1 && entry.avg_upstream_ms === Math.max(...chartData.map(d => d.avg_upstream_ms));
+              const isSlowest = chartData.length > 1 && entry.avg_upstream_ms_raw === Math.max(...chartData.map((d) => d.avg_upstream_ms_raw));
               return (
                 <Cell 
                   key={`cell-${index}`} 

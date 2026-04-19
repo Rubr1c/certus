@@ -1,0 +1,83 @@
+server:
+  port: 8080
+
+default_server: "127.0.0.1:3100"
+
+auth:
+  method:
+    !jwt
+      secret: "test-seed-jwt-secret"
+      algorithm: "HS256"
+  prefix: "Bearer"
+
+rate_limit:
+  max_tokens: 12
+  refill_rate: 2
+  key: !header "X-Seed-Key"
+  type: !in_memory
+
+connection:
+  connect_timeout: 2
+
+cache:
+  size: 500
+  ttl: 90
+  tti: 20
+  max_size: 32768
+  type: !in_memory
+  static:
+    type: !in_memory
+
+routes:
+  /api/users:
+    endpoints: ["127.0.0.1:3101", "127.0.0.1:3102"]
+    token_weight: 1
+
+  /api/http2/items:
+    endpoints: ["127.0.0.1:3103", "127.0.0.1:3104"]
+    http_version: HTTP2
+    token_weight: 1
+
+  /api/static:
+    endpoints: ["127.0.0.1:3104"]
+    is_static: true
+    http_version: HTTP2
+    max_connections: 5
+
+  /api/public/text:
+    endpoints: ["127.0.0.1:3101", "127.0.0.1:3102"]
+    no_cache: true
+    token_weight: 0
+
+  /api/private/profile:
+    endpoints: ["127.0.0.1:3101", "127.0.0.1:3102"]
+    needs_auth: true
+    token_weight: 1
+
+  /api/private/nocache:
+    endpoints: ["127.0.0.1:3105", "127.0.0.1:3106"]
+    needs_auth: true
+    no_cache: true
+    token_weight: 2
+
+  /api/limited:
+    endpoints: ["127.0.0.1:3105", "127.0.0.1:3106"]
+    token_weight: 5
+    no_cache: true
+
+  /api/overload:
+    endpoints: ["127.0.0.1:3105", "127.0.0.1:3106"]
+    max_connections: 1
+    no_cache: true
+    token_weight: 1
+
+  /api/https1:
+    endpoints: ["https://127.0.0.1:3107", "https://127.0.0.1:3108"]
+    token_weight: 0
+    no_cache: true
+
+  /api/https2:
+    endpoints: ["https://127.0.0.1:3109", "https://127.0.0.1:3110"]
+    http_version: HTTP2
+    token_weight: 0
+    no_cache: true
