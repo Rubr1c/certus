@@ -37,7 +37,7 @@ pub async fn get(
     let config = state.config.load();
     let table = state.routing_table.load();
 
-    tracing::debug!(
+    tracing::trace!(
         configured_route_count = config.routes.len(),
         active_upstream_count = table.routes.len(),
         "Serving route state snapshot"
@@ -79,7 +79,7 @@ pub async fn all(
     axum::extract::State(state): axum::extract::State<Arc<app_state::AppState>>,
 ) -> impl IntoResponse {
     let table = state.routing_table.load();
-    tracing::debug!(
+    tracing::trace!(
         upstream_count = table.routes.len(),
         "Running health checks for all upstreams"
     );
@@ -110,10 +110,10 @@ pub async fn one(
         return Err(axum::http::StatusCode::NOT_FOUND);
     };
 
-    tracing::debug!(upstream = %addr, "Running health check for upstream");
+    tracing::trace!(upstream = %addr, "Running health check for upstream");
     let ok = health::health_ok(upstream).await;
 
-    tracing::debug!(upstream = %addr, healthy = ok, "Completed upstream health check");
+    tracing::trace!(upstream = %addr, healthy = ok, "Completed upstream health check");
 
     Ok(axum::Json(UpstreamHealth { address: addr, healthy: ok }))
 }

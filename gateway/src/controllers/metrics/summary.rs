@@ -22,7 +22,7 @@ pub async fn get(
             .into_response();
     }
 
-    tracing::debug!(
+    tracing::trace!(
         from = ?filters.from,
         to = ?filters.to,
         group_by = group,

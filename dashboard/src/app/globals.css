@@ -1,1 +1,72 @@
-@import 'tailwindcss';
+@import "tailwindcss";
+
+@theme {
+  --color-background: #f8fafc;
+  --color-surface: #ffffff;
+  --color-ocean-50: #f0f9ff;
+  --color-ocean-100: #e0f2fe;
+  --color-ocean-500: #0ea5e9;
+  --color-ocean-600: #0284c7;
+  --color-text-main: #0f172a;
+  --color-text-muted: #64748b;
+  --color-status-success: #10b981;
+  --color-status-warning: #f59e0b;
+  --color-status-error: #ef4444;
+
+  --color-badge-error-bg: #fef2f2;
+  --color-badge-error-text: #dc2626;
+  --color-badge-warn-bg: #fffbeb;
+  --color-badge-warn-text: #d97706;
+  --color-badge-info-bg: #ecfdf5;
+  --color-badge-info-text: #059669;
+  --color-badge-neutral-bg: #f1f5f9;
+  --color-badge-neutral-text: #64748b;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-mono), ui-monospace, "JetBrains Mono", monospace;
+
+  --shadow-soft: 0 4px 20px -2px rgba(0, 0, 0, 0.04);
+  --shadow-soft-lg: 0 10px 30px -3px rgba(0, 0, 0, 0.06);
+}
+@layer components {
+  .badge {
+    @apply rounded-full border px-2.5 py-0.5 text-xs font-medium;
+  }
+
+  .badge-error {
+    background-color: var(--color-badge-error-bg);
+    color: var(--color-badge-error-text);
+    border-color: #fecaca;
+  }
+  .badge-warn {
+    background-color: var(--color-badge-warn-bg);
+    color: var(--color-badge-warn-text);
+    border-color: #fde68a;
+  }
+  .badge-info {
+    background-color: var(--color-badge-info-bg);
+    color: var(--color-badge-info-text);
+    border-color: #a7f3d0;
+  }
+  .badge-neutral {
+    background-color: var(--color-badge-neutral-bg);
+    color: var(--color-badge-neutral-text);
+    border-color: #e2e8f0;
+  }
+}
+
+@utility input-base {
+  @apply h-10 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-text-main transition-all placeholder:text-text-muted hover:border-slate-300 focus:border-ocean-500 focus:outline-none focus:ring-1 focus:ring-ocean-500 disabled:opacity-50;
+}
+
+@utility card-container {
+  @apply overflow-hidden rounded-2xl border border-slate-100 bg-surface shadow-soft;
+}
+
+@utility btn-ghost {
+  @apply inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-600 transition-all hover:bg-slate-50 hover:text-slate-900 active:bg-slate-100 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40;
+}
+
+@utility btn-ghost-sm {
+  @apply inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-3 h-8 text-xs font-semibold text-slate-600 transition-all hover:bg-slate-50 hover:text-slate-900 active:bg-slate-100 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40;
+}

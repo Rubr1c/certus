@@ -13,7 +13,7 @@ pub async fn get(
     axum::extract::State(state): axum::extract::State<Arc<app_state::AppState>>,
 ) -> impl IntoResponse {
     let config = state.config.load();
-    tracing::debug!(
+    tracing::trace!(
         route_count = config.routes.len(),
         "Serving config snapshot"
     );
