@@ -9,5 +9,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Build dashboard (static export for embed)
+        run: bun install && bun run build
+        working-directory: dashboard
       - run: cargo test
         working-directory: gateway

@@ -17,7 +17,7 @@ pub async fn get(
     axum::extract::Query(filters): axum::extract::Query<RequestMetricQuery>,
 ) -> impl IntoResponse {
     let ip_str = filters.ip.map(|ip| ip.to_string());
-    tracing::debug!(
+    tracing::trace!(
         page = pagination.page,
         per_page = pagination.per_page,
         from = ?filters.from,
@@ -72,7 +72,7 @@ pub async fn agg(
         }
     };
 
-    tracing::debug!(
+    tracing::trace!(
         from = ?filters.from,
         to = ?filters.to,
         route = ?filters.route,

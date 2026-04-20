@@ -1,6 +1,6 @@
 [package]
 name = "gateway"
-version = "0.1.0-alpha.2"
+version = "1.0.0-alpha.1"
 edition = "2024"
 
 [[bin]]
@@ -45,6 +45,9 @@ tracing-subscriber = { version = "0.3.20", features = ["env-filter", "json"] }
 redis = { version = "1.0.4", features = ["tokio-comp"] }
 bb8 = "0.9.1"
 bb8-redis = "0.26.0"
+rust-embed = "8.11.0"
+mime_guess = "2.0.5"
+reqwest = { version = "0.13.2", default-features = false, features = ["json", "query", "rustls"] }
 
 [dev-dependencies]
 criterion = { version = "0.8.1", features = ["async_tokio"] }

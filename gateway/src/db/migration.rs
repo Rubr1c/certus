@@ -55,6 +55,11 @@ pub fn migrate(conn: &rusqlite::Connection) -> rusqlite::Result<()> {
             res_headers TEXT NOT NULL,
             body_schema TEXT
         )",
+        "CREATE TABLE IF NOT EXISTS generated_api_docs (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            docs_json TEXT NOT NULL,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )",
         "CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON logs (timestamp)",
         "CREATE INDEX IF NOT EXISTS idx_request_metrics_timestamp ON request_metrics (timestamp)",
         "CREATE INDEX IF NOT EXISTS idx_cache_metrics_timestamp ON cache_metrics (timestamp)",

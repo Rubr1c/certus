@@ -1,10 +1,22 @@
+use axum::http::{Method, header};
 use tower_http::cors::{self, CorsLayer};
 
 #[inline(always)]
 pub fn setup(mut app: axum::Router, origins: Vec<String>) -> axum::Router {
-    app = if origins.is_empty() {
+    let mut cors = CorsLayer::new()
+        .allow_methods([
+            Method::GET,
+            Method::POST,
+            Method::PUT,
+            Method::DELETE,
+            Method::PATCH,
+            Method::OPTIONS,
+        ])
+        .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION]);
+
+    cors = if origins.is_empty() {
         tracing::warn!("No cors set allowing from all origins");
-        app.layer(CorsLayer::new().allow_origin(cors::Any))
+        cors.allow_origin(cors::Any)
     } else {
         tracing::info!(
             origin_count = origins.len(),
@@ -15,8 +27,8 @@ pub fn setup(mut app: axum::Router, origins: Vec<String>) -> axum::Router {
             .map(|ip| ip.parse().expect("Invalid Origin IP"))
             .collect();
 
-        app.layer(CorsLayer::new().allow_origin(parsed_origins))
+        cors.allow_origin(parsed_origins)
     };
 
-    app
+    app.layer(cors)
 }
