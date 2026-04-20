@@ -83,6 +83,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install dashboard dependencies
+        run: bun install --cwd dashboard --frozen-lockfile
+
+      - name: Build dashboard
+        run: bun run --cwd dashboard build
+
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
