@@ -3,7 +3,8 @@
   "private": true,
   "scripts": {
     "dev": "bun src/index.ts",
-    "seed": "bun src/seed.ts"
+    "seed": "bun src/seed.ts",
+    "bench": "bun src/bench.ts"
   },
   "devDependencies": {
     "@types/bun": "latest"
