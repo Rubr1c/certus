@@ -1,6 +1,6 @@
 //! Snapshot-style checks so the dashboard TypeScript types stay aligned with serde JSON.
 
-use gateway::config::{
+use crate::config::{
     AuthConfig, AuthType, CacheConfig, Config, RateLimitConfig, RateLimitKey,
     StaticCacheConfig, StorageType,
 };

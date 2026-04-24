@@ -15,6 +15,7 @@ pub mod pipeline;
 pub mod rate_limit;
 pub mod reload;
 pub mod router;
+pub mod serde_config_tags;
 
 fn create_addrs(count: i32) -> Vec<String> {
     let mut addrs = Vec::<String>::new();
